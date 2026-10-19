@@ -1,2 +1,4 @@
-// Grade scales and rasch_lite fitting land here in Phase 3.
-export {};
+// Grade scale helpers. rasch_lite fitting arrives in Phase 3.
+
+export * from './builtin_schemes';
+export * from './custom_schemes';

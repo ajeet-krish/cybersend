@@ -1,2 +1,3 @@
-// Outcome rules (flash, send, project, fail) land here in Phase 1.
-export {};
+// Attempt outcome rules. Phase 2 adds the fall analysis helpers.
+
+export * from './rules';

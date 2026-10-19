@@ -1,2 +1,3 @@
-// Session feature store (zustand) and hooks land here in Phase 1.
-export {};
+// Session feature store. Photo capture integration arrives in Phase 2.
+
+export * from './logbook_store';
