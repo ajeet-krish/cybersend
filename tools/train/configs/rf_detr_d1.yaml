@@ -1,0 +1,42 @@
+# CyberSend D1 baseline training config: RF-DETR-Nano on the merged dataset.
+#
+# WARNING: executing this config starts a multi-hour training run that writes
+# checkpoints of 500 MB and more. D1 runs require the user's explicit approval
+# before execution (see tools/train/README.md). This file is configuration
+# only; nothing here has been executed.
+#
+# Run with:  uv run hold-train-d1 --config configs/rf_detr_d1.yaml
+# Prerequisite: uv run hold-build (creates datasets/merged).
+
+run_id: rf_detr_d1
+description: >-
+  D1 baseline: RF-DETR-Nano fine-tuned from Apache-2.0 Roboflow pretrained
+  weights on the merged, deduplicated, single-class hold dataset.
+
+# Relative to tools/train. hold-train-d1 creates merged/valid as a symlink to
+# merged/val because RF-DETR's Roboflow-style loader expects the name "valid".
+dataset_dir: datasets/merged
+output_dir: artifacts/train_rf_detr_d1
+
+device: mps          # Apple Silicon MPS; use cpu only if MPS misbehaves
+seed: 20261019       # must match the hold-build split seed for provenance
+
+model:
+  resolution: 640    # shared preprocess contract, see docs/architecture.md
+
+# Every key here is a validated RF-DETR TrainConfig field (rfdetr 1.11.2).
+train:
+  epochs: 40
+  batch_size: 4      # 16 GB Apple Silicon ceiling; raise only with free RAM
+  lr: 0.0001
+  lr_encoder: 0.0001
+  weight_decay: 0.0001
+  num_workers: 2
+  eval_interval: 1
+  eval_ema_only: false
+  progress_bar: true
+  notes: >-
+    CyberSend D1 baseline on datasets/merged (climbtag v29 + blackcreed v14 +
+    pwals v18, pHash deduped, cluster 60/20/20, seed 20261019). Gate:
+    precision >= 0.85, recall >= 0.80, mAP50 >= 0.75 on the frozen test split
+    per docs/requirements.md section 6.

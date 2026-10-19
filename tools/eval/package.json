@@ -1,0 +1,26 @@
+{
+  "name": "cybersend-hold-eval",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Standalone Node harness that evaluates the self-trained CyberSend hold detector ONNX export on a frozen COCO test split",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "verify": "node src/verify_onnx.ts",
+    "eval": "node src/eval_hold.ts",
+    "eval:stub": "node src/run_stub_eval.ts",
+    "test": "node --test src/metrics.test.ts src/preprocess.test.ts src/eval_stub.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "jpeg-js": "^0.4.4",
+    "onnxruntime-node": "^1.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0"
+  }
+}

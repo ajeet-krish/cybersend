@@ -1,0 +1,326 @@
+{
+  "report_id": "smoke_eval",
+  "label": "SMOKE RUN, NOT A GATE EVALUATION",
+  "description": "Phase 0 pipeline spike: 3-epoch RF-DETR-Nano fine-tune on a small ClimbInst smoke subset (CC BY-NC-SA 4.0, license chain unclear). Numbers validate the tooling only and are expected to be far below the Phase 4 ship gates, which will be measured on the frozen self-collected eval set.",
+  "generated_at": "2026-10-19T20:12:33.995Z",
+  "model": {
+    "path": "../../train/artifacts/holds_detector_smoke.onnx",
+    "manifest": {
+      "id": "holds_detector_smoke",
+      "version": "0.1.0",
+      "created_at": "2026-10-19T19:59:54.171425+00:00",
+      "purpose": "Phase 0 training spike smoke test, not a shippable model",
+      "license": {
+        "model_license_id": "Apache-2.0",
+        "framework": "RF-DETR (roboflow/rf-detr)",
+        "framework_license_id": "Apache-2.0",
+        "framework_version": "1.11.2",
+        "torch_version": "2.14.1"
+      },
+      "dataset": {
+        "name": "climbinst_smoke",
+        "license_file": "datasets/climbinst_smoke/LICENSE",
+        "license_summary": "CC BY-NC-SA 4.0 (smoke test stand-in only, never shippable, never used for Phase 4 release training)",
+        "split_manifest": "datasets/climbinst_smoke/split_manifest.json",
+        "split_manifest_sha256": "727824f6761e3405803365375d705a9c693730591112662f21811fc54fac4e68"
+      },
+      "model": {
+        "architecture": "RF-DETR-Nano",
+        "num_parameters": 30540292,
+        "file_bytes": 109222362,
+        "sha256": "9b140c8cd41946f893c01d0a36300112c505a0f2057f2acf94717be31b38f56b",
+        "onnx_opset": 17
+      },
+      "checkpoint": {
+        "source_file": "/Users/ajeet/Projects/personal/cybersend/tools/train/artifacts/train_smoke/checkpoint_best_ema.pth",
+        "file_bytes": 122468963,
+        "sha256": "9751a81be2df175ac9d48d23a126b9e8944edcc650b8d6da45ac3e3d5e412e3a",
+        "epochs_configured": 3,
+        "selected_by": "best validation mAP across epochs (RF-DETR best checkpoint in the training output directory)",
+        "pretrained_init": "/Users/ajeet/.roboflow/models/rf-detr-nano.pth"
+      },
+      "input_spec": {
+        "name": "input",
+        "shape": "1x3x640x640",
+        "layout": "NCHW",
+        "color_space": "RGB",
+        "dtype": "float32",
+        "letterbox": {
+          "size": 640,
+          "pad_value": 114,
+          "alignment": "centered",
+          "resampling": "BICUBIC"
+        },
+        "normalization": {
+          "scale": "value / 255.0",
+          "mean": [
+            0.485,
+            0.456,
+            0.406
+          ],
+          "std": [
+            0.229,
+            0.224,
+            0.225
+          ]
+        },
+        "shared_implementation": "tools/eval/src/preprocess.ts"
+      },
+      "output_spec": {
+        "dets": {
+          "description": "normalized cxcywh boxes in the 640x640 letterboxed frame",
+          "observed_shape": [
+            1,
+            300,
+            4
+          ]
+        },
+        "labels": {
+          "description": "logits with num_classes + 1 channels; channel 0..num_classes-1 are the class logits (channel 0 = hold) and the trailing channel is no-object. Independent sigmoid, no softmax.",
+          "observed_shape": [
+            1,
+            300,
+            2
+          ],
+          "num_classes_configured": 1
+        }
+      },
+      "training_config": {
+        "script": "hold-train-smoke",
+        "variant": "RF-DETR-Nano",
+        "resolution": 640,
+        "note": "smoke run, see README.md for the full training recipe",
+        "config_file": "/Users/ajeet/Projects/personal/cybersend/tools/train/artifacts/train_smoke/training_config.json",
+        "epochs": 3,
+        "batch_size": 4,
+        "lr": 0.0001,
+        "lr_encoder": 0.00015,
+        "seed": 20261019,
+        "weight_decay": 0.0001,
+        "optimizer": "adamw",
+        "lr_scheduler": "step",
+        "num_workers": 2,
+        "num_classes": 1,
+        "class_names": [
+          "hold"
+        ],
+        "pretrained_checkpoint": "/Users/ajeet/.roboflow/models/rf-detr-nano.pth",
+        "encoder": "dinov2_windowed_small"
+      },
+      "build_host": {
+        "platform": "macOS-26.5.2-arm64-arm-64bit",
+        "machine": "arm64"
+      }
+    }
+  },
+  "dataset": {
+    "name": "climbinst_smoke",
+    "split": "test",
+    "frozen": true,
+    "images": 20,
+    "ground_truth_instances": 972,
+    "license": "CC BY-NC-SA 4.0 declared, license chain unclear, smoke test only (see tools/train/LICENSES.md)"
+  },
+  "method": {
+    "preprocess": "letterbox 640x640 pad 114 centered, RGB float32 NCHW, (v/255 - mean)/std ImageNet",
+    "nms": "none (DETR-style set prediction, raw per-query outputs)",
+    "score_floor_for_map": 0.0001,
+    "operating_confidence": 0.5,
+    "iou_threshold": 0.5,
+    "map_definition": "single-class AP at IoU 0.5, VOC 2010+ all-point interpolation over confidence-ranked detections",
+    "matching": "greedy highest-IoU, confidence descending, one GT claimed once"
+  },
+  "metrics": {
+    "precision_at_iou_0_5": 0,
+    "recall_at_iou_0_5": 0,
+    "map_at_iou_0_5": 0.1277,
+    "tp": 0,
+    "fp": 0,
+    "fn": 972,
+    "false_positives_per_image": 0,
+    "mean_center_error_px": 0,
+    "median_center_error_px": 0,
+    "median_abs_hold_count_error": 48.5,
+    "detections_above_score_floor": 6000
+  },
+  "timing": {
+    "mean_inference_ms": 163.74,
+    "median_inference_ms": 162.95,
+    "runtime": "onnxruntime-node CPUExecutionProvider on the training host, not an on-device measurement"
+  },
+  "phase_4_gate_reference": {
+    "note": "Targets from docs/requirements.md section 6, measured later on the frozen self-collected test split. This smoke report does not gate anything.",
+    "precision_min": 0.85,
+    "recall_min": 0.8,
+    "map_0_5_min": 0.75,
+    "median_abs_count_error_max": 1,
+    "false_positives_per_image_max": 0.5
+  },
+  "known_discrepancies": {
+    "trainer_metric_vs_harness_metric": {
+      "note": "RF-DETR's in-loop vernier evaluation logged a higher validation mAP@50 during training than this harness computes on the same validation split with standard single-class AP@0.5 semantics. Harness correctness was verified directly: the preprocess matches RF-DETR's Normalize transform exactly, the exported ONNX reproduces torch predict boxes and scores within a few pixels, and top-ranked detections land on ground truth holds (centers within a few pixels). The metric-pipeline difference is an open reconciliation item; see tools/train/README.md troubleshooting."
+    }
+  },
+  "per_image": [
+    {
+      "file_name": "images/20180120_092707ls_jpg.rf.jMEcEaujlxQjo7445bgr.jpg",
+      "gt": 67,
+      "detections": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 67
+    },
+    {
+      "file_name": "images/28wS6N2ct4MhTJtWq_jpg.rf.CFIksNtniNiKmgXT4Qek.jpg",
+      "gt": 24,
+      "detections": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 24
+    },
+    {
+      "file_name": "images/2EqDwGLQi4HbWz84d_jpg.rf.wpg62lBlssLqTTL1hWf9.jpg",
+      "gt": 36,
+      "detections": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 36
+    },
+    {
+      "file_name": "images/2FTCrLYPrrQ9pA2xs_jpg.rf.1iNz5JPGXzGhKH8eRVT3.jpg",
+      "gt": 17,
+      "detections": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 17
+    },
+    {
+      "file_name": "images/2LFZJmZJ8u9Rv8poj_jpg.rf.S7triR3hkDiHN9KgO8Ac.jpg",
+      "gt": 64,
+      "detections": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 64
+    },
+    {
+      "file_name": "images/2pKgLn6kzC2BJMehS_jpg.rf.y19xVwk4cG4opD2YWsyi.jpg",
+      "gt": 48,
+      "detections": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 48
+    },
+    {
+      "file_name": "images/2rsjv74gRt5dE6TwL_jpg.rf.UM2TUijOLGdQWdRCWLWK.jpg",
+      "gt": 32,
+      "detections": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 32
+    },
+    {
+      "file_name": "images/2sZ8Nn3CDS9EdA9J7_jpg.rf.M9s89bKtU1oBFHM2HZUQ.jpg",
+      "gt": 55,
+      "detections": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 55
+    },
+    {
+      "file_name": "images/2tTPiuDBfnHHweQAb_jpg.rf.qYTjnHipo7DscRjD40ad.jpg",
+      "gt": 81,
+      "detections": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 81
+    },
+    {
+      "file_name": "images/2z554ERwSM6wHaRSi_jpg.rf.IntEjz4y7mwMo0gnvMJl.jpg",
+      "gt": 51,
+      "detections": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 51
+    },
+    {
+      "file_name": "images/32YtEoWiX7p4PuxCi_jpg.rf.3LKOYq8rq0Bwqu8coQo5.jpg",
+      "gt": 49,
+      "detections": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 49
+    },
+    {
+      "file_name": "images/3GQyvXWw22Smkhvnm_jpg.rf.2DiK5wQRUQFV29P5IF69.jpg",
+      "gt": 44,
+      "detections": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 44
+    },
+    {
+      "file_name": "images/3JphY3ekmCGgk6pqw_jpg.rf.TeHzJ7di5wxAmfMSzCJG.jpg",
+      "gt": 46,
+      "detections": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 46
+    },
+    {
+      "file_name": "images/3PgsqjMd43pXgqadD_jpg.rf.gFmLXbU3lw8n5NyspunS.jpg",
+      "gt": 56,
+      "detections": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 56
+    },
+    {
+      "file_name": "images/4dQDJR7YquNPMn9Kr_jpg.rf.fnYM4ceydvWzKj2gnJBp.jpg",
+      "gt": 50,
+      "detections": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 50
+    },
+    {
+      "file_name": "images/4JihDTCn65J7nBuAj_jpg.rf.UqlO8qfASOpoz2ofhybV.jpg",
+      "gt": 69,
+      "detections": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 69
+    },
+    {
+      "file_name": "images/4JWL3fseostiZu7AB_jpg.rf.rOCgdCv9Tavu9Kd757Sx.jpg",
+      "gt": 45,
+      "detections": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 45
+    },
+    {
+      "file_name": "images/4ujvEKYuonGvm8Lsy_jpg.rf.6JAGN1BYcsvtwjiTbJoN.jpg",
+      "gt": 49,
+      "detections": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 49
+    },
+    {
+      "file_name": "images/4X2eaKJvfJztFwhR4_jpg.rf.BXy4cZpstXiinfgZhHy0.jpg",
+      "gt": 46,
+      "detections": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 46
+    },
+    {
+      "file_name": "images/4YrtYFK5ntFerDbLn_jpg.rf.QqQHhtrhJH7UYpr5hl3M.jpg",
+      "gt": 43,
+      "detections": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 43
+    }
+  ]
+}

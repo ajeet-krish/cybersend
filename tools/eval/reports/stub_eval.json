@@ -1,0 +1,69 @@
+{
+  "report_id": "stub_eval",
+  "label": "STUB DETECTOR RUN, NOT A MODEL EVALUATION",
+  "description": "Harness code-complete proof: a deterministic synthetic fixture evaluated end to end through the real harness core (preprocess, matching, metrics, report writing) with a stub detector. Oracle metrics are exactly 1.0 and noop metrics are exactly 0.0. No model exists yet; these numbers validate the tooling only.",
+  "generated_at": "2026-10-19T21:20:58.804Z",
+  "detector": {
+    "oracle": {
+      "name": "stub:oracle",
+      "jitter_px": 2,
+      "score": 0.9,
+      "note": "returns each ground truth box with deterministic sub-threshold jitter"
+    },
+    "noop": {
+      "name": "stub:noop",
+      "note": "returns zero detections"
+    }
+  },
+  "fixture": {
+    "dir": ".stub-fixture",
+    "images": 4,
+    "boxes": 15,
+    "note": "synthetic; generated deterministically, never used for training"
+  },
+  "method": {
+    "preprocess": "letterbox 640x640 pad 114 centered, RGB float32 NCHW, (v/255 - mean)/std ImageNet",
+    "nms": "none (DETR-style set prediction, raw per-query outputs)",
+    "score_floor_for_map": 0.0001,
+    "operating_confidence": 0.5,
+    "iou_threshold": 0.5,
+    "map_definition": "single-class AP at IoU 0.5, VOC 2010+ all-point interpolation",
+    "matching": "greedy highest-IoU, confidence descending, one GT claimed once"
+  },
+  "metrics": {
+    "oracle": {
+      "precision": 1,
+      "recall": 1,
+      "map05": 1,
+      "tp": 15,
+      "fp": 0,
+      "fn": 0,
+      "falsePositivesPerImage": 0,
+      "meanCenterErrorPx": 1.79,
+      "medianCenterErrorPx": 2.02,
+      "medianAbsCountError": 0,
+      "detectionsAboveScoreFloor": 15
+    },
+    "noop": {
+      "precision": 0,
+      "recall": 0,
+      "map05": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 15,
+      "falsePositivesPerImage": 0,
+      "meanCenterErrorPx": 0,
+      "medianCenterErrorPx": 0,
+      "medianAbsCountError": 4,
+      "detectionsAboveScoreFloor": 0
+    }
+  },
+  "assertions": {
+    "oracle_perfect": true,
+    "noop_zero": true
+  },
+  "timing": {
+    "oracle_mean_inference_ms": 0.029,
+    "note": "stub timings measure harness overhead only, not model inference"
+  }
+}
