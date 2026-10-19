@@ -20,8 +20,8 @@ harness in tools/eval scores the export on the frozen COCO test split.
 ## Datasets
 
 The D1 training data is `datasets/merged`, built from three Roboflow exports
-(climbtag v29 CC BY 4.0, blackcreed v14 CC BY 4.0, pwals v18 LICENSE PENDING
-VERIFICATION), pHash deduplicated and resplit 60/20/20 at the cluster level
+(climbtag v29 CC BY 4.0, blackcreed v14 CC BY 4.0, pwals v18 CC BY 4.0, verified
+2026-10-19), pHash deduplicated and resplit 60/20/20 at the cluster level
 with the original Roboflow splits discarded. Sources, methodology, final
 counts, the color sidecar, and known limitations live in DATASET_CARD.md; the
 machine-readable record is `datasets/merged/manifest.json`.
@@ -224,6 +224,20 @@ into the letterboxed frame with the same geometry, so raw-resolution test
 images are handled correctly. The Phase 4 app path
 (src/features/ml/preprocess.ts) must reuse the same contract so eval numbers
 transfer to on-device behavior.
+
+## Troubleshooting
+
+### Harness mAP vs RF-DETR in-loop validation mAP (open reconciliation item)
+
+Recorded in tools/eval/reports/smoke_eval.json: RF-DETR's in-loop validation
+mAP@50 logged during the Phase 0 smoke run was higher than what the Node
+harness computes on the same split with standard single-class AP@0.5 semantics.
+Harness correctness was verified directly on that run (preprocess parity with
+RF-DETR's Normalize transform, ONNX boxes within a few pixels of torch
+predict). The remaining difference is a metric-semantics question (checkpoint
+selection uses RF-DETR's in-loop metric, the Phase 4 gate uses the harness
+metric), and it must be reconciled or explicitly documented as an accepted
+offset before D1 gate numbers are treated as authoritative.
 
 ## History note
 

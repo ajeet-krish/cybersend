@@ -1,117 +1,139 @@
 # CyberSend Architecture
 
-Last updated: 2026-10-19 (Phase 0, roadmap revision after user decisions)
+Last updated: 2026-10-19 (Phase 0, full native iOS migration)
 
-Snapshot of the current design. Full DDL lives in docs/schema.sql. Decision history lives in docs/decisions.md.
+Snapshot of the current design after the native migration decision (docs/decisions.md, 2026-10-19). Full DDL lives in docs/schema.sql. The TypeScript tree (src/ and app/) is frozen and serves as the behavioral port spec for the Swift port.
 
 ## Overview
 
-Local first bouldering tracker on React Native (Expo dev client), TypeScript strict, SQLite on device, zero accounts. Clean architecture layers: routes and screens depend on feature stores and repositories, repositories depend on a SQL executor port, domain logic is pure TypeScript with no native imports. Photos are tagged on a Skia canvas in normalized coordinates; ML (self trained Apache-2.0 hold detection, MoveNet pose) runs on device and writes through the same repositories. Device floor is iOS 16 on iPhone 11 and newer. An AI capability gate auto disables hold detection and pose on devices that fail the Phase 0 benchmark; core logging is never gated.
+Local first bouldering tracker, native iOS only, written in Swift. SwiftUI screens with UIKit gesture recognizers on the tagging canvas, GRDB over SQLite for storage, Core ML for on-device inference, AVFoundation for video. Zero accounts, hard offline. The approved schema, requirements (US numbers and budgets), ML training track, licenses, and the normalized-coordinate contract carry over unchanged from the React Native plan; only the application stack is replaced. Device floor is iOS 16 on iPhone 11 and newer, with the AI capability gate unchanged.
 
-## Layering and Folder Structure
+## Component Breakdown
 
-```
-app/                        expo-router routes, thin screens only
-  (tabs)/                   logbook, sessions, stats, settings
-  climb/[id].tsx            climb detail
-  session/[id].tsx          live session logging
-  tag/[photo_id].tsx        hold tagging canvas
-  dev/flags.tsx             runtime flag screen, non release builds only
-src/domain/                 pure logic, no native imports
-  models/                   Climb, Session, Attempt, Hold, Video, BoardProblem (board types dormant)
-  grade/                    grade scales, rasch_lite fitting
-  attempts/                 outcome rules (flash/send/project/fail)
-  stats/                    aggregations over attempts and sessions
-  validation/               zod schemas for import payloads
-src/data/
-  db/connection.ts          open pragmas, path layout
-  db/executor.ts            SqlExecutor port plus op-sqlite adapter
-  db/transaction.ts         with_transaction nesting helper
-  db/migrations/            runner + 001_initial.ts, 002_*.ts ...
-  repositories/             one file per aggregate, the only SQL surface
-  mappers/                  row to domain and back
-src/features/
-  sessions/  photos/  tagging/  stats/   feature stores (zustand) + hooks
-  ml/                       HoldDetector, PoseEstimator, preprocess, nms, manifest
-  boards/                   BoardProvider seam, dormant (board integration deferred, no providers)
-  backup/                   export_service, import_service, zip
-src/ui/                     components, canvas/ (coords, hold_canvas, gestures), theme/
-src/app/                    flags.ts, providers.tsx, di container
-assets/models/              ONNX and TFLite files + manifest.json
-eval/                       ML eval dataset manifest + reports
-tools/                      fixtures, eval runner (boardlib pipeline dormant with the board seam)
-e2e/flows/                  Maestro flows
-docs/                       architecture, decisions, schema.sql, tests, research, reviews
-```
+| Component | Responsibility | Location |
+|-----------|---------------|----------|
+| Domain | Entities, grade normalization (rasch_lite), attempt rules, stats, import validation. Pure Swift, no GRDB or UIKit imports. | ios/Sources/Domain |
+| Data | GRDB database, migrations, repositories, row records and mappers, backup serialization. The only SQL surface. | ios/Sources/Data |
+| Features | Session logging, photos, tagging, grade normalization, ML adapters (hold detection, pose), backup and import, feature flags, dormant board seam. | ios/Sources/Features |
+| UI | Theme, shared SwiftUI views, canvas coordinates and hold rendering, UIKit gesture layer. | ios/Sources/UI |
+| Tests | swift-testing suites. DataTests run against in-memory GRDB. | ios/Tests |
+| ML tooling | Dataset build, training, ONNX export, eval harness. Stack independent, unchanged. | tools/train, tools/eval |
+| Port spec | Frozen TypeScript implementation. Behavioral reference and source of golden fixtures. | src/, app/ |
+| Model assets | Canonical ONNX plus Core ML deployment copies with manifest.json. | assets/models/ |
 
-Dependency rule: app -> features -> domain and data. domain imports nothing from data or ui. repositories return domain models. Screens and hooks never call SQLite directly.
-
-## Data Layer
-
-- Driver: op-sqlite behind the SqlExecutor port (see decisions.md D1).
-- Pragmas at open: foreign_keys ON, journal_mode WAL, busy_timeout 5000.
-- Migrations: ordered integer versions in src/data/db/migrations, each up(tx) runs in one transaction, recorded in schema_migrations, PRAGMA user_version mirrored. No down migrations; restore is the rollback path.
-- Entities: gyms, walls, boards, board_problems (dormant, board integration deferred), climbs, holds, photos, videos, pose_keypoints, sessions, attempts, grade_norm_params, settings. Full DDL in docs/schema.sql.
-- Key columns: sessions.rpe (1 to 10, nullable), attempts.outcome CHECK in flash/send/project/fail, attempts.fell_on_hold_id -> holds(id), attempts.attempt_no per (session_id, climb_id), climbs.is_active and is_archived (gym reset lifecycle), walls.angle_deg and boards.angle_deg, videos.retention_class and pose_status.
-- Required indexes: attempts(climb_id), attempts(session_id), climbs(gym_id) plus supporting indexes on holds, photos, videos, pose_keypoints.
-- All coordinates in holds and pose_keypoints are normalized 0..1 over the source image or frame.
-- Transaction handling: with_transaction(fn) in src/data/db/transaction.ts, nested calls join the outer transaction. Multi table writes (log attempt, import, restore, media sweep) are single transactions. Repositories hold prepared statements per connection.
+Dependency rule: Features depend on Domain and Data; UI renders domain values and calls Features. Domain imports nothing from Data or UI. Repositories return domain models. Views never touch GRDB directly.
 
 ## Data Flow
 
 ```
-screen (app/) -> feature store (zustand) -> repository (src/data) -> SqlExecutor -> SQLite
-                     |                        |
-                     v                        v
-              domain services          files: photos/ videos/ backups/
-              (grade, stats, attempts)  via expo-file-system
-
-tagging:  photo file -> Skia decode -> canvas gestures -> holds rows (normalized, source=manual)
-hold ML:  photo file -> Skia decode+resize -> preprocess.ts -> ONNX holds_detector -> nms -> holds (source=detection)
-pose:     vision-camera frame processor -> fast-tflite MoveNet -> pose_keypoints rows -> fall analysis (domain)
-backup:   all tables + media -> manifest.json + data.json + media/ -> .cybersend zip (fflate)
-import:   zip -> validate (zod, schema_version) -> staging DB -> atomic swap
+training:  tools/train (PyTorch MPS on the M5) -> frozen splits -> holds_detector_d1.onnx (CANONICAL)
+convert:   ONNX -> coremltools -> holds_detector.mlmodel (deployment copy, never canonical)
+parity:    same frozen-split images through ONNX and .mlmodel
+           box delta <= 1 px, logit delta recorded -> parity gate -> bundle in app
+hold ML:   photo -> CGImage -> VNCoreMLRequest (.cpuAndNeuralEngine) -> nms -> holds (source=detection)
+pose:      AVFoundation frames (AVCaptureSession, AVAssetReader) -> Vision pose or TFLite/MoveNet
+           (Phase 0 pose spike chooses) -> pose_keypoints rows -> fall analysis (Domain)
+tagging:   photo -> canvas (SwiftUI + UIKit gestures) -> holds rows (normalized, source=manual)
+runtime:   SwiftUI view -> feature store (Features) -> repository (Data) -> GRDB -> SQLite
+           files: photos/ videos/ backups/ via FileManager
+backup:    all tables + media -> manifest.json + data.json + media/ -> .cybersend zip
+import:    zip -> validate -> staging DB -> foreign key check -> atomic swap
 ```
 
-## Canvas and Coordinates
+## File Structure
 
-- Domain coordinates: x_norm, y_norm over the full source image, radius_norm over image width. Written only in normalized space.
-- Display: fit_content_box(image_size, canvas_size) computes the aspect fit rect; Viewport {scale, translate_x, translate_y} maps content box to screen. Pure helpers in src/ui/canvas/coords.ts (unit tested).
-- Gestures (react-native-gesture-handler): tap empty adds a hold, tap hold selects, pan on selected hold moves it, long press deletes with confirm, pinch zooms about focal point, two finger pan moves viewport. Hold pan has exclusive precedence over viewport pan via hit test in normalized space (radius_norm tolerance).
-- Pixels exist only inside the ui layer. Inference preprocessing uses the same normalized convention.
+| Path | Purpose |
+|------|---------|
+| ios/CyberSend.xcodeproj | Xcode project. iOS 16 deployment target. Build configurations: development, internal, release. |
+| ios/Sources/Domain/ | Models, grade, attempts, stats, validation. Port of src/domain with identical behavior. |
+| ios/Sources/Data/ | GRDB setup, DatabaseMigrator migrations, repositories, records and mappers, backup serialization. Port of src/data. |
+| ios/Sources/Features/ | Sessions, photos, tagging, ml (HoldDetector, PoseEstimator, preprocess, nms), grade, backup, boards (dormant), flags. |
+| ios/Sources/UI/ | Theme, shared SwiftUI views, canvas (coords, hold views, UIKit gestures). |
+| ios/Tests/ | swift-testing suites mirroring the Jest suites; in-memory GRDB for DataTests. |
+| src/, app/ | Frozen TypeScript port spec. Never built into the app. Reference for behavior and fixtures. |
+| tools/eval/ | ML eval harness over frozen splits, reports. Unchanged. |
+| tools/train/ | Dataset build, D1 training, ONNX export, license records. Unchanged. |
+| assets/models/ | holds_detector.onnx (canonical), holds_detector.mlmodel (deployment copy), manifest.json. |
+| docs/ | architecture, decisions, schema.sql, requirements, tests, research, reviews. |
+
+## Data Layer
+
+- Driver: GRDB 7 over the system SQLite.
+- Migrations: GRDB DatabaseMigrator runs named forward migrations (001_initial and so on), one transaction per migration, tracked in grdb_migrations. No down migrations; restore is the rollback path.
+- Migration audit: grdb_migrations is the runner's source of truth. Each migration block also inserts one row into schema_migrations (version, name, applied_at) in the same transaction, keeping the US-7 audit format and portable dumps shared with the TypeScript port spec. If dual bookkeeping proves awkward, grdb_migrations alone is the accepted change with a note against US-7.
+- Pragmas at open: foreign_keys ON, journal_mode WAL, busy_timeout 5000.
+- Entities: gyms, walls, boards, board_problems (dormant, board integration cut), climbs, holds, photos, videos, pose_keypoints, sessions, attempts, grade_norm_params, settings. DDL unchanged in docs/schema.sql.
+- Key columns and indexes: unchanged (attempts.outcome CHECK in flash/send/project/fail, attempts.fall_on_hold_id, attempt_no per (session_id, climb_id), climbs.is_active and is_archived, wall and board angles, videos.retention_class and pose_status; indexes on attempts(climb_id), attempts(session_id), climbs(gym_id)).
+- All coordinates in holds and pose_keypoints are normalized 0..1 over the source image or frame.
+- Transactions: a withTransaction helper on the GRDB writer; nested calls join the outer transaction. Multi table writes (log attempt, import, restore, media sweep) are single transactions.
+
+## Migration Plan (M0 to M6)
+
+| Milestone | Scope | US mapping | Gate |
+|-----------|-------|-----------|------|
+| M0 | Decision lock. Commit the TypeScript tree as the frozen port spec. Xcode project with iOS 16 floor. GRDB DatabaseMigrator wiring. swift-testing plus in-memory GRDB harness. Port the migration tests. | US-6, US-7 (setup) | Data layer port complete, then the velocity checkpoint: the user reviews progress; fallback to the React Native track (option c) stays open until this checkpoint closes with M0 sign-off. |
+| M1 | Domain, data, and backup port. Byte-compatible .cybersend archives. Golden fixtures shared with tools/eval. | US-7, US-13 to US-16 | Import and export round trips between the TypeScript spec and the Swift port in tests. |
+| M2 | SwiftUI logbook: gyms, grade schemes, climbs, sessions, attempts, quick-log, settings shell. | US-8 to US-12, US-25 | Quick-log budget: <= 4 taps, <= 5 s. |
+| M3 | Photo capture and tagging MVP. The Phase 2 gate is unchanged. | US-17 to US-26 | MVP ship gate exactly as written in requirements section 4. |
+| M4 | Grade normalization port: rasch_lite, translator, data-sufficiency gate. | US-27 to US-30 | Statistical thresholds on the synthetic fixture. |
+| M5 | Hold detection: coremltools pipeline, parity gate, eval gates. | US-31 to US-35 | Precision >= 0.85, recall >= 0.80, mAP@0.5 >= 0.75 on the frozen test split, plus all Phase 4 perf budgets. |
+| M6 | BoulderVision video analysis behind the experimental flag. | US-36 to US-40 | Phase 5 budgets; if any budget misses the feature stays flagged off and is marked not shipped. |
+
+All US numbers and numeric budgets from docs/requirements.md carry over unchanged. The Phase 0 spikes (licenses, inference perf, pose runtimes, eval set) continue under the ML phase numbering and feed M5 and M6.
 
 ## ML Pipeline
 
-- assets/models/manifest.json describes each artifact: id, version, sha256, input spec, license id. Bundled with the binary, not fetched at runtime.
-- Hold detection (Phase 4): the model artifact is holds_detector.onnx, self trained and licensed Apache-2.0 (YOLOX-Nano or RF-DETR-Nano trained on the Blackcreed CC BY 4.0 dataset plus own labeled gym photos). Ultralytics YOLO weights are excluded (AGPL). Primary runtime is onnxruntime-react-native with the CoreML execution provider, but that package is stale (1.24.3) with known Expo compatibility issues, so Phase 4 opens with a time boxed spike; the fallback is react-native-fast-tflite with the Core ML delegate on a TFLite export of the same self trained model. The HoldDetector contract is identical on either runtime: single shot photo inference, 640x640 letterbox input, NMS in TypeScript (src/features/ml/nms.ts). Preprocess (preprocess.ts) is pure typed array code shared with the Node eval harness; Skia only decodes and resizes to RGBA.
-- Pose (Phase 5): primary path is live frame processors on react-native-vision-camera at 8 to 12 Hz with react-native-fast-tflite running MoveNet Lightning, keypoints streamed to pose_keypoints during recording. Fallback is expo-camera video plus expo-video-thumbnails frame sampling at 5 Hz. MediaPipe Tasks PoseLandmarker is the alternative if the Phase 0 spike shows a solid binding. No Python bridge anywhere.
-- Capability gate (Phases 4 and 5): startup check of the Phase 0 benchmark result (stored in settings) plus thermal monitoring. Devices that fail the benchmark get hold detection and pose auto disabled with a settings notice; repeated failure or thermal pressure does the same. Manual tagging never depends on ML output.
-- Eval harness: eval/dataset/manifest.json holds labeled images with normalized hold circles. tools/eval/run_hold_eval.ts runs the same self trained ONNX model in Node (onnxruntime-node, jpeg-js as devDependencies) and emits eval/reports/*.json with precision, recall, mean center error. Provisional gates: Phase 0 spike set 20 images, Phase 4 gate 50 images, precision >= 0.85, recall >= 0.75 at center tolerance of 2 radius. Pose gate: correct fall-on-hold attribution >= 0.70 on labeled clips. The eval harness keeps the ONNX export even if the app falls back to TFLite.
-- Board data (deferred, dormant seam, tied to no phase): the BoardProvider interface in src/features/boards stays as a documented seam with no providers implemented. tools/pipeline/boardlib is dormant and stays build tool only if it ever returns. The board integration phase was cut from the roadmap on 2026-10-19 (docs/decisions.md); board generic schema fields (boards, board_problems, board_angle_deg) are retained so the feature can return without a migration overhaul.
+- Training and export are unchanged in tools/train (PyTorch MPS on the M5). ONNX is the canonical artifact for training, evaluation, and parity.
+- Conversion: coremltools turns the chosen ONNX into a .mlmodel deployment copy. Parity gate runs the same frozen-split images through both: box delta <= 1 px, logit delta recorded. Only a passing .mlmodel ships in the app bundle.
+- Runtime: VNCoreMLRequest with .cpuAndNeuralEngine. ANE placement is verified with the Xcode Core ML performance report before M5 acceptance. NMS stays in Swift.
+- Model bias: the ML-D1 comparison scores Core ML conversion risk as a column. YOLOX-Nano (conv only) is the low-risk default. RF-DETR carries documented conversion costs (90 partitions, GPU-only 61 ms on iPhone 14 Pro, FP16 grid_sample failure).
+- Pose: Vision body pose is a spike candidate only, benchmarked against TFLite/MoveNet in the Phase 0 pose spike (Google's benchmark shows Vision well below BlazePose). No climbing-specific accuracy claims without our own data. No Python bridge anywhere.
+- Capability gate: unchanged. Startup benchmark result plus thermal monitoring; failing devices get hold detection and pose auto disabled with a settings notice. Core logging is never gated. Manual tagging never depends on ML output.
+- Eval harness: tools/eval is unchanged and stays the source of truth for detector quality. Gates follow docs/requirements.md section 6 on the frozen splits, with the US-5 self-collected test split for acceptance.
+
+## Canvas and Coordinates
+
+- Domain coordinates: x_norm, y_norm over the full source image, radius_norm over image width. Written only in normalized space; pixels exist only inside the UI layer.
+- Display: fit_content_box and a Viewport (scale, translate_x, translate_y) map content to screen. Pure helpers, unit tested, ported from src/ui/canvas/coords.ts.
+- Gestures: UIKit gesture recognizers on the SwiftUI canvas view. Tap empty adds a hold, tap hold selects, pan on a selected hold moves it, long press deletes with confirm, pinch zooms about the focal point, two finger pan moves the viewport. Hold pan has exclusive precedence over viewport pan via hit test in normalized space (radius_norm tolerance).
+- Inference preprocessing uses the same normalized convention and the shared golden vectors (letterbox 640, pad 114, ImageNet normalization).
 
 ## Feature Flags
 
-- Build variants in app.config.ts extra: development, internal (personal TestFlight), release.
-- src/app/flags.ts merges compile-time defaults per variant with runtime overrides in the settings table (key flags.override). Flags: video_capture, grade_normalization, ai_hold_detection, ai_pose_analysis, boulder_vision, and board_import which is dormant with the board seam and tied to no phase.
-- BoulderVision is hard gated in release: route not registered, ML code not in the release bundle graph. ai_hold_detection and ai_pose_analysis ship off by default and toggle on via the hidden dev screen (app/dev/flags.tsx, non release only).
+- Build configurations in the Xcode project: development, internal (personal TestFlight), release, each with xcconfig compile-time defaults.
+- Runtime overrides live in the settings table and merge in a FeatureFlags type under ios/Sources/Features/Flags. Flags: video_capture, grade_normalization, ai_hold_detection, ai_pose_analysis, boulder_vision, board_import (dormant with the board seam, tied to no phase).
+- BoulderVision is hard gated in release: compiled out via configuration checks and unreachable in release navigation. ai_hold_detection and ai_pose_analysis ship off by default and toggle on via a hidden dev screen on non-release builds.
 - Personal dogfooding happens on internal builds; release builds never expose experimental surfaces.
 
 ## Backup and Export
 
 - Storage layout under the app document root: db/, photos/ (plus thumbs/), videos/, backups/, exports/. All stored uris are relative.
-- Full backup is a .cybersend zip: manifest.json (app_version, schema_version, created_at, sha256 per media file), data.json (every table as ordered arrays), media/ (photos always, videos only when retention_class=keep or user opts in). fflate for zip, expo-crypto for hashes, expo-sharing and expo-document-picker for transport.
-- CSV export (RFC 4180): attempts, sessions, climbs. JSON export is lossless and is the same payload as backup data.json.
-- Import: validate with zod, check schema_version <= current, load into a staging DB, verify foreign keys, take a pre-import snapshot in backups/, then atomically replace the main DB and reconcile media files. Import report lists counts and skipped rows.
-- Retention: video retention policy in settings (mode none/days/count/keep_all). Sweeper runs at app start after migrations and deletes expired video files plus their pose rows.
+- Full backup is a .cybersend zip: manifest.json (app_version, schema_version, created_at, sha256 per media file), data.json (every table as ordered arrays), media/ (photos always, videos only when retention_class=keep or the user opts in). The format is byte-compatible with the TypeScript port spec (M1 golden fixtures). Hashes via CryptoKit.
+- CSV export (RFC 4180): attempts, sessions, climbs. JSON export is lossless and matches backup data.json.
+- Import: validate, check schema_version <= current, load into a staging DB, verify foreign keys, take a pre-import snapshot in backups/, then atomically replace the main DB and reconcile media. Import report lists counts and skipped rows.
+- Retention: video retention policy in settings (mode none/days/count/keep_all). Sweeper runs at app start after migrations.
 
-## Testing
+## Test Strategy
 
-See docs/tests.md. Summary: Jest for domain and repositories (repository tests run against node:sqlite through the SqlExecutor port), @testing-library/react-native for components and hooks with fake repositories, Maestro for e2e flows on an iOS dev build, and the eval harness for ML regression.
+- swift-testing for all Swift code. DomainTests and DataTests port the Jest suites one to one; DataTests run on in-memory GRDB, which removes the node:sqlite dialect-drift risk of the React Native plan.
+- Import/export round-trip tests (US-14, US-16) use golden .cybersend fixtures shared with the TypeScript port spec in both directions.
+- Preprocess golden vectors (letterbox 640, pad 114, ImageNet normalization) are shared with tools/eval; the Swift port must match within a recorded tolerance.
+- ML regression stays in tools/eval (unchanged): precision, recall, mAP@0.5 at IoU 0.5, false positives per image, hold-count error, with the 0.85/0.80/0.75 gates on the frozen test split.
+- E2E tooling is decided at M2; XCUITest is the default candidate. The Maestro flows do not carry over.
 
-## Dependency Budget
+## Risks and Mitigations
 
-Native modules outside Expo Go: op-sqlite (Phase 1), onnxruntime-react-native (Phase 4, gated on the time boxed spike), react-native-vision-camera and react-native-fast-tflite (Phase 5). If the spike fails, fast-tflite covers both hold detection and pose and the count drops to 3. Hard cap 5 native modules. Everything else is Expo SDK or pure TypeScript (zustand, zod, fflate). dev client rebuilds are expected per native module; EAS Build provides internal distribution.
+- New to Swift velocity. Mitigation: the M0 velocity checkpoint after the data-layer port and before any UI work, with the option (c) fallback (keep the React Native app) open until the checkpoint closes. The frozen TypeScript spec keeps behavior unambiguous during the port.
+- RF-DETR Core ML conversion (90 partitions, GPU-only 61 ms on iPhone 14 Pro, FP16 grid_sample failure). Mitigation: ML-D1 scores conversion risk as a column, biasing to YOLOX-Nano; if RF-DETR still wins on quality, budget for the documented FP32 and partition work.
+- Vision pose accuracy well below BlazePose. Mitigation: Vision is a spike candidate benchmarked against TFLite/MoveNet in the Phase 0 pose spike; no accuracy claims without own-data measurement; pose stays behind the experimental flag.
+- GRDB grdb_migrations versus our schema_migrations audit table. Decision: DatabaseMigrator is the runner and each migration also writes a schema_migrations audit row in the same transaction (trivial in practice). If dual bookkeeping drifts, drop to grdb_migrations alone and note the change against US-7.
+- Core ML ANE placement unverified. Mitigation: VNCoreMLRequest with .cpuAndNeuralEngine plus the Xcode Core ML performance report, verified per model before M5 gates.
+- ONNX to Core ML parity drift. Mitigation: the .mlmodel is a deployment copy only, bundled only after the parity gate (same frozen-split images, box delta <= 1 px, logit delta recorded).
+
+## Stack-Independent Survivors
+
+tools/train, tools/eval, datasets, license records, docs, the feature flag model, the AI capability gate, preprocess golden vectors (letterbox 640, pad 114, ImageNet normalization), and the normalized-coordinate contract all survive the migration untouched. Board integration remains cut, with board-generic schema fields and the BoardProvider seam dormant and tied to no phase (docs/decisions.md 2026-10-19).
 
 ## Phase Map
 
-0 spikes (licenses, inference perf, eval set) with checklist in docs/research.md. 1 core schema, migrations, logbook, backup/export. 2 photo plus Skia manual tagging, fall-on-hold, stats dashboard (MVP gate). 3 rasch_lite grade normalization. 4 on-device hold detection with the self trained Apache-2.0 model. 5 BoulderVision video analysis behind feature flags. Board integration is cut from the roadmap; its schema and seam are dormant and tied to no phase (docs/decisions.md 2026-10-19).
+The requirements phases 0 to 5 are delivered through milestones M0 to M6 as mapped above: 0 spikes feed M5 and M6, 1 core foundation lands in M0 to M2, 2 photo and tagging MVP is M3, 3 grade normalization is M4, 4 hold detection is M5, 5 BoulderVision is M6.

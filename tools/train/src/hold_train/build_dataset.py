@@ -109,8 +109,8 @@ SOURCES: tuple[SourceSpec, ...] = (
         version="v18 (2023-11-24)",
         license_id="CC BY 4.0",
         license_note=(
-            "Roboflow export README states CC BY 4.0; upstream listing not yet verified, "
-            "treat as pending per tools/train/LICENSES.md"
+            "Roboflow export README states CC BY 4.0; verified on the Universe "
+            "project page 2026-10-19 (see tools/train/LICENSES.md)"
         ),
         url="https://universe.roboflow.com/pwals/bouldering-holds-9wavr",
     ),

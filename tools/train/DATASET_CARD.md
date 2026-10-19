@@ -68,9 +68,9 @@ Notes:
    under 8,000 val, else test). Seed 20261019. The assignment is deterministic:
    two consecutive builds produced identical annotation-file SHA256 digests.
 6. Sanity checks (fail loudly, recorded in the manifest): no cluster spans two
-   splits (verified independently of the construction), every image file
-   referenced by an output annotation file exists on disk, every bbox sits
-   inside its image.
+   splits (checked from the emitted split assignment; this guards the writer,
+   not dedupe recall, see Known limitations), every image file referenced by an
+   output annotation file exists on disk, every bbox sits inside its image.
 
 ## Final counts
 
@@ -122,8 +122,7 @@ carry sidecar labels (train 28, val 10, test 8).
   cross-domain claims.
 - blackcreed class semantics. "0" and "1" are mapped to hold and volume per the
   dataset description; the export itself does not document the mapping.
-- pwals license pending verification (see warning above); 12 pwals files were
-  never extractable (over-long file names) and are absent.
+- 12 pwals files were never extractable (over-long file names) and are absent.
 - Single class. Volumes are merged into `hold`; no hold-type or difficulty
   taxonomy is learned.
 

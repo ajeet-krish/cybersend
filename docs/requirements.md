@@ -7,7 +7,7 @@ Positioning of record: "The climbing tracker that knows where you fall, not just
 User decisions applied 2026-10-19:
 - App Store submission is the eventual goal. Licensing discipline required for Phase 4 and Phase 5 equivalents.
 - Kilter integration is CUT from the roadmap. Board-generic schema fields remain so it can return later.
-- Hold detection model path: Apache-2.0 self-trained (YOLOX-Nano or RF-DETR-Nano on Blackcreed dataset plus own labeled gym photos). No Ultralytics weights.
+- Hold detection model path: Apache-2.0 self-trained (YOLOX-Nano or RF-DETR-Nano on the merged climbtag, blackcreed, and pwals datasets plus own labeled gym photos). No Ultralytics weights.
 - Device floor: iOS 16, iPhone 11 and newer. Older devices get core logging with AI disabled.
 - Defaults confirmed: single profile in v1 (schema stays profile_id-ready), app-local rotating backups plus manual export (iCloud Drive opt-in fast follow), V-scale primary grade scheme, ML acceptance thresholds accepted as written.
 
@@ -114,7 +114,7 @@ Priority legend: Must = MVP gate, Should = important, Could = nice.
 | US-31 | Detection prefills bounding boxes on a photo | Must | 1. Fully on-device, no network; 2. Boxes rendered as editable suggestions with confidence; 3. Meets quality and perf budgets (section 6); 4. Cancel anytime, 5 s timeout falls back to manual |
 | US-32 | Accept, edit, or reject suggestions | Must | 1. Bulk accept, per-box edit/delete, undo; 2. Manual tagging works with model disabled, missing, or failed (tested); 3. No UI path requires AI output to proceed |
 | US-33 | Optional color-family suggestions | Could | 1. Chip on hold editor, default off; 2. Below 0.80 top-1 accuracy ships hidden behind dev flag; 3. Never affects position or role without confirmation |
-| US-34 | Model licensing and attribution handled | Must | 1. Apache-2.0 model license documented; 2. Dataset attributions (Blackcreed CC BY 4.0, own photos) in settings/about; 3. Feature behind flag, off by default until quality gates pass |
+| US-34 | Model licensing and attribution handled | Must | 1. Apache-2.0 model license documented; 2. Dataset attributions (climbtag, blackcreed, and pwals, all CC BY 4.0, plus own photos) in settings/about; 3. Feature behind flag, off by default until quality gates pass |
 | US-35 | Detection disables on unsupported or overheating devices | Must | 1. Capability check at startup (iOS 16 + benchmark result); 2. Auto-disable on repeated failure or thermal pressure with settings notice; 3. Peak memory delta within budget or feature refuses to run |
 
 ### Phase 5: BoulderVision video analysis (exploratory, feature-flagged)

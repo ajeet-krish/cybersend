@@ -125,6 +125,6 @@ cancel the Phase 4 feature or purchase an Ultralytics Enterprise License (US-1).
 
 - assets/models/manifest.json (Phase 4): license id Apache-2.0 for the model
   artifact plus dataset attributions (climbtag CC BY 4.0, blackcreed CC BY 4.0,
-  own photos; pwals only after verification clears).
+  pwals CC BY 4.0, own photos).
 - App settings/about (Phase 4): user-visible attribution text, US-34.
 - artifacts/manifest.json per training run: same fields, written by hold-export.
