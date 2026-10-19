@@ -42,7 +42,7 @@ docs/            architecture, decisions, research, reviews, tests
 
 | Phase | Description | Status |
 |-------|-------------|--------|
-| 0 | Spikes and technical validation | Not Started |
+| 0 | Spikes and technical validation | In Progress |
 | 1 | Core foundation | Not Started |
 | 2 | Photo capture and tagging MVP | Not Started |
 | 3 | Grade normalization | Not Started |
