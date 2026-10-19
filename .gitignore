@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Expo
+.expo/
+expo-env.d.ts
+
+# Builds
+dist/
+ios/build
+android/build
+
+# Logs
+*.log
+
+# OS
+.DS_Store
