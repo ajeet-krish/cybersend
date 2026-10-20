@@ -14,6 +14,7 @@ let package = Package(
     products: [
         .library(name: "CyberSendDomain", targets: ["CyberSendDomain"]),
         .library(name: "CyberSendData", targets: ["CyberSendData"]),
+        .library(name: "CyberSendFeatures", targets: ["CyberSendFeatures"]),
     ],
     dependencies: [
         .package(url: "https://github.com/groue/GRDB.swift.git", from: "7.3.0"),
@@ -21,6 +22,9 @@ let package = Package(
         // swift-testing module that Xcode toolchains provide. Depending on the package makes
         // `import Testing` work everywhere; harmless under Xcode.
         .package(url: "https://github.com/swiftlang/swift-testing.git", from: "6.0.0"),
+        // .cybersend backup archives are zips (docs/decisions.md, backup as a .cybersend zip
+        // with staging import). ZIPFoundation is Apache-2.0 and pure Foundation plus zlib.
+        .package(url: "https://github.com/weichsel/ZIPFoundation.git", from: "0.9.19"),
     ],
     targets: [
         .target(
@@ -35,14 +39,31 @@ let package = Package(
             ],
             path: "Sources/Data"
         ),
+        .target(
+            name: "CyberSendFeatures",
+            dependencies: [
+                "CyberSendDomain",
+                "CyberSendData",
+                .product(name: "ZIPFoundation", package: "ZIPFoundation"),
+            ],
+            path: "Sources/Features"
+        ),
         .testTarget(
             name: "CyberSendCoreTests",
             dependencies: [
                 "CyberSendDomain",
                 "CyberSendData",
+                "CyberSendFeatures",
                 .product(name: "Testing", package: "swift-testing"),
+                // Crafted malformed archives for the unpack failure paths.
+                .product(name: "ZIPFoundation", package: "ZIPFoundation"),
             ],
             path: "Tests",
+            resources: [
+                // Golden fixtures for the US-14 export round trip and the import-side
+                // compatibility suite (old exports must always import).
+                .copy("Fixtures"),
+            ],
             linkerSettings: [
                 // The CommandLineTools toolchain ships lib_TestingInterop (needed by the
                 // swift-testing package) under Library/Developer/usr/lib, which the linker

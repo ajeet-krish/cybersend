@@ -1,0 +1,142 @@
+{
+  "app": "cybersend",
+  "schema_version": 1,
+  "exported_at": "2026-05-04T08:30:00.000Z",
+  "tables": {
+    "gyms": [
+      {
+        "id": "gym-1",
+        "name": "Boulder Garden",
+        "timezone": null,
+        "is_active": 1,
+        "created_at": "2026-01-01T09:00:00.000Z",
+        "updated_at": "2026-01-01T09:00:00.000Z"
+      }
+    ],
+    "walls": [],
+    "boards": [],
+    "board_problems": [],
+    "climbs": [
+      {
+        "id": "climb-1",
+        "gym_id": "gym-1",
+        "wall_id": null,
+        "board_id": null,
+        "board_problem_id": null,
+        "name": "Blue V4",
+        "grade_system": "v_scale",
+        "grade_raw": "v4",
+        "grade_norm": null,
+        "color_circuit": "blue",
+        "angle_deg": null,
+        "is_active": 1,
+        "is_archived": 0,
+        "created_at": "2026-01-01T09:00:00.000Z",
+        "updated_at": "2026-01-01T09:00:00.000Z"
+      },
+      {
+        "id": "climb-2",
+        "gym_id": "gym-1",
+        "wall_id": null,
+        "board_id": null,
+        "board_problem_id": null,
+        "name": "Boardbuster",
+        "grade_system": "kilter_soft",
+        "grade_raw": "kilter_soft_l1",
+        "grade_norm": null,
+        "color_circuit": null,
+        "angle_deg": 25,
+        "is_active": 1,
+        "is_archived": 0,
+        "created_at": "2026-01-01T09:00:00.000Z",
+        "updated_at": "2026-01-01T09:00:00.000Z"
+      },
+      {
+        "id": "climb-3",
+        "gym_id": "gym-1",
+        "wall_id": null,
+        "board_id": null,
+        "board_problem_id": null,
+        "name": "Mystery",
+        "grade_system": "moonboard_2019",
+        "grade_raw": "kb6",
+        "grade_norm": null,
+        "color_circuit": null,
+        "angle_deg": null,
+        "is_active": 1,
+        "is_archived": 0,
+        "created_at": "2026-01-01T09:00:00.000Z",
+        "updated_at": "2026-01-01T09:00:00.000Z"
+      }
+    ],
+    "holds": [
+      {
+        "id": "hold-1",
+        "climb_id": "climb-1",
+        "x_norm": 0.25,
+        "y_norm": 0.75,
+        "radius_norm": 0.02,
+        "label": "start",
+        "color": "blue",
+        "source": "manual",
+        "ordinal": 1,
+        "created_at": "2026-01-01T09:00:00.000Z",
+        "updated_at": "2026-01-01T09:00:00.000Z"
+      },
+      {
+        "id": "hold-2",
+        "climb_id": "climb-1",
+        "x_norm": 0.5,
+        "y_norm": 0.5,
+        "radius_norm": 0.03,
+        "label": "jib",
+        "color": "red",
+        "source": "manual",
+        "ordinal": 2,
+        "created_at": "2026-01-01T09:00:00.000Z",
+        "updated_at": "2026-01-01T09:00:00.000Z"
+      }
+    ],
+    "sessions": [
+      {
+        "id": "session-1",
+        "gym_id": "gym-1",
+        "started_at": "2026-01-01T09:00:00.000Z",
+        "ended_at": "2026-01-01T11:00:00.000Z",
+        "rpe": 6,
+        "notes": null,
+        "created_at": "2026-01-01T09:00:00.000Z",
+        "updated_at": "2026-01-01T11:00:00.000Z"
+      }
+    ],
+    "photos": [],
+    "videos": [],
+    "pose_keypoints": [],
+    "attempts": [
+      {
+        "id": "attempt-1",
+        "session_id": "session-1",
+        "climb_id": "climb-1",
+        "attempt_no": 1,
+        "outcome": "flash",
+        "fell_on_hold_id": null,
+        "video_id": null,
+        "notes": null,
+        "created_at": "2026-01-01T10:00:00.000Z"
+      }
+    ],
+    "grade_norm_params": [],
+    "settings": [
+      {
+        "key": "gym.default_id",
+        "value_json": "\"gym-1\"",
+        "updated_at": "2026-01-01T09:00:00.000Z"
+      },
+      {
+        "key": "grade.schemes",
+        "value_json": "[{\"id\": \"kilter_soft\", \"name\": \"Kilter Soft\", \"levels\": [{\"id\": \"kilter_soft_l0\", \"label\": \"KB1\"}, {\"id\": \"kilter_soft_l1\", \"label\": \"KB2\"}, {\"id\": \"kilter_soft_l2\", \"label\": \"KB3\"}]}]",
+        "updated_at": "2026-01-01T09:00:00.000Z"
+      }
+    ]
+  }
+}

@@ -40,6 +40,16 @@ public let fontScale: GradeSystem = GradeSystem(
 
 public let builtinGradeSystems: [GradeSystem] = [vScale, fontScale]
 
+/// Every built-in scheme id. This is the canonical list: Migration 001 seeds the same
+/// ids from SQL (see Sources/Data/Database/Migration001.swift, which points back here).
+/// Import paths check against it so an imported id can never overwrite a built-in row.
+public let builtinGradeSystemIDs: Set<String> = Set(builtinGradeSystems.map(\.id))
+
+/// Every built-in level id across all built-in schemes (v0 through v17, f1 through
+/// f9a). Level ids are global primary keys in grade_levels, so imports must treat the
+/// whole set as reserved too.
+public let builtinGradeLevelIDs: Set<String> = Set(builtinGradeSystems.flatMap { $0.levels.map(\.id) })
+
 public let defaultGradeSystemID: String = vScale.id
 
 public func findBuiltinSystem(_ systemId: String) -> GradeSystem? {

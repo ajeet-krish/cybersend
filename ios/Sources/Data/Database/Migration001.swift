@@ -221,6 +221,9 @@ private let statements: [String] = [
     """,
     // Built-in grade scheme seed data. Level ids are stable identifiers (lowercased labels,
     // '+' rendered as _plus), rank_order ascends lowest to highest, color_hex stays null.
+    // SQL stays as shipped; the canonical Swift list these rows mirror lives in
+    // Sources/Domain/Grade/BuiltinSchemes.swift (builtinGradeSystemIDs, builtinGradeLevelIDs),
+    // which import paths check so an imported id can never overwrite a seeded row.
     """
     INSERT INTO grade_systems (id, name, is_builtin, created_at, updated_at) VALUES
         ('v_scale', 'V Scale', 1, '2026-10-19T00:00:00Z', '2026-10-19T00:00:00Z'),

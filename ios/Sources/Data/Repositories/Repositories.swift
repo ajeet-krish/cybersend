@@ -7,6 +7,7 @@ import GRDB
 public struct Repositories: Sendable {
     public let attempts: any AttemptRepository
     public let climbs: any ClimbRepository
+    public let dump: any DumpRepository
     public let grades: any GradeRepository
     public let gyms: any GymRepository
     public let holds: any HoldRepository
@@ -18,6 +19,7 @@ public struct Repositories: Sendable {
         let grades = GRDBGradeRepository(writer: writer)
         self.attempts = GRDBAttemptRepository(writer: writer)
         self.climbs = GRDBClimbRepository(writer: writer, grades: grades)
+        self.dump = GRDBDumpRepository(writer: writer)
         self.grades = grades
         self.gyms = GRDBGymRepository(writer: writer)
         self.holds = GRDBHoldRepository(writer: writer)
