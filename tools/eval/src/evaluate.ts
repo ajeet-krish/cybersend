@@ -2,11 +2,14 @@
  * Detector-agnostic eval core: run any Detector over a COCO split and compute
  * single-class detection metrics at IoU 0.5.
  *
- * Ground truth boxes are stored in source-image pixels (xywh) and are mapped
- * into the letterboxed frame with the same preprocess contract the model sees
- * (letterbox 640, pad 114, centered), so raw-resolution test images work
- * directly. Matching is greedy confidence-ordered; mAP uses VOC 2010+
- * all-point interpolation (see metrics.ts).
+ * Ground truth boxes are stored in image pixels (xywh) and are mapped into the
+ * letterboxed frame with the same preprocess contract the model sees
+ * (letterbox 640, pad 114, centered). The merged D1 dataset ships pre-letterboxed
+ * by tools/train hold-bake, so on that data the meta is scale 1 with zero pads
+ * and the mapping below is an exact identity; raw-resolution splits (fixtures,
+ * own-gym photos) are letterboxed here instead. Matching is greedy
+ * confidence-ordered; mAP uses VOC 2010+ all-point interpolation (see
+ * metrics.ts).
  */
 
 import { readFile } from "node:fs/promises";
@@ -113,7 +116,9 @@ export async function evaluateSplit(
   const inferenceMs: number[] = [];
   const perImage: PerImageRow[] = [];
   // Ground truth mapped into the letterboxed frame, the frame both detections
-  // and metrics live in.
+  // and metrics live in. With the hold-bake dataset the meta is scale 1 and
+  // zero pads, so this mapping is an identity and the boxes below are already
+  // in model pixels; the transform stays for unbaked (raw-resolution) splits.
   const gtByImage: GroundTruth[][] = coco.images.map(() => []);
 
   for (const [imageIndex, image] of coco.images.entries()) {

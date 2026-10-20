@@ -6,8 +6,9 @@ Merges three Roboflow COCO exports into one single-class detection dataset:
     datasets/raw/blackcreed.v14i.coco  bounding boxes, classes "0" + "1"
     datasets/raw/pwals.v18i.coco       bounding boxes, 16 color classes
 
-Every category maps to the single class "hold" (category id 0). Images are
-deduplicated in two stages: exact Roboflow variant-family grouping by photo
+Every category maps to the single class "hold" (category id 1, the RF-DETR
+Roboflow loader convention; category id 0 is reserved for Roboflow's synthetic
+parent container and is never emitted). Images are deduplicated in two stages: exact Roboflow variant-family grouping by photo
 stem, plus pHash (64-bit) candidate search verified by 64x64 thumbnail
 correlation (pHash alone over-merges on climbing wall imagery). Clusters are
 assigned to train/val/test 60/20/20 by a seeded deterministic hash of the
@@ -23,6 +24,11 @@ Output (see manifest.json for the authoritative counts and hashes):
                                          optional color-family classifier, NOT
                                          part of detection training)
     datasets/merged/manifest.json
+
+Images leave this step at source resolution with boxes in source pixels. The
+shared inference preprocess is baked into the dataset afterwards by hold-bake
+(letterbox 640, pad 114, centered), which is a separate deterministic step so
+that raw and baked views of the same split remain reproducible.
 
 Sanity checks fail loudly: no pHash cluster may span two splits, every image
 file referenced by an output annotation file must exist, and every bbox must
@@ -47,7 +53,15 @@ from typing import Any
 import numpy as np
 from PIL import Image
 
-from .common import DATASETS_DIR, SINGLE_CLASS_NAME, ensure_dir, read_json, sha256_file, write_json
+from .common import (
+    DATASETS_DIR,
+    SINGLE_CLASS_ID,
+    SINGLE_CLASS_NAME,
+    ensure_dir,
+    read_json,
+    sha256_file,
+    write_json,
+)
 
 RAW_DIR = DATASETS_DIR / "raw"
 DEFAULT_OUTPUT_DIR = DATASETS_DIR / "merged"
@@ -542,7 +556,7 @@ def _write_split(
                 {
                     "id": len(annotations) + 1,
                     "image_id": image_id,
-                    "category_id": 0,
+                    "category_id": SINGLE_CLASS_ID,
                     "bbox": annotation.bbox_xywh,
                     "area": round(annotation.bbox_xywh[2] * annotation.bbox_xywh[3], 2),
                     "iscrowd": 0,
@@ -567,7 +581,7 @@ def _write_split(
             "date_created": datetime.now(timezone.utc).date().isoformat(),
         },
         "licenses": [],
-        "categories": [{"id": 0, "name": SINGLE_CLASS_NAME, "supercategory": "climb"}],
+        "categories": [{"id": SINGLE_CLASS_ID, "name": SINGLE_CLASS_NAME, "supercategory": "climb"}],
         "images": images,
         "annotations": annotations,
     }
@@ -604,7 +618,18 @@ def run_sanity_checks(
             if not image_path.exists():
                 raise SystemExit(f"sanity check failed: referenced image missing on disk: {image_path}")
         clipped = 0
+        category_ids = {int(category["id"]) for category in coco.get("categories", [])}
+        if category_ids != {SINGLE_CLASS_ID}:
+            raise SystemExit(
+                f"sanity check failed: {split_name} declares category ids "
+                f"{sorted(category_ids)}, expected exactly {{{SINGLE_CLASS_ID}}}"
+            )
         for annotation in coco["annotations"]:
+            if int(annotation["category_id"]) != SINGLE_CLASS_ID:
+                raise SystemExit(
+                    f"sanity check failed: {split_name} annotation {annotation['id']} has "
+                    f"category id {annotation['category_id']}, expected {SINGLE_CLASS_ID}"
+                )
             image = images_by_id.get(int(annotation["image_id"]))
             if image is None:
                 raise SystemExit(
@@ -628,7 +653,10 @@ def run_sanity_checks(
                     f"sanity check failed: {split_name} has {fraction:.1%} out-of-bounds bboxes "
                     f"(limit {OUT_OF_BOUNDS_ERROR_FRACTION:.0%})"
                 )
-        print(f"  [{split_name}] sanity: {len(coco['images'])} images exist, {clipped} clipped bboxes")
+        print(
+            f"  [{split_name}] sanity: {len(coco['images'])} images exist, "
+            f"{clipped} clipped bboxes, category id {SINGLE_CLASS_ID} only"
+        )
 
     return {
         "clusters_spanning_splits": 0,
@@ -639,14 +667,14 @@ def run_sanity_checks(
 
 
 def _observed_category_mapping(raw_dir: Path, spec: SourceSpec) -> dict[str, int]:
-    """Map every non-parent category name of a source to class id 0."""
+    """Map every non-parent category name of a source to the merged class id."""
     coco_path = raw_dir / spec.dir_name / "train" / "_annotations.coco.json"
     coco = read_json(coco_path)
     mapping: dict[str, int] = {}
     for category in coco.get("categories", []):
         if int(category["id"]) == 0:
             continue
-        mapping[str(category["name"])] = 0
+        mapping[str(category["name"])] = SINGLE_CLASS_ID
     return mapping
 
 
@@ -767,7 +795,15 @@ def build(
         ),
         "sources": source_stats,
         "category_mapping": category_mapping,
-        "merged_class": {"category_id": 0, "name": SINGLE_CLASS_NAME},
+        "merged_class": {
+            "category_id": SINGLE_CLASS_ID,
+            "name": SINGLE_CLASS_NAME,
+            "convention": (
+                "id 1 matches RF-DETR's Roboflow loader convention (the smoke-proven "
+                "path); category id 0 is Roboflow's synthetic parent container and is "
+                "never emitted in output annotations"
+            ),
+        },
         "dedupe": {
             "method": (
                 "two stages: (A) union every Roboflow variant family by (source, photo "
@@ -819,6 +855,7 @@ def build(
         f"Done: {total_images} images, {total_annotations} annotations, "
         f"{len(representatives)} clusters, {dropped_duplicates} duplicates dropped"
     )
+    print("Next: run 'uv run hold-bake' to bake the letterbox-640 preprocess into the images.")
     return manifest_path
 
 

@@ -14,6 +14,13 @@ eval transform is Resize((640, 640)), which becomes an identity on this data, so
 shared app/harness preprocess in tools/eval/src/preprocess.ts (letterbox 640, pad 114,
 ImageNet normalization) matches training exactly.
 
+The letterbox writer and the box transform are imported from hold-bake
+(hold_train.bake_dataset) instead of being reimplemented here, so the two
+letterbox writers cannot drift: content sizes round halves up exactly like
+JavaScript Math.round (never Python's banker's rounding), pads are floor
+offsets, and boxes under 2 px on a side after the transform are dropped and
+counted, all matching tools/eval/src/preprocess.ts letterboxGeometryFor.
+
 The split itself is deterministic given (seed, input COCO, grouping rule). A
 split_manifest.json records seed, ratios, counts, per-split photo groups, and hashes.
 """
@@ -22,12 +29,14 @@ from __future__ import annotations
 
 import argparse
 import random
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from PIL import Image
 
+from .bake_dataset import letterbox_image, map_box_to_letterbox
 from .common import DATASETS_DIR, ensure_dir, read_json, sha256_file, write_json
 from .dataset_download import _photo_group_key
 
@@ -35,42 +44,6 @@ DEFAULT_SEED = 20261019
 DEFAULT_IMAGE_SIZE = 640
 DEFAULT_PAD_VALUE = 114
 SPLIT_NAMES = ("train", "valid", "test")
-
-
-def letterbox_image(image: Image.Image, image_size: int, pad_value: int) -> tuple[Image.Image, float, int, int]:
-    """Fit image into image_size x image_size with aspect preserved and centered padding.
-
-    Returns (letterboxed image, scale, pad_x, pad_y) where pad offsets are the top-left
-    corner of the original image inside the padded canvas.
-    """
-    width, height = image.size
-    scale = min(image_size / width, image_size / height)
-    new_width = max(1, round(width * scale))
-    new_height = max(1, round(height * scale))
-    resized = image.convert("RGB").resize((new_width, new_height), Image.BICUBIC)
-    pad_x = (image_size - new_width) // 2
-    pad_y = (image_size - new_height) // 2
-    canvas = Image.new("RGB", (image_size, image_size), (pad_value, pad_value, pad_value))
-    canvas.paste(resized, (pad_x, pad_y))
-    return canvas, scale, pad_x, pad_y
-
-
-def map_box_to_letterbox(
-    bbox: list[float], scale: float, pad_x: int, pad_y: int, image_size: int
-) -> list[float] | None:
-    """Map a COCO xywh box from source pixels into the letterboxed frame."""
-    x, y, box_w, box_h = bbox
-    new_x = x * scale + pad_x
-    new_y = y * scale + pad_y
-    new_w = box_w * scale
-    new_h = box_h * scale
-    new_x = max(0.0, min(new_x, float(image_size)))
-    new_y = max(0.0, min(new_y, float(image_size)))
-    new_w = min(new_w, float(image_size) - new_x)
-    new_h = min(new_h, float(image_size) - new_y)
-    if new_w < 1.0 or new_h < 1.0:
-        return None
-    return [round(new_x, 2), round(new_y, 2), round(new_w, 2), round(new_h, 2)]
 
 
 def _allocate_groups(
@@ -134,6 +107,7 @@ def split_and_prepare(
         split_image_dir = ensure_dir(output_dir / split_name / "images")
         split_images: list[dict[str, Any]] = []
         split_annotations: list[dict[str, Any]] = []
+        counters: Counter[str] = Counter()
         next_image_id = 0
         next_annotation_id = 0
         for group_key in sorted(allocation[split_name]):
@@ -163,7 +137,12 @@ def split_and_prepare(
                     }
                 )
                 for annotation in annotations_by_image.get(source_image_id, []):
-                    mapped = map_box_to_letterbox(annotation["bbox"], scale, pad_x, pad_y, image_size)
+                    mapped = map_box_to_letterbox(
+                        [float(value) for value in annotation["bbox"]],
+                        (scale, pad_x, pad_y),
+                        image_size,
+                        counters,
+                    )
                     if mapped is None:
                         continue
                     next_annotation_id += 1
@@ -193,11 +172,15 @@ def split_and_prepare(
             "photos": len(allocation[split_name]),
             "images": len(split_images),
             "instances": len(split_annotations),
+            "annotations_clipped_to_canvas": counters["annotations_clipped_to_canvas"],
+            "annotations_dropped_degenerate_bbox": counters["annotations_dropped_degenerate_bbox"],
             "photo_groups": sorted(allocation[split_name]),
             "annotations_sha256": sha256_file(split_coco_path),
         }
         print(
             f"  {split_name}: {len(split_images)} images, {len(split_annotations)} instances "
+            f"({counters['annotations_clipped_to_canvas']} clipped, "
+            f"{counters['annotations_dropped_degenerate_bbox']} degenerate dropped) "
             f"-> {split_coco_path}"
         )
 
@@ -212,8 +195,11 @@ def split_and_prepare(
             "size": image_size,
             "pad_value": pad_value,
             "alignment": "centered",
+            "content_rounding": "halves up (JavaScript Math.round parity)",
             "resampling": "BICUBIC",
             "color_space": "RGB",
+            "writer": "hold_train.bake_dataset.letterbox_image (shared with hold-bake)",
+            "geometry_matches": "tools/eval/src/preprocess.ts letterboxGeometryFor",
         },
         "splits": manifest_splits,
     }

@@ -4,6 +4,11 @@ Produces:
     artifacts/holds_detector_smoke.onnx   (opset 17, input 1x3x640x640)
     artifacts/manifest.json               (framework, licenses, input/output spec, training config)
 
+The artifact id, version, and purpose are CLI parameters (--id, --version,
+--purpose) so the same script exports the smoke spike and the D1 baseline;
+dataset provenance is read from <dataset-dir>/manifest.json (datasets/merged
+for D1, written by hold-build and updated by hold-bake).
+
 Export contract (verified with onnxruntime after export):
     input  "input" : float32 [1, 3, 640, 640], NCHW RGB, ImageNet normalized,
                      image letterboxed to 640x640 with pad value 114 (centered)
@@ -80,6 +85,9 @@ def export_artifact(
     opset: int,
     resolution: int,
     training_config: dict[str, Any],
+    artifact_id: str,
+    artifact_version: str,
+    artifact_purpose: str,
 ) -> None:
     """Export checkpoint to ONNX and write manifest.json next to it."""
     print(f"Loading checkpoint {checkpoint_path}")
@@ -104,13 +112,13 @@ def export_artifact(
     inner = model.model.model
     num_params = sum(int(p.numel()) for p in inner.parameters())
 
-    split_manifest_path = dataset_dir / "split_manifest.json"
+    dataset_manifest_path = dataset_dir / "manifest.json"
     dataset_license_path = dataset_dir / "LICENSE"
     manifest: dict[str, Any] = {
-        "id": "holds_detector_smoke",
-        "version": "0.1.0",
+        "id": artifact_id,
+        "version": artifact_version,
         "created_at": datetime.now(timezone.utc).isoformat(),
-        "purpose": "Phase 0 training spike smoke test, not a shippable model",
+        "purpose": artifact_purpose,
         "license": {
             "model_license_id": MODEL_LICENSE_ID,
             "framework": "RF-DETR (roboflow/rf-detr)",
@@ -122,8 +130,8 @@ def export_artifact(
             "name": dataset_dir.name,
             "license_file": str(dataset_license_path.relative_to(PROJECT_ROOT)) if dataset_license_path.exists() else None,
             "license_summary": _dataset_license_summary(dataset_dir),
-            "split_manifest": str(split_manifest_path.relative_to(PROJECT_ROOT)) if split_manifest_path.exists() else None,
-            "split_manifest_sha256": sha256_file(split_manifest_path) if split_manifest_path.exists() else None,
+            "dataset_manifest": str(dataset_manifest_path.relative_to(PROJECT_ROOT)) if dataset_manifest_path.exists() else None,
+            "dataset_manifest_sha256": sha256_file(dataset_manifest_path) if dataset_manifest_path.exists() else None,
         },
         "model": {
             "architecture": "RF-DETR-Nano",
@@ -215,12 +223,31 @@ def main() -> None:
     parser.add_argument("--dataset-dir", type=Path, default=DATASETS_DIR / "merged")
     parser.add_argument("--opset", type=int, default=DEFAULT_OPSET)
     parser.add_argument("--resolution", type=int, default=DEFAULT_RESOLUTION)
+    parser.add_argument(
+        "--id",
+        dest="artifact_id",
+        default="holds_detector_smoke",
+        help="artifact id recorded in the export manifest (for example holds_detector_d1)",
+    )
+    parser.add_argument(
+        "--version",
+        dest="artifact_version",
+        default="0.1.0",
+        help="artifact version recorded in the export manifest",
+    )
+    parser.add_argument(
+        "--purpose",
+        dest="artifact_purpose",
+        default="Phase 0 training spike smoke test, not a shippable model",
+        help="human-readable purpose recorded in the export manifest",
+    )
     args = parser.parse_args()
 
     checkpoint_path = _resolve_checkpoint(args.checkpoint)
     if not checkpoint_path.exists():
         raise SystemExit(f"Checkpoint not found: {checkpoint_path}. Run hold-train-smoke first.")
     print(f"Exporting from checkpoint: {checkpoint_path}")
+    print(f"Artifact id: {args.artifact_id} ({args.artifact_version})")
 
     training_config_path = checkpoint_path.parent / "training_config.json"
     export_artifact(
@@ -230,6 +257,9 @@ def main() -> None:
         dataset_dir=args.dataset_dir,
         opset=args.opset,
         resolution=args.resolution,
+        artifact_id=args.artifact_id,
+        artifact_version=args.artifact_version,
+        artifact_purpose=args.artifact_purpose,
         training_config=_training_summary(
             training_config_path,
             fallback={

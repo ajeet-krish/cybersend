@@ -1,0 +1,56 @@
+# CyberSend D1 preflight: ONE epoch on the merged dataset, batch 2.
+#
+# WARNING: executing this config starts a training run (1 epoch, about 30
+# minutes on MPS, checkpoints of 500 MB and more). A 1-epoch preflight run IS a
+# training run: it REQUIRES USER APPROVAL BEFORE RUNNING. See the preflight
+# section of tools/train/README.md. Nothing in this file has been executed.
+#
+# Purpose: validate the D1 plumbing end to end before committing to the 40
+# epoch run, without pretending it produces a model:
+#   * config keys (dataset_dir, output_dir, model, train, device, seed) load and
+#     validate in hold-train-d1,
+#   * the merged dataset is baked (640x640 letterbox) with category id 1 and
+#     passes `uv run hold-bake --verify`,
+#   * the merged/valid symlink is created for RF-DETR's Roboflow-style loader,
+#   * RF-DETR writes its checkpoints under the names the runbook expects
+#     (checkpoint_best_ema.pth, last.ckpt),
+#   * the export kwargs in the runbook produce a manifest with the right
+#     id/purpose/version and datasets/merged/manifest.json provenance.
+#
+# Run with (after explicit user approval):
+#   uv run hold-train-d1 --config configs/rf_detr_d1_preflight.yaml 2>&1 | tee artifacts/train_rf_detr_d1_preflight.log
+# Prerequisite: uv run hold-build && uv run hold-bake && uv run hold-bake --verify
+
+run_id: rf_detr_d1_preflight
+description: >-
+  D1 preflight: one RF-DETR-Nano epoch on datasets/merged at batch 2, purely to
+  validate configuration, data, device, checkpoint naming, and export. Gate
+  numbers from this run mean nothing; never export it as a shippable model.
+
+# Relative to tools/train. hold-train-d1 creates merged/valid as a symlink to
+# merged/val because RF-DETR's Roboflow-style loader expects the name "valid".
+dataset_dir: datasets/merged
+output_dir: artifacts/train_rf_detr_d1_preflight
+
+device: mps          # Apple Silicon MPS; switch to cpu only if MPS misbehaves
+seed: 20261019       # must match the hold-build split seed for provenance
+
+model:
+  resolution: 640    # shared preprocess contract, see docs/architecture.md
+
+# Every key here is a validated RF-DETR TrainConfig field (rfdetr 1.11.2).
+train:
+  epochs: 1
+  batch_size: 2      # deliberately conservative for the preflight
+  lr: 0.0001
+  lr_encoder: 0.0001
+  weight_decay: 0.0001
+  num_workers: 2
+  eval_interval: 1
+  eval_ema_only: false
+  progress_bar: true
+  notes: >-
+    CyberSend D1 PREFLIGHT (1 epoch, batch 2) on datasets/merged (climbtag v29 +
+    blackcreed v14 + pwals v18, pHash deduped, cluster 60/20/20, seed 20261019,
+    letterbox 640 baked by hold-bake, category id 1). Validates plumbing only;
+    not a quality run, never a shippable model.

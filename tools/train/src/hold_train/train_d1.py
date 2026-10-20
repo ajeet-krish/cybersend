@@ -27,7 +27,7 @@ def load_config(config_path: Path) -> dict[str, Any]:
     payload = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
         raise SystemExit(f"config {config_path} must be a YAML mapping")
-    for key in ("dataset_dir", "output_dir", "model", "train"):
+    for key in ("dataset_dir", "output_dir", "model", "train", "device", "seed"):
         if key not in payload:
             raise SystemExit(f"config {config_path} is missing required key '{key}'")
     return payload
@@ -69,6 +69,8 @@ def run(config_path: Path) -> None:
     train_config = dict(config["train"])
     train_config["dataset_dir"] = str(dataset_dir)
     train_config["output_dir"] = str(output_dir)
+    train_config["device"] = str(config["device"])  # forwarded to RFDETRNano.train()
+    train_config["seed"] = int(config["seed"])  # forwarded to RFDETRNano.train()
 
     resolution = int(model_config.pop("resolution", 640))
     print(f"D1 baseline run: RF-DETR-Nano, resolution {resolution}")

@@ -1,9 +1,10 @@
 # CyberSend Hold Detection Dataset Card (merged v1)
 
-Last built: 2026-10-19 by `uv run hold-build` (seed 20261019). The authoritative
-machine-readable record is `datasets/merged/manifest.json` (git-ignored,
-re-creatable from `datasets/raw/`). This card documents what the dataset is, how
-it was made, and what it is not good for.
+Last built: 2026-10-19 by `uv run hold-build` (seed 20261019), letterbox baked
+the same day by `uv run hold-bake`. The authoritative machine-readable record
+is `datasets/merged/manifest.json` (git-ignored, re-creatable from
+`datasets/raw/`). This card documents what the dataset is, how it was made, and
+what it is not good for.
 
 ## pwals license verified
 
@@ -33,12 +34,14 @@ Notes:
   name limit (280 characters), so those files never extracted and are dropped at
   load time (counted as `images_dropped_missing_file` in the manifest).
 
-## Methodology (hold-build pipeline)
+## Methodology (hold-build + hold-bake pipeline)
 
 1. Category mapping. Every raw category maps to the single training class
-   `hold` (category id 0): climbtag hold+volume, blackcreed "0"+"1", all 16
+   `hold` (category id 1, the RF-DETR Roboflow loader convention; the smoke
+   proven path): climbtag hold+volume, blackcreed "0"+"1", all 16
    pwals color classes. Roboflow synthetic parent categories (id 0, unannotated)
-   are skipped.
+   are skipped, and category id 0 never appears in output: `hold-build` and
+   `hold-bake --verify` both fail loudly if it does.
 2. Annotation normalization. Axis-aligned bboxes in source pixels; bbox derived
    from polygon min/max when absent; bboxes clipped to image bounds (881
    clipped, counted per source in the manifest); degenerate boxes under 2 px on
@@ -70,19 +73,45 @@ Notes:
 6. Sanity checks (fail loudly, recorded in the manifest): no cluster spans two
    splits (checked from the emitted split assignment; this guards the writer,
    not dedupe recall, see Known limitations), every image file referenced by an
-   output annotation file exists on disk, every bbox sits inside its image.
+   output annotation file exists on disk, every bbox sits inside its image,
+   and every emitted category id is exactly 1.
+7. Letterbox bake (`uv run hold-bake`, a separate deterministic step after the
+   build). Every image is rewritten to 640x640 RGB JPEG: aspect preserved,
+   padding centered, pad value 114, BICUBIC, geometry byte-consistent with
+   tools/eval/src/preprocess.ts (JavaScript half-up content rounding, floor pad
+   offsets). Boxes are scaled and padded with their image, clipped to the
+   canvas, rounded to 2 decimals; boxes under 2 px after the transform are
+   dropped and counted (93 dropped: train 54, val 20, test 19; 0 clipped
+   because step 2 already clipped to source bounds). Image records keep
+   `source_width`, `source_height`, `letterbox_scale`, `letterbox_pad_x`,
+   `letterbox_pad_y`; the pwals sidecar boxes move into the same frame (1,514
+   to 1,510); the manifest gains a `bake` section. Baking changes the
+   annotation SHA256 digests, while split membership (including the frozen test
+   split) is unchanged. The bake is idempotent: a second pass rewrites no bytes
+   and keeps the original bake record. After the bake the harness letterbox on
+   this data is an exact identity, so RF-DETR's `Resize((640, 640))`, the eval
+   harness, and the app preprocess all see the same pixels.
 
 ## Final counts
 
+Counts after the letterbox bake (the numbers training actually sees; the
+pre-bake annotation totals were 66,985 / 22,782 / 24,160, so the bake dropped
+93 degenerate boxes). The annotation sha256 values are POST-bake digests and
+change on every rebuild and every bake that transforms boxes:
+
 | Split | Images | Annotations | climbtag (img/ann) | blackcreed (img/ann) | pwals (img/ann) | Frozen | annotations sha256 (first 16) |
 |-------|--------|-------------|--------------------|----------------------|-----------------|--------|------------------------------|
-| train | 1,804 | 66,985 | 938 / 35,931 | 838 / 30,022 | 28 / 1,032 | no | a5ffe520120197cc |
-| val   | 591   | 22,782 | 321 / 13,120 | 260 / 9,410  | 10 / 252   | no | 79c18be326bcc6ce |
-| test  | 582   | 24,160 | 316 / 13,219 | 258 / 10,711 | 8 / 230    | **yes (frozen)** | d1d4837786d27130 |
+| train | 1,804 | 66,931 | 938 / 35,906 | 838 / 29,997 | 28 / 1,028 | no | d8ff0cf08122b2f8 |
+| val   | 591   | 22,762 | 321 / 13,108 | 260 / 9,402  | 10 / 252   | no | 9fef27437017329e |
+| test  | 582   | 24,141 | 316 / 13,206 | 258 / 10,705 | 8 / 230    | **yes (frozen)** | b07729986ed5bf4e |
 
-Totals: 2,977 images, 113,927 annotations, 2,977 clusters, 6,743 duplicate
-images dropped, from 9,720 source images. On-disk size of `datasets/merged`:
-about 290 MB (raw: about 1.0 GB).
+Totals: 2,977 images, 113,834 annotations, 2,977 clusters, 6,743 duplicate
+images dropped, from 9,720 source images. Every image is 640x640 (2,940 baked
+by hold-bake, 37 were already 640x640 square sources), every annotation uses
+category id 1, and every box sits inside the 640 canvas
+(`uv run hold-bake --verify` re-checks all of this). On-disk size of
+`datasets/merged`: about 240 MB baked (about 290 MB at source resolution
+before the bake; raw: about 1.0 GB).
 
 Image ids and file names inside each split JSON are self-contained; image files
 are prefixed with their source name (for example `climbtag__0_jpg.rf.<hash>.jpg`)
@@ -96,7 +125,10 @@ classifier (US-33) and is NOT part of detection training. Normalization: strip
 the `-hold` suffix; classes with more than one color token (for example
 `black-pink-hold`) map to `multi`. 13 families appear: black, blue, brown, cyan,
 gray, green, multi, orange, pink, purple, red, white, yellow. 46 pwals images
-carry sidecar labels (train 28, val 10, test 8).
+carry sidecar labels (train 28, val 10, test 8). The sidecar boxes follow the
+images: hold-bake transformed them into the 640 frame with the same geometry as
+the split annotations (1,514 boxes to 1,510, 4 degenerate dropped), and the
+`bboxes_frame` field records that.
 
 ## Known limitations
 

@@ -4,8 +4,9 @@
  * This file is the single source of truth for the inference preprocess contract and is
  * shared between the app (src/features/ml/preprocess.ts wraps or mirrors it) and the
  * Node eval harness (tools/eval). It must stay in lockstep with the training convention
- * recorded in tools/train/artifacts/manifest.json and baked into the training split by
- * tools/train/src/hold_train/split_dataset.py:
+ * recorded in tools/train/artifacts/manifest.json and baked into the data by
+ * tools/train/src/hold_train/bake_dataset.py (merged D1 dataset) and
+ * tools/train/src/hold_train/split_dataset.py (own-gym photos):
  *
  *   1. letterbox the image into a square canvas of TARGET_SIZE with pad value 114,
  *      centered, aspect ratio preserved;
@@ -70,9 +71,10 @@ export interface SourceBox {
  * Letterbox RGBA bytes into a square RGB canvas with centered padding.
  *
  * Resampling is bilinear on center-aligned sample positions, which is an exact identity
- * when the source is already TARGET_SIZE wide or tall after scaling. The training split
- * was baked with PIL BICUBIC by hold-split; the eval harness feeds those pre-letterboxed
- * images so no resampling happens there at all, and the app path shares this exact code.
+ * when the source is already TARGET_SIZE wide or tall after scaling. The merged D1
+ * dataset (hold-bake) and the own-gym splits (hold-split) are written already letterboxed
+ * to 640x640 with PIL BICUBIC, so the eval harness feeds those pre-letterboxed images and
+ * no resampling happens there at all, and the app path shares this exact code.
  */
 export function letterboxRgba(
   rgba: Uint8Array,
@@ -172,6 +174,10 @@ export function letterboxToTensor(
  * Map an xyxy box in the letterboxed frame (pixel units) back to normalized 0..1
  * coordinates over the original source image. Detections outside the content area
  * are clamped into the source image.
+ *
+ * On baked data (hold-bake output: 640x640 images, scale 1, zero pads) the meta
+ * makes this a trivial identity: x / 640 over the baked frame, which is also the
+ * source frame because the bake scaled and padded the boxes with the image.
  */
 export function letterboxToSourceBox(box: readonly [number, number, number, number], meta: LetterboxMeta): SourceBox {
   const [x1, y1, x2, y2] = box;

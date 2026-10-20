@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +14,23 @@ DATASETS_DIR = PROJECT_ROOT / "datasets"
 ARTIFACTS_DIR = PROJECT_ROOT / "artifacts"
 
 SINGLE_CLASS_NAME = "hold"
+# Single-class id used by every emitted COCO file. Id 1 (never 0) matches
+# RF-DETR's Roboflow loader convention, which is the path proven by the smoke
+# run; Roboflow itself uses id 0 only for a synthetic parent container that is
+# never annotated.
+SINGLE_CLASS_ID = 1
+
+
+def js_round(value: float) -> int:
+    """Round halves up for non-negative values, exactly like JavaScript Math.round.
+
+    Python's round() uses banker's rounding (round(320.5) is 320), while the
+    shared harness preprocess in tools/eval/src/preprocess.ts computes letterbox
+    content sizes with Math.round (320.5 becomes 321). Every letterbox writer in
+    this pipeline (hold-bake and hold-split) must use this rule so the harness
+    letterbox stays a byte-consistent mirror of the training data.
+    """
+    return math.floor(value + 0.5)
 
 
 def ensure_dir(path: Path) -> Path:

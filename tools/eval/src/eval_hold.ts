@@ -4,27 +4,42 @@
  * Runs the exported hold detector ONNX over a frozen COCO split with
  * onnxruntime-node and computes precision, recall, and mAP at IoU 0.5 for the
  * single "hold" class. Preprocessing is the shared pure-TS contract in
- * preprocess.ts (letterbox 640, pad 114, ImageNet normalization), and ground
- * truth boxes are mapped into the letterboxed frame, so raw-resolution test
- * images work directly. No NMS: RF-DETR is a DETR-style set predictor and is
- * evaluated on its raw per-query outputs.
+ * preprocess.ts (letterbox 640, pad 114, ImageNet normalization); the merged
+ * dataset ships pre-letterboxed by hold-bake, so on that data the letterbox is
+ * an identity and ground truth boxes already live in the model frame. No NMS:
+ * RF-DETR is a DETR-style set predictor and is evaluated on its raw per-query
+ * outputs.
  *
  * Usage:
  *   node src/eval_hold.ts [--model path.onnx] [--split-dir dir] [--report out.json]
  *                         [--confidence 0.5] [--iou 0.5] [--score-floor 1e-4]
- *                         [--gate] [--label text]
+ *                         [--gate] [--label text] [--i-accept-one-test-run]
+ *
+ * The default split is val (not test). Scoring the frozen test split requires
+ * the explicit --i-accept-one-test-run flag and appends a line to
+ * reports/test_ledger.jsonl (one gated test run policy, see README.md).
  *
  * --gate applies the Phase 4 quality gates from docs/requirements.md section 6
  * (precision >= 0.85, recall >= 0.80, mAP@0.5 >= 0.75) and exits with code 3
  * when any gate fails.
  */
 
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { OnnxDetector } from "./detector.ts";
 import { evaluateSplit } from "./evaluate.ts";
+import {
+  TEST_ACCEPT_FLAG,
+  TEST_LEDGER_FILE,
+  buildLedgerEntry,
+  defaultReportName,
+  formatLedgerEntry,
+  gitDescribe,
+  requireTestRunAcceptance,
+  splitKind,
+} from "./test_policy.ts";
 
 interface Args {
   readonly modelPath: string;
@@ -35,6 +50,7 @@ interface Args {
   readonly scoreFloor: number;
   readonly gate: boolean;
   readonly label: string;
+  readonly acceptOneTestRun: boolean;
 }
 
 /** Phase 4 quality gates, docs/requirements.md section 6. */
@@ -42,10 +58,10 @@ export const PHASE4_GATES = { precisionMin: 0.85, recallMin: 0.8, map05Min: 0.75
 
 const EVAL_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const REPO_TOOLS = path.resolve(EVAL_ROOT, "..");
+const REPO_ROOT = path.resolve(REPO_TOOLS, "..");
 const DEFAULTS = {
   modelPath: path.join(REPO_TOOLS, "train", "artifacts", "holds_detector_d1.onnx"),
-  splitDir: path.join(REPO_TOOLS, "train", "datasets", "merged", "test"),
-  reportPath: path.join(EVAL_ROOT, "reports", "d1_test_eval.json"),
+  splitDir: path.join(REPO_TOOLS, "train", "datasets", "merged", "val"),
   confidence: 0.5,
   iou: 0.5,
   scoreFloor: 1e-4,
@@ -56,20 +72,61 @@ function parseArgs(argv: readonly string[]): Args {
     const index = argv.indexOf(name);
     return index >= 0 ? argv[index + 1] : undefined;
   };
+  const splitDir = path.resolve(
+    readFlag("--split-dir") ?? readFlag("--test-dir") ?? DEFAULTS.splitDir,
+  );
   return {
     modelPath: path.resolve(readFlag("--model") ?? DEFAULTS.modelPath),
-    splitDir: path.resolve(readFlag("--split-dir") ?? readFlag("--test-dir") ?? DEFAULTS.splitDir),
-    reportPath: path.resolve(readFlag("--report") ?? DEFAULTS.reportPath),
+    splitDir,
+    reportPath: path.resolve(
+      readFlag("--report") ?? path.join(EVAL_ROOT, "reports", defaultReportName(splitKind(splitDir))),
+    ),
     confidence: Number(readFlag("--confidence") ?? DEFAULTS.confidence),
     iou: Number(readFlag("--iou") ?? DEFAULTS.iou),
     scoreFloor: Number(readFlag("--score-floor") ?? DEFAULTS.scoreFloor),
     gate: argv.includes("--gate"),
     label: readFlag("--label") ?? "D1 BASELINE EVALUATION",
+    acceptOneTestRun: argv.includes(TEST_ACCEPT_FLAG),
   };
 }
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
+  const kind = splitKind(args.splitDir);
+
+  // Fail fast: the frozen test split is guarded before any model or data loads.
+  try {
+    requireTestRunAcceptance(kind, args.acceptOneTestRun);
+  } catch (error) {
+    console.error(`eval_hold: ${(error as Error).message}`);
+    process.exitCode = 2;
+    return;
+  }
+
+  const manifestPath = path.join(path.dirname(args.modelPath), "manifest.json");
+  const manifestRaw = await readFile(manifestPath, "utf8").catch(() => null);
+  const manifest = manifestRaw !== null ? (JSON.parse(manifestRaw) as Record<string, unknown>) : null;
+
+  if (kind === "test") {
+    // Append before scoring so a run that dies midway still consumed its
+    // ledger line: every access to the frozen test split must be recorded.
+    const ledgerPath = path.join(EVAL_ROOT, "reports", TEST_LEDGER_FILE);
+    const entry = buildLedgerEntry({
+      timestamp: new Date().toISOString(),
+      model_id:
+        typeof manifest?.id === "string" ? manifest.id : path.basename(args.modelPath, ".onnx"),
+      model_path: path.relative(REPO_ROOT, args.modelPath),
+      report_path: path.relative(REPO_ROOT, args.reportPath),
+      split_dir: path.relative(REPO_ROOT, args.splitDir),
+      git_describe: gitDescribe(REPO_ROOT),
+      gate: args.gate,
+      confidence: args.confidence,
+    });
+    await mkdir(path.dirname(ledgerPath), { recursive: true });
+    await appendFile(ledgerPath, formatLedgerEntry(entry), "utf8");
+    console.log(`test split: ledger entry appended to ${path.relative(REPO_ROOT, ledgerPath)}`);
+  }
+
   console.log(`model: ${args.modelPath}`);
   console.log(`split: ${args.splitDir}`);
   console.log(
@@ -82,10 +139,6 @@ async function main(): Promise<void> {
     confidence: args.confidence,
     scoreFloor: args.scoreFloor,
   });
-
-  const manifestPath = path.join(path.dirname(args.modelPath), "manifest.json");
-  const manifestRaw = await readFile(manifestPath, "utf8").catch(() => null);
-  const manifest = manifestRaw !== null ? (JSON.parse(manifestRaw) as Record<string, unknown>) : null;
 
   const gates = {
     precision: { value: result.metrics.precision, min: PHASE4_GATES.precisionMin },
@@ -107,6 +160,7 @@ async function main(): Promise<void> {
     },
     dataset: {
       split_dir: path.relative(path.dirname(args.reportPath), args.splitDir),
+      split_kind: kind,
       images: result.images.length,
       ground_truth_instances: result.groundTruths.length,
       note: "see tools/train/DATASET_CARD.md for sources, licenses, and split provenance",
@@ -134,6 +188,7 @@ async function main(): Promise<void> {
   await writeFile(args.reportPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
 
   console.log("--- eval summary ---");
+  console.log(`split kind: ${kind}`);
   console.log(`precision@IoU0.5 (conf>=${args.confidence}): ${result.metrics.precision.toFixed(4)}`);
   console.log(`recall@IoU0.5 (conf>=${args.confidence}):    ${result.metrics.recall.toFixed(4)}`);
   console.log(`mAP@0.5:                        ${result.metrics.map05.toFixed(4)}`);

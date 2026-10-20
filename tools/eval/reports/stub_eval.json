@@ -2,7 +2,7 @@
   "report_id": "stub_eval",
   "label": "STUB DETECTOR RUN, NOT A MODEL EVALUATION",
   "description": "Harness code-complete proof: a deterministic synthetic fixture evaluated end to end through the real harness core (preprocess, matching, metrics, report writing) with a stub detector. Oracle metrics are exactly 1.0 and noop metrics are exactly 0.0. No model exists yet; these numbers validate the tooling only.",
-  "generated_at": "2026-10-19T21:20:58.804Z",
+  "generated_at": "2026-10-19T23:36:10.485Z",
   "detector": {
     "oracle": {
       "name": "stub:oracle",
@@ -63,7 +63,7 @@
     "noop_zero": true
   },
   "timing": {
-    "oracle_mean_inference_ms": 0.029,
+    "oracle_mean_inference_ms": 0.025,
     "note": "stub timings measure harness overhead only, not model inference"
   }
 }

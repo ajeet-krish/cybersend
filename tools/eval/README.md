@@ -17,22 +17,29 @@ fixture, with unit tests covering the pure pieces.
 cd tools/eval
 npm install
 
-# Unit tests, including the end-to-end stub evaluation. No model needed.
+# Unit tests, including the end-to-end stub evaluation, the test split policy,
+# and baked dataset parity. No model needed.
 npm test
 
 # End-to-end stub run; writes reports/stub_eval.json clearly labeled STUB.
 npm run eval:stub
 
-# Evaluate a real export (needs the ONNX from a training run).
+# Evaluate a real export on the DEFAULT split (val; needs the ONNX from a
+# training run). Model selection and threshold tuning happen here, never on test.
 npm run eval -- --model ../train/artifacts/holds_detector_d1.onnx \
-  --split-dir ../train/datasets/merged/test --report reports/d1_test_eval.json \
-  --confidence 0.5
+  --split-dir ../train/datasets/merged/val \
+  --report reports/d1_val_eval.json --confidence 0.5
 
-# Same, plus the Phase 4 gates (exits 3 when precision/recall/mAP50 miss their
-# floors: 0.85 / 0.80 / 0.75 per docs/requirements.md section 6).
+# The ONE gated test run: scoring the frozen test split requires the explicit
+# --i-accept-one-test-run flag (without it the harness refuses with exit 2
+# before loading the model) and appends a line to reports/test_ledger.jsonl
+# (timestamp, model id, report path, git describe). --gate exits 3 when
+# precision/recall/mAP50 miss their floors: 0.85 / 0.80 / 0.75 per
+# docs/requirements.md section 6.
 npm run eval -- --model ../train/artifacts/holds_detector_d1.onnx \
-  --split-dir ../train/datasets/merged/test --report reports/d1_test_eval.json \
-  --confidence <chosen-on-val> --gate
+  --split-dir ../train/datasets/merged/test \
+  --report reports/d1_test_eval.json --confidence <chosen-on-val> --gate \
+  --i-accept-one-test-run
 
 # Load an ONNX, print the input/output contract, run one dummy inference.
 npm run verify -- ../train/artifacts/holds_detector_d1.onnx
@@ -42,8 +49,30 @@ npm run typecheck
 ```
 
 Flags for npm run eval (all optional): --model, --split-dir (alias
---test-dir), --report, --confidence (operating threshold, default 0.5), --iou
-(default 0.5), --score-floor (default 1e-4), --gate, --label.
+--test-dir, default ../train/datasets/merged/val), --report (defaults to
+reports/d1_val_eval.json, or d1_test_eval.json for a test split), --confidence
+(operating threshold, default 0.5), --iou (default 0.5), --score-floor
+(default 1e-4), --gate, --label, --i-accept-one-test-run.
+
+## One gated test run policy
+
+The frozen test split may be scored exactly once per model iteration, and only
+deliberately:
+
+- a split directory counts as the test split when its final path segment is
+  `test`;
+- scoring it without `--i-accept-one-test-run` fails fast with exit code 2,
+  before any model or data loads;
+- every accepted run appends one JSON line to `reports/test_ledger.jsonl` with
+  the timestamp, model id (from the export manifest when present), report path,
+  and `git describe` when git is available, plus the split, confidence, and
+  whether `--gate` was requested;
+- the ledger line is written BEFORE scoring, so even a run that dies midway is
+  on the record;
+- `--gate` behavior is unchanged: exit 3 below the Phase 4 floors.
+
+The policy lives in src/test_policy.ts (unit tested); the val split, stub runs,
+and `npm run eval:stub` never touch the ledger.
 
 ## Layout
 
@@ -52,8 +81,9 @@ Flags for npm run eval (all optional): --model, --split-dir (alias
   arrays, no native imports. Kept in lockstep with the app path
   src/features/ml/preprocess.ts per docs/architecture.md.
 - src/evaluate.ts: detector-agnostic eval core. Ground truth boxes live in
-  source pixels and are mapped into the letterboxed frame with the same
-  geometry the model sees, so raw-resolution test images work directly.
+  image pixels and are mapped into the letterboxed frame with the same
+  geometry the model sees; on baked data (hold-bake) that mapping is an
+  identity, so raw-resolution splits and baked splits both work directly.
 - src/metrics.ts: greedy confidence-ordered matching, IoU, VOC 2010+ all-point
   AP (precision envelope via suffix maxima).
 - src/detector.ts: Detector interface; OnnxDetector (onnxruntime-node, no NMS,
@@ -61,14 +91,19 @@ Flags for npm run eval (all optional): --model, --split-dir (alias
 - src/decode.ts: RF-DETR output decode (dets = normalized cxcywh, labels =
   num_classes + 1 logits where channel 0 is the hold score and the trailing
   channel is no-object).
-- src/eval_hold.ts: harness main with report writing and the --gate check.
+- src/eval_hold.ts: harness main with report writing, the --gate check, and the
+  test split guard (exit 2 without --i-accept-one-test-run).
+- src/test_policy.ts: one gated test run policy (split detection, acceptance
+  check, ledger entry format, git describe) as pure testable logic.
 - src/run_stub_eval.ts: code-complete proof run against the stub detector.
 - src/stub_fixture.ts: deterministic synthetic fixture generator (JPEGs +
   COCO JSON, no committed binaries).
-- src/*.test.ts: node --test unit tests.
+- src/*.test.ts: node --test unit tests, including baked_parity.test.ts (baked
+  image + harness letterbox round trip) and test_policy.test.ts.
 - reports/: committed eval reports (stub_eval.json is labeled STUB and proves
   the harness only; smoke_eval.json is a historical Phase 0 record whose model
-  artifact was deleted).
+  artifact was deleted; test_ledger.jsonl grows by one line per accepted test
+  split run).
 
 ## Preprocess parity
 
@@ -76,3 +111,10 @@ The preprocess here is the single source of truth shared with the app. For
 raw photos it produces the model input and the letterbox meta used to map
 detections back to normalized 0..1 source coordinates via
 letterboxToSourceBox, which is the contract the Phase 4 app must reuse.
+
+The merged D1 dataset ships already letterboxed by tools/train hold-bake
+(640x640, pad 114, centered, boxes transformed with the image). On that data
+letterboxRgba is an exact identity (scale 1, zero pads, no resampling) and
+letterboxToSourceBox reduces to x / 640 over the baked frame;
+baked_parity.test.ts asserts both against the real baked val split when it
+exists on disk.
