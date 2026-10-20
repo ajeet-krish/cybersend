@@ -7,10 +7,10 @@ Local-first bouldering and climbing tracker for iOS. Native Swift app (SwiftUI p
 TypeScript tooling is verified against the scaffold (ef63924). Native commands are expected-until-verified: no Xcode is installed on this machine. npm manages tools/; Swift packages resolve through Xcode. Details live in tools/eval/README.md and tools/train/README.md.
 
 ```bash
-# native iOS track (expected until verified on a Mac with Xcode)
+# native iOS track (ios/ Swift package verified on Swift 6.3.2 via CommandLineTools; full xcodebuild/iOS SDK commands expected until Xcode is installed)
+cd ios && swift build
+cd ios && swift test
 xcodebuild -project ios/CyberSend.xcodeproj -scheme CyberSend -sdk iphonesimulator build
-xcodebuild test -project ios/CyberSend.xcodeproj -scheme CyberSend \
-  -destination 'platform=iOS Simulator,name=iPhone 15'
 
 # frozen TypeScript port spec
 npm test                # jest suite
@@ -71,7 +71,7 @@ Native migration milestones (the app track since 2026-10-19):
 
 | Milestone | Description | Status |
 |-----------|-------------|--------|
-| M0 | Decision lock, Xcode project, GRDB migrations, test harness | In Progress |
+| M0 | Decision lock, Xcode project, GRDB migrations, test harness | In Progress (Swift package + migrations + 101 tests green; Xcode project pending Xcode install) |
 | M1 | Domain, data, backup port (byte-compatible .cybersend) | Not Started |
 | M2 | SwiftUI logbook (quick-log, sessions, settings) | Not Started |
 | M3 | Photo capture and tagging MVP (Phase 2 gate unchanged) | Not Started |
