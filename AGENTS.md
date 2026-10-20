@@ -4,10 +4,10 @@ Local-first bouldering and climbing tracker for iOS. Native Swift app (SwiftUI p
 
 ## Quick Commands
 
-TypeScript tooling is verified against the scaffold (ef63924). Native commands are expected-until-verified: no Xcode is installed on this machine. npm manages tools/; Swift packages resolve through Xcode. Details live in tools/eval/README.md and tools/train/README.md.
+TypeScript tooling is verified against the scaffold (ef63924). Native commands are verified on Xcode 26.6 with the iOS 26.5 simulator (iPhone 17 Pro). npm manages tools/; the Swift package resolves locally through Xcode. Details live in tools/eval/README.md and tools/train/README.md.
 
 ```bash
-# native iOS track (ios/ Swift package verified on Swift 6.3.2 via CommandLineTools; full xcodebuild/iOS SDK commands expected until Xcode is installed)
+# native iOS track (Xcode 26.6 active, iOS 26.5 simulator verified)
 cd ios && swift build
 cd ios && swift test
 xcodebuild -project ios/CyberSend.xcodeproj -scheme CyberSend -sdk iphonesimulator build
@@ -71,9 +71,9 @@ Native migration milestones (the app track since 2026-10-19):
 
 | Milestone | Description | Status |
 |-----------|-------------|--------|
-| M0 | Decision lock, Xcode project, GRDB migrations, test harness | In Progress (Swift package + migrations + 101 tests green; Xcode project pending Xcode install) |
-| M1 | Domain, data, backup port (byte-compatible .cybersend) | Not Started |
-| M2 | SwiftUI logbook (quick-log, sessions, settings) | Not Started |
+| M0 | Decision lock, Xcode project, GRDB migrations, test harness | Complete (Xcode project itself pending user Xcode install) |
+| M1 | Domain, data, backup port (byte-compatible .cybersend) | Complete (158 tests green; legacy import compat proven) |
+| M2 | SwiftUI logbook (quick-log, sessions, settings) | In Progress |
 | M3 | Photo capture and tagging MVP (Phase 2 gate unchanged) | Not Started |
 | M4 | Grade normalization port | Not Started |
 | M5 | Hold detection (Core ML, parity gate, eval gates) | Not Started |

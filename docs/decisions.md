@@ -1,6 +1,6 @@
 # CyberSend Decision Records
 
-Last updated: 2026-10-19
+Last updated: 2026-10-20
 
 Entry format: "## [Date], Phase [N]: [Title]" with Context, Decision, Rationale, Trade-offs. Commas replace dash separators to honor the no-dash convention in AGENTS.md.
 
@@ -181,3 +181,51 @@ Entry format: "## [Date], Phase [N]: [Title]" with Context, Decision, Rationale,
 **Context:** The backup decision record above says the in-app rotating copy keeps the "last 3", while docs/requirements.md US-15.2 and open question 2 both say app-local rotation keeps the last 10 (the frozen TypeScript service also keeps 10).
 
 **Decision:** Requirements win: the Swift BackupService keeps maxBackupsKept = 10, matching the TypeScript port spec. The "last 3" wording above is superseded on this point.
+
+## 2026-10-20, Phase 0 (M2): app target is a committed Xcode project over the local package
+
+**Context:** M2 needs an iOS app target. Options: XcodeGen or similar tooling, a generated-then-discarded project, or a hand-authored committed .xcodeproj consuming the existing ios/ Swift package.
+
+**Decision:** Commit ios/CyberSend.xcodeproj (objectVersion 77, file-system synchronized groups) with targets CyberSend (bundle id com.cybersend.app, iPhone only, iOS 16.0 floor, Swift 6 language mode), CyberSendAppTests, and CyberSendUITests. The project references the local package at ios/ itself (XCLocalSwiftPackageReference, relativePath "."); app sources live in ios/App, config in ios/Config with Development, Internal, Release xcconfig files. Info.plist is explicit (reviewable), not generated.
+
+**Rationale:** Synchronized groups mean new Swift files never touch project.pbxproj, which keeps the hand-authored file small and stable. Reusing ios/ as the package keeps the verified swift build and swift test commands unchanged. No third-party project tooling is introduced.
+
+**Trade-offs:** Hand-authored pbxproj can drift or break; mitigated by xcodebuild -list and plutil -lint checks and a minimal file. The project sits inside the package directory; if Xcode ever refuses the self-reference, the package moves to ios/CyberSendCore and commands and docs update (one-time churn).
+
+## 2026-10-20, Phase 0 (M2): ObservableObject per-feature stores, iOS 16 constraints
+
+**Context:** State management for the SwiftUI logbook with an iOS 16 floor. @Observable (Observation) is iOS 17 plus and cannot be the baseline.
+
+**Decision:** Per-feature stores (LogbookStore, SessionDetailStore, GymsStore, GradeSchemesStore, SettingsStore) are @MainActor ObservableObject classes with @Published state in ios/Sources/Features/Logbook, calling repositories synchronously on the main actor, refreshing on appear and after each write. Views observe stores via @StateObject or @EnvironmentObject. No third-party state or navigation libraries; NavigationStack plus TabView with typed route enums per tab.
+
+**Rationale:** Stores stay unit testable against in-memory GRDB inside the existing swift-testing harness (no simulator needed), and ObservableObject works on iOS 16 and macOS alike. Synchronous repository calls on the main actor match the measured personal-scale performance (backup of 5000 attempts measured 0.59 s).
+
+**Trade-offs:** Manual refresh discipline instead of observation-based invalidation; main-actor database calls instead of async pipelines. Accepted at single-user scale; heavy paths (backup write) run in detached tasks with Sendable values only. If iOS 17 becomes the floor later, stores can adopt @Observable without API changes.
+
+## 2026-10-20, Phase 0 (M2): storage root is Application Support, quick-log lives on the open session screen
+
+**Context:** M2 wiring needs two conventions: where files live (architecture said "app document root") and where the quick-log flow lives (the frozen spec logs attempts on app/session/[id].tsx).
+
+**Decision:** The storage root is Application Support/CyberSend/ (db/, photos/, videos/, backups/, exports/), invisible to the Files app; backups travel out only through the share sheet. Quick-log is the open session screen: choose climb, tap outcome (the tap saves), project and fail prompt for the fall hold with a skip; the Logbook climb rows keep the spec behavior of opening climb detail. Appearance preference (system, light, dark) and photo retention preference (keep originals default) are new settings keys, export safe because settings rows are free-form.
+
+**Rationale:** Application Support keeps users out of raw database files and matches the local first, share-sheet based backup story. The session screen as quick-log surface keeps the frozen flow and fits the 4 tap budget (at most 4 taps cold, 2 to 3 warm).
+
+**Trade-offs:** Backups are unreachable from the Files app without the share sheet (acceptable; the share sheet is the defined F4 path). The fall-hold picker is a stub until M3 tagging gives climbs holds, so M2 fall_on_hold_id is null in practice. Update of the architecture wording from "document root" to Application Support recorded here.
+
+## 2026-10-20, Phase 0 (M2): M2 housekeeping scope and XCUITest as the e2e tool
+
+**Context:** The M1 review left follow-ups (raw PRAGMA in Features, non-atomic writes, export uri guard, zip caps, throttle timestamp parsing), and architecture left the e2e tool undecided until M2.
+
+**Decision:** M2 lands all of the following before UI work: foreign_key_check moves into DumpRepository (repositories-only SQL), Data.write gains .atomic, export media reads skip unsafe relative uris, BackupArchive unpack caps entry count and total inflated bytes (10000 entries, 4 GB), and the throttle clock accepts ISO timestamps with or without fractional seconds and fails explicitly on an unparseable injected now. Deferred: the jsNumberString band documentation (whenever cross-port byte fixtures need those bands) and migratePayload revalidation polish. XCUITest is the e2e tool; the smoke set is three tests with Debug-only launch-argument seeding.
+
+**Rationale:** Restore becomes user reachable in M2 (settings), so archive hardening belongs in M2, not later. Housekeeping lands first so review debt does not compound behind new UI. XCUITest is first-party, runs in the same xcodebuild test command as unit tests, and fits a three-flow smoke budget.
+
+**Trade-offs:** Zip caps could reject absurdly large legitimate archives (4 GB inflated is far above real personal backups). XCUITest is slower and flakier than unit tests, mitigated by keeping it to three deterministic smoke flows.
+
+## 2026-10-20, Phase 2 (M2): US-26.1 per-climb grade history defers to M4 (historical stats)
+
+**Context:** US-26.1 records every re-grade with an effective date so historical stats can state which grade was in effect. M2's logbook hard constraint is zero new tables: the export payload must stay byte compatible with the frozen TypeScript spec (M1 review obligations and the M2 export parity gate), and no consumer of a grade history timeline exists before the stats milestone.
+
+**Decision:** Defer US-26.1 to M4 (historical stats). M2 stores only the current grade per climb (level id), matching the frozen schema. Scope of the deferral: no grade history table, no effective date column, no history UI, and exports carry only the current grade; a re-grade overwrites the stored level in place. US-26.2 (archive is the default reset workflow) and US-26.3 (deleting a climb with attempts stays blocked, archive only) are unaffected in M2.
+
+**Revisit trigger:** M4 start, when historical stats need the timeline. The history table lands then as a schema migration with a payload migration step (currentVersion bump plus payloadMigrations), so older exports still import; US-26.1 acceptance (each re-grade queryable with the date it stopped being current) carries over unchanged.
