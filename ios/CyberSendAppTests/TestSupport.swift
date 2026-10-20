@@ -13,5 +13,7 @@ func makeTemporaryRoot(label: String) throws -> URL {
 }
 
 func removeTemporaryRoot(_ root: URL) {
-    try? FileManager.default.removeItem(at: root.deletingLastPathComponent())
+    // Remove only this test's unique root; the shared parent directory stays so parallel
+    // tests never wipe each other's working directory (review 2026-10-20, teardown scope).
+    try? FileManager.default.removeItem(at: root)
 }

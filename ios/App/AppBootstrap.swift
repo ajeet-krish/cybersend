@@ -1,13 +1,14 @@
 import CyberSendData
 import CyberSendFeatures
 import Foundation
-import GRDB
 
 // Launch state machine (docs/architecture.md, M2 app layer). AppBootstrap opens the device
 // database, runs migrations, and maps failures to guidance states per US-7: a database
 // created by a newer app version is refused with "update the app first" and no writes, and
 // any other migration failure leaves the prior schema intact (the failed migration rolled
-// back) and is surfaced with retry and restore guidance.
+// back) and is surfaced with retry and restore guidance. GRDB types stay inside Data; the
+// opener below hands back Repositories, so app sources never import GRDB (review
+// 2026-10-20, GRDB dependency hygiene).
 
 /// The state the root of the app renders. Equatable so app tests can assert transitions.
 enum LaunchState: Equatable {
@@ -36,16 +37,17 @@ let appBuildVariant: BuildVariant = .development
 /// bootstrap in app/_layout.tsx).
 @MainActor
 struct AppBootstrap {
-    typealias DatabaseOpener = (URL) throws -> (writer: any DatabaseWriter, migration: MigrationRunResult)
+    typealias OpenedDatabase = (repos: Repositories, migration: MigrationRunResult, backup: BackupProcedures)
+    typealias DatabaseOpener = (URL) throws -> OpenedDatabase
 
     /// Storage root: Application Support/CyberSend (docs/decisions.md, 2026-10-20 M2:
     /// storage root is Application Support). The database itself lives in db/ under this
     /// root, created by CyberSendDatabase.openDeviceDatabase.
     let documentDirectory: URL
     let variant: BuildVariant
-    var openDatabase: DatabaseOpener = CyberSendDatabase.openDeviceDatabase
+    var openDatabase: DatabaseOpener = AppBootstrap.openDeviceRepositories
 
-    init(documentDirectory: URL, variant: BuildVariant, openDatabase: @escaping DatabaseOpener = CyberSendDatabase.openDeviceDatabase) {
+    init(documentDirectory: URL, variant: BuildVariant, openDatabase: @escaping DatabaseOpener = AppBootstrap.openDeviceRepositories) {
         self.documentDirectory = documentDirectory
         self.variant = variant
         self.openDatabase = openDatabase
@@ -64,21 +66,64 @@ struct AppBootstrap {
         return base.appendingPathComponent("CyberSend", isDirectory: true)
     }
 
+    /// The live opener: CyberSendDatabase opens (and migrates) the device database, then
+    /// Repositories wraps the writer. No GRDB type ever appears in app source; the writer
+    /// only travels inside the restore and import closures. Nonisolated because it only
+    /// touches Sendable Data values, matching the injectable opener type.
+    nonisolated static func openDeviceRepositories(at documentDirectory: URL) throws -> OpenedDatabase {
+        let opened = try CyberSendDatabase.openDeviceDatabase(at: documentDirectory)
+        let repos = Repositories(writer: opened.writer)
+        let databasePath = documentDirectory
+            .appendingPathComponent(CyberSendDatabase.directoryName, isDirectory: true)
+            .appendingPathComponent(CyberSendDatabase.filename)
+            .path
+        let backup = BackupProcedures(
+            restoreArchive: { archiveBytes in
+                try restoreBackup(
+                    writer: opened.writer,
+                    repos: repos,
+                    documentDirectory: documentDirectory,
+                    archiveBytes: archiveBytes,
+                    databasePath: databasePath
+                )
+            },
+            importPayload: { json in
+                try importPayloadJSON(json, on: opened.writer)
+            }
+        )
+        return (repos, opened.migration, backup)
+    }
+
     /// Opens the database and builds the environment, or returns a guidance state with no
     /// environment. Never throws: every failure becomes a LaunchState the UI can render.
     func run() -> (state: LaunchState, environment: AppEnvironment?) {
         do {
-            let (writer, migration) = try openDatabase(documentDirectory)
-            let repos = Repositories(writer: writer)
+            let seedRequested = uiTestSeedRequested()
+            if seedRequested {
+                #if DEVELOPMENT
+                // Deterministic XCUITest seeding (docs/architecture.md test strategy):
+                // wipe the database directory first so every seeded launch starts from an
+                // empty, freshly migrated database. Debug builds only; the switch is
+                // compiled out of Internal and Release, which can never wipe data.
+                try UITestSeed.wipeDatabase(at: documentDirectory)
+                #endif
+            }
+            let opened = try openDatabase(documentDirectory)
+            let repos = opened.repos
+            if seedRequested {
+                #if DEVELOPMENT
+                try UITestSeed.seed(repos: repos, documentDirectory: documentDirectory)
+                #endif
+            }
             let flags = try resolvedFlags(for: variant, settings: repos.settings)
             let environment = AppEnvironment(
                 documentDirectory: documentDirectory,
-                writer: writer,
                 repos: repos,
-                migration: migration,
+                migration: opened.migration,
+                backupProcedures: opened.backup,
                 variant: variant,
                 flags: flags,
-                stores: AppStores(repos: repos, variant: variant, flags: flags)
+                stores: AppStores(repos: repos, variant: variant)
             )
             return (.ready, environment)
         } catch let error as MigrationError {
@@ -89,5 +134,14 @@ struct AppBootstrap {
         } catch {
             return (.migrationFailed(message: error.localizedDescription), nil)
         }
+    }
+
+    /// True when the running Debug build was launched with the UI test seeding argument.
+    private func uiTestSeedRequested() -> Bool {
+        #if DEVELOPMENT
+        return ProcessInfo.processInfo.arguments.contains(uiTestSeedArgument)
+        #else
+        return false
+        #endif
     }
 }

@@ -1,60 +1,25 @@
 import SwiftUI
 
-// Sessions tab shell (M2 Task 3): reverse chronological history rows from the placeholder
-// SessionsTabStore. Task 4 wires the Features session store and SessionDetailStore behind
-// SessionsRoute.
+// Sessions tab (M2 Task 4): the typed NavigationStack for the session screen over the
+// SessionsHistoryView, which reads the app side SessionsHistoryStore (US-22.1, reverse
+// chronological history up to the 1000 session budget).
 
 struct SessionsTabView: View {
-    @EnvironmentObject private var store: SessionsTabStore
+    @Environment(\.appServices) private var services
 
     var body: some View {
         NavigationStack {
-            Screen {
-                if let message = store.lastErrorMessage {
-                    ErrorNote(message)
-                }
-
-                SectionTitle("History")
-                Card {
-                    if store.rows.isEmpty {
-                        EmptyState(
-                            systemImage: "calendar",
-                            title: "No sessions yet",
-                            message: "Sessions you log at a gym will be listed here."
-                        )
-                    } else {
-                        ForEach(store.rows) { row in
-                            NavigationLink(value: SessionsRoute.sessionDetail(sessionId: row.id)) {
-                                HStack(spacing: 12) {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(row.title)
-                                            .font(.body)
-                                            .foregroundStyle(Theme.primaryText)
-                                        Text(row.subtitle)
-                                            .font(.caption)
-                                            .foregroundStyle(Theme.secondaryText)
-                                    }
-                                    Spacer(minLength: 8)
-                                    if row.isOpen {
-                                        Chip("Open", emphasized: true)
-                                    } else if row.attemptCount > 0 {
-                                        Text(row.attemptCount == 1 ? "1 attempt" : "\(row.attemptCount) attempts")
-                                            .font(.caption)
-                                            .foregroundStyle(Theme.secondaryText)
-                                    }
-                                }
-                                .padding(.vertical, 4)
-                            }
-                            .buttonStyle(.plain)
+            SessionsHistoryView()
+                .navigationDestination(for: SessionsRoute.self) { route in
+                    switch route {
+                    case .sessionDetail(let sessionId, let climbId):
+                        if let services {
+                            SessionDetailView(sessionId: sessionId, services: services, initialClimbId: climbId)
+                        } else {
+                            RoutePendingView(routeDescription: route.pendingDescription)
                         }
                     }
                 }
-            }
-            .navigationTitle("Sessions")
-            .navigationDestination(for: SessionsRoute.self) { route in
-                RoutePendingView(routeDescription: route.pendingDescription)
-            }
-            .onAppear { store.refresh() }
         }
     }
 }

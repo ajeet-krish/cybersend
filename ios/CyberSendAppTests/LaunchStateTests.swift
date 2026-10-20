@@ -26,6 +26,13 @@ final class LaunchStateTests: XCTestCase {
             .newerDatabase(databaseVersion: futureVersion, appVersion: currentSchemaVersion)
         )
         XCTAssertNil(result.environment, "no environment is built when the database is refused")
+
+        // US-7.4 zero write proof: reopen the seeded file and assert nothing changed.
+        // The future user_version is intact and no table (grdb_migrations,
+        // schema_migrations, or user schema) was created by the refusal.
+        let after = try Self.readDatabaseState(at: root)
+        XCTAssertEqual(after.userVersion, futureVersion, "the refusal must not touch user_version")
+        XCTAssertEqual(after.tableCount, 0, "the refusal must not create any table")
     }
 
     func testInjectedMigrationErrorMapsToMigrationFailed() throws {
@@ -70,7 +77,12 @@ final class LaunchStateTests: XCTestCase {
             if shouldFail {
                 throw MigrationError.invalidVersion(0)
             }
-            return try CyberSendDatabase.openDeviceDatabase(at: url)
+            let opened = try CyberSendDatabase.openDeviceDatabase(at: url)
+            return (
+                Repositories(writer: opened.writer),
+                opened.migration,
+                BackupProcedures.unavailable("Injected opener tests never restore.")
+            )
         }
 
         XCTAssertEqual(bootstrap.run().state, .migrationFailed(message: "Invalid migration version: 0"))
@@ -98,5 +110,47 @@ final class LaunchStateTests: XCTestCase {
         guard sqlite3_exec(handle, sql, nil, nil, nil) == SQLITE_OK else {
             throw CocoaError(.fileWriteUnknown)
         }
+    }
+
+    /// Reopens the database file directly (raw SQLite, no migration path) and reads the
+    /// two facts the zero write guarantee covers: PRAGMA user_version and the user table
+    /// count from sqlite_master.
+    private static func readDatabaseState(at root: URL) throws -> (userVersion: Int, tableCount: Int) {
+        let path = root
+            .appendingPathComponent(CyberSendDatabase.directoryName, isDirectory: true)
+            .appendingPathComponent(CyberSendDatabase.filename).path
+
+        var db: OpaquePointer?
+        guard sqlite3_open(path, &db) == SQLITE_OK, let handle = db else {
+            sqlite3_close(db)
+            throw CocoaError(.fileReadCorruptFile)
+        }
+        defer { sqlite3_close(handle) }
+
+        return (
+            userVersion: try scalar("PRAGMA user_version", on: handle),
+            tableCount: try scalar("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table'", on: handle)
+        )
+    }
+
+    /// The first column of the first row of a single value query, read through the C API
+    /// callback so no test only module dependency is needed.
+    private static func scalar(_ sql: String, on handle: OpaquePointer) throws -> Int {
+        var value = -1
+        let status = sqlite3_exec(
+            handle,
+            sql,
+            { context, _, argv, _ in
+                guard let context, let first = argv?[0] else { return SQLITE_OK }
+                context.assumingMemoryBound(to: Int.self).pointee = Int(String(cString: first)) ?? -1
+                return SQLITE_OK
+            },
+            &value,
+            nil
+        )
+        guard status == SQLITE_OK else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+        return value
     }
 }

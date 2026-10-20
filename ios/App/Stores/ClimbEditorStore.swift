@@ -1,0 +1,140 @@
+import CyberSendData
+import CyberSendDomain
+import Foundation
+
+// Climb editor store (M2 Task 5, US-10): load, create, edit, archive, and delete one
+// climb through the climb repository. Lives app side next to SessionsHistoryStore because
+// the Features stores cover screens that already exist and the climb editor is the only
+// screen that writes climbs (US-10 is app layer work; repositories stay the only SQL
+// surface, US-13).
+
+@MainActor
+final class ClimbEditorStore: ObservableObject {
+    /// The climb being edited; nil in create mode.
+    @Published private(set) var climb: Climb?
+    /// Attempt count for the manage card; deleting a climb with attempts is blocked
+    /// (US-26), so the editor surfaces the count before the user tries.
+    @Published private(set) var attemptCount: Int = 0
+    /// Every grade scheme for the scheme chips (US-9: grade is a pair, never free text).
+    @Published private(set) var gradeSystems: [GradeSystem] = []
+
+    @Published var name: String = ""
+    @Published var schemeId: String = defaultGradeSystemID
+    @Published var levelId: String?
+    @Published var angleText: String = ""
+    @Published var colorCircuit: String = ""
+    @Published private(set) var lastErrorMessage: String?
+
+    /// True when the screen creates a new climb instead of editing an existing one.
+    let isNew: Bool
+
+    private let repos: Repositories
+
+    /// climbId "new" (the LogbookRoute case for creation) or nil opens create mode.
+    init(repos: Repositories, climbId: String?) {
+        self.repos = repos
+        self.isNew = climbId == nil
+        if let climbId {
+            load(climbId: climbId)
+        } else {
+            gradeSystems = (try? repos.grades.listSystems()) ?? []
+            if let first = gradeSystems.first {
+                schemeId = first.id
+            }
+        }
+    }
+
+    /// The selected scheme's levels for the level chips; nil when the scheme is unknown.
+    var selectedLevels: [GradeLevel]? {
+        gradeSystems.first(where: { $0.id == schemeId })?.levels
+    }
+
+    /// Loads an existing climb plus its attempt count and the scheme list.
+    private func load(climbId: String) {
+        gradeSystems = (try? repos.grades.listSystems()) ?? []
+        do {
+            climb = try repos.climbs.get(id: climbId)
+            if let climb {
+                name = climb.name ?? ""
+                schemeId = climb.gradeSystemId
+                levelId = climb.gradeLevelId
+                angleText = climb.angleDeg.map { String(Int($0)) } ?? ""
+                colorCircuit = climb.colorCircuit ?? ""
+                attemptCount = try repos.climbs.countAttempts(id: climbId)
+            } else {
+                lastErrorMessage = "This climb was deleted."
+            }
+        } catch {
+            lastErrorMessage = error.localizedDescription
+        }
+    }
+
+    /// Saves the climb: create at gymId (the logbook selection, US-11 surfaces the gym)
+    /// or update the loaded row. Angle is validated like the TypeScript spec: empty is
+    /// allowed (nullable column), otherwise a number from 0 to 90 (US-10.2).
+    @discardableResult
+    func save(gymId: String?) throws -> Climb {
+        let angleDeg = try parseAngle(angleText)
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedColor = colorCircuit.trimmingCharacters(in: .whitespacesAndNewlines)
+        let stored: Climb
+        if let climb {
+            stored = try repos.climbs.update(id: climb.id, patch: UpdateClimbPatch(
+                name: .set(trimmedName),
+                gradeSystemId: .set(schemeId),
+                gradeLevelId: .set(levelId),
+                colorCircuit: .set(trimmedColor.isEmpty ? nil : trimmedColor),
+                angleDeg: .set(angleDeg)
+            ))
+        } else {
+            guard let gymId else {
+                throw DomainValidationError(
+                    "gym_not_selected",
+                    "Select a gym on the Logbook tab before adding a climb."
+                )
+            }
+            stored = try repos.climbs.create(CreateClimbInput(
+                gymId: gymId,
+                name: trimmedName.isEmpty ? nil : trimmedName,
+                gradeSystemId: schemeId,
+                gradeLevelId: levelId,
+                colorCircuit: trimmedColor.isEmpty ? nil : trimmedColor,
+                angleDeg: angleDeg
+            ))
+        }
+        climb = stored
+        lastErrorMessage = nil
+        return stored
+    }
+
+    /// Archives or unarchives the climb (US-10.3 keeps attempts either way).
+    func setArchived(_ archived: Bool) throws {
+        guard let climb else { return }
+        if archived {
+            _ = try repos.climbs.archive(id: climb.id)
+        } else {
+            _ = try repos.climbs.unarchive(id: climb.id)
+        }
+        load(climbId: climb.id)
+    }
+
+    /// Deletes the climb; the repository blocks deletions when attempts exist (US-26).
+    func delete() throws {
+        guard let climb else { return }
+        try repos.climbs.delete(id: climb.id)
+    }
+
+    /// Empty angle text clears the nullable column; anything else must be a number from
+    /// 0 to 90.
+    private func parseAngle(_ text: String) throws -> Double? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        guard let value = Double(trimmed), value.isFinite, value >= 0, value <= 90 else {
+            throw DomainValidationError(
+                "climb_angle_invalid",
+                "Angle must be a number from 0 to 90, or empty."
+            )
+        }
+        return value
+    }
+}

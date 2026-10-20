@@ -1,8 +1,9 @@
+import CyberSendFeatures
 import SwiftUI
 
 // Root of the view tree (docs/architecture.md M2 launch flow): ready builds the three tab
-// NavigationStacks with the environment injected; newerDatabase and migrationFailed render
-// the US-7 guidance screen; loading is a brief progress state while bootstrap runs.
+// NavigationStacks with the stores and services injected; newerDatabase and migrationFailed
+// render the US-7 guidance screen; loading is a brief progress state while bootstrap runs.
 
 struct RootView: View {
     @ObservedObject var launch: LaunchModel
@@ -15,8 +16,18 @@ struct RootView: View {
             if let environment = launch.environment {
                 MainTabView()
                     .environmentObject(environment.stores.logbook)
-                    .environmentObject(environment.stores.sessions)
+                    .environmentObject(environment.stores.gyms)
+                    .environmentObject(environment.stores.grades)
                     .environmentObject(environment.stores.settings)
+                    .environmentObject(environment.stores.history)
+                    .environment(
+                        \.appServices,
+                        AppServices(
+                            repos: environment.repos,
+                            documentDirectory: environment.documentDirectory,
+                            backupProcedures: environment.backupProcedures
+                        )
+                    )
             } else {
                 // Defensive: ready without an environment should be impossible.
                 LaunchProgressView()
@@ -33,9 +44,11 @@ struct RootView: View {
 
 /// The three tab shells (Logbook, Sessions, Settings per docs/architecture.md M2; the
 /// frozen TypeScript spec app/(tabs) had a fourth Stats tab that moves to a later
-/// milestone). Appearance override applies at the root so every screen follows US-24.
+/// milestone). Appearance override applies at the root so every screen follows US-24;
+/// SettingsStore persists it under settingsKeyAppearance ("ui.appearance").
 struct MainTabView: View {
-    @EnvironmentObject private var settings: SettingsTabStore
+    @EnvironmentObject private var settings: SettingsStore
+    @Environment(\.appServices) private var services
 
     var body: some View {
         TabView {
@@ -45,7 +58,7 @@ struct MainTabView: View {
             SessionsTabView()
                 .tabItem { Label("Sessions", systemImage: "calendar") }
                 .tag(AppTab.sessions)
-            SettingsTabView()
+            SettingsTabView(services: services)
                 .tabItem { Label("Settings", systemImage: "gearshape") }
                 .tag(AppTab.settings)
         }

@@ -4,6 +4,7 @@ import XCTest
 // the app target launches and the three tabs render. Deterministic flows land with the
 // M2 screens and Debug only launch argument seeding.)
 
+@MainActor
 final class CyberSendUISmokeTests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false

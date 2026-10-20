@@ -1,97 +1,60 @@
 import CyberSendDomain
 import SwiftUI
 
-// Logbook tab shell (M2 Task 3): the open session card, gyms, and recent sessions read
-// through the placeholder LogbookTabStore. Task 4 replaces the store with the Features
-// logbook store and fills in the gyms, grades, and climb screens behind LogbookRoute.
+// Logbook tab (M2 Task 4): the typed NavigationStack for the logbook and session routes
+// over the real Features LogbookStore (docs/architecture.md M2 navigation, docs/
+// decisions.md 2026-10-20 typed route enums per tab). Gym and grade scheme management
+// live behind LogbookRoute; the session screen is reachable from this stack because the
+// quick log climb rows push it.
 
 struct LogbookTabView: View {
-    @EnvironmentObject private var store: LogbookTabStore
+    @Environment(\.appServices) private var services
+    @State private var path = NavigationPath()
 
     var body: some View {
-        NavigationStack {
-            Screen {
-                if let message = store.lastErrorMessage {
-                    ErrorNote(message)
-                }
-
-                SectionTitle("Open session")
-                Card {
-                    if let session = store.openSession {
-                        Row(title: "Session in progress", detail: "Started \(Self.shortDate(from: session.startedAt))")
-                        Chip("Open", emphasized: true)
-                    } else {
-                        EmptyState(
-                            systemImage: "figure.climbing",
-                            title: "No open session",
-                            message: "Start a session at your gym to begin logging attempts."
-                        )
-                    }
-                }
-
-                SectionTitle("Gyms")
-                Card {
-                    if store.gyms.isEmpty {
-                        EmptyState(
-                            systemImage: "building.2",
-                            title: "No gyms yet",
-                            message: "Add a gym to attach sessions and climbs to it."
-                        )
-                    } else {
-                        ForEach(store.gyms) { gym in
-                            NavigationLink(value: LogbookRoute.gymDetail(gymId: gym.id)) {
-                                Row(title: gym.name)
-                            }
-                            .buttonStyle(.plain)
+        NavigationStack(path: $path) {
+            LogbookHomeView(path: $path)
+                .navigationTitle("Logbook")
+                .navigationDestination(for: LogbookRoute.self) { route in
+                    switch route {
+                    case .gyms:
+                        GymsManagerView()
+                    case .grades:
+                        GradeSchemesView()
+                    case .climbDetail(let climbId):
+                        if let services {
+                            ClimbEditorView(climbId: climbId, services: services)
+                        } else {
+                            RoutePendingView(routeDescription: route.pendingDescription)
                         }
+                    case .gymDetail:
+                        // Gym detail screens are outside the M2 scope (management
+                        // happens on the gyms screen); the typed route stays registered
+                        // so later tasks fill it in without navigation churn.
+                        RoutePendingView(routeDescription: route.pendingDescription)
                     }
                 }
-
-                SectionTitle("Recent sessions")
-                Card {
-                    if store.recentSessions.isEmpty {
-                        EmptyState(
-                            systemImage: "calendar",
-                            title: "No sessions yet",
-                            message: "Your logged sessions will appear here."
-                        )
-                    } else {
-                        ForEach(store.recentSessions, id: \.session.id) { summary in
-                            NavigationLink(value: SessionsRoute.sessionDetail(sessionId: summary.session.id)) {
-                                Row(
-                                    title: Self.shortDate(from: summary.session.startedAt),
-                                    detail: summary.attemptCount == 1 ? "1 attempt" : "\(summary.attemptCount) attempts"
-                                )
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
+                .navigationDestination(for: SessionsRoute.self) { route in
+                    sessionDestination(route)
                 }
-            }
-            .navigationTitle("Logbook")
-            .navigationDestination(for: LogbookRoute.self) { route in
-                RoutePendingView(routeDescription: route.pendingDescription)
-            }
-            .navigationDestination(for: SessionsRoute.self) { route in
-                RoutePendingView(routeDescription: route.pendingDescription)
-            }
-            .onAppear { store.refresh() }
         }
     }
 
-    private static func shortDate(from isoText: String) -> String {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        guard let date = formatter.date(from: isoText) else { return isoText }
-        let display = DateFormatter()
-        display.dateStyle = .medium
-        display.timeStyle = .short
-        return display.string(from: date)
+    @ViewBuilder
+    private func sessionDestination(_ route: SessionsRoute) -> some View {
+        switch route {
+        case .sessionDetail(let sessionId, let climbId):
+            if let services {
+                SessionDetailView(sessionId: sessionId, services: services, initialClimbId: climbId)
+            } else {
+                RoutePendingView(routeDescription: route.pendingDescription)
+            }
+        }
     }
 }
 
-/// Placeholder destination for routes whose screens land in M2 Task 4 and later. Keeps the
-/// typed route seam real (navigation compiles and renders) without stub screens.
+/// Placeholder destination for routes whose screens land in a later task. Keeps the typed
+/// route seam real (navigation compiles and renders) without stub screens.
 struct RoutePendingView: View {
     let routeDescription: String
 
@@ -99,11 +62,12 @@ struct RoutePendingView: View {
         Screen {
             EmptyState(
                 systemImage: "hammer",
-                title: "Coming in M2",
-                message: "\(routeDescription) arrives with the logbook screens."
+                title: "Coming soon",
+                message: "\(routeDescription) arrives with a later M2 screen task."
             )
         }
-        .navigationTitle("Coming in M2")
+        .accessibilityIdentifier("route.pending")
+        .navigationTitle("Coming soon")
     }
 }
 
@@ -113,7 +77,7 @@ extension LogbookRoute {
         case .gyms: return "Gym management"
         case .grades: return "Grade schemes"
         case .gymDetail: return "Gym detail"
-        case .climbDetail: return "Climb detail"
+        case .climbDetail: return "Climb editor"
         }
     }
 }

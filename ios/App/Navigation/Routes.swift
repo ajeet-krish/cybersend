@@ -21,9 +21,11 @@ enum LogbookRoute: Hashable {
     case climbDetail(climbId: String)
 }
 
-/// Routes under the Sessions tab.
+/// Routes under the Sessions tab. The session screen is also reachable from the Logbook
+/// tab (quick log climb rows), which is why both stacks register this route.
 enum SessionsRoute: Hashable {
-    case sessionDetail(sessionId: String)
+    /// The session screen. climbId preselects the quick log climb (Logbook climb rows).
+    case sessionDetail(sessionId: String, climbId: String?)
 }
 
 /// Routes under the Settings tab.
