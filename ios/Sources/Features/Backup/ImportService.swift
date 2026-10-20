@@ -156,7 +156,7 @@ public func importPayloadJSON(
     do {
         upserts = try withTransaction(on: writer) { db in
             let report = try dump.upsertAll(tables, on: db)
-            try assertForeignKeysIntact(db)
+            try assertForeignKeysIntact(dump, on: db)
             return report
         }
     } catch let error as ImportPayloadError {
@@ -180,7 +180,7 @@ private func runStagingLoad(_ tables: [ExportTable: [ExportRow]]) throws {
     do {
         try withTransaction(on: staging) { db in
             _ = try dump.upsertAll(tables, on: db)
-            try assertForeignKeysIntact(db)
+            try assertForeignKeysIntact(dump, on: db)
         }
     } catch let error as ImportPayloadError {
         throw error
@@ -189,8 +189,11 @@ private func runStagingLoad(_ tables: [ExportTable: [ExportRow]]) throws {
     }
 }
 
-private func assertForeignKeysIntact(_ db: Database) throws {
-    let violations = try Row.fetchAll(db, sql: "PRAGMA foreign_key_check")
+/// Runs the dump repository's foreign key check and maps any violation to the
+/// plain-language import error (US-16.3). The SQL lives in DumpRepository; this layer
+/// only decides what a failed check means for the restore.
+private func assertForeignKeysIntact(_ dump: any DumpRepository, on db: Database) throws {
+    let violations = try dump.foreignKeyCheck(on: db)
     if !violations.isEmpty {
         throw ImportPayloadError(importForeignKeyMessage)
     }
@@ -232,7 +235,7 @@ public func reconcileMedia(
                 at: fileURL.deletingLastPathComponent(),
                 withIntermediateDirectories: true
             )
-            try archiveBytes.write(to: fileURL)
+            try archiveBytes.write(to: fileURL, options: .atomic)
             restored += 1
         } catch {
             skipped += 1

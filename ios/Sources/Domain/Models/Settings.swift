@@ -20,3 +20,23 @@ public let settingsKeyFlagOverrides = "flags.override"
 public let settingsKeyDefaultGymID = "gym.default_id"
 public let settingsKeyDefaultGradeSystem = "grade.default_scheme"
 public let settingsKeyLastBackupAt = "backup.last_automatic_at"
+
+// M2 preferences (docs/decisions.md, storage root and quick-log note). Settings rows
+// are free-form JSON strings, so these keys ride the existing settings table with no
+// change to the export table set or the golden fixtures.
+public let settingsKeyAppearance = "ui.appearance"
+public let settingsKeyPhotoRetention = "photo.retention"
+
+/// Stored value of settingsKeyAppearance: follow the system theme or force one.
+public enum AppearancePreference: String, CaseIterable, Sendable {
+    case system
+    case light
+    case dark
+}
+
+/// Stored value of settingsKeyPhotoRetention: keep captured originals (the default)
+/// or discard them after tagging (enforcement starts with M3 photo capture).
+public enum PhotoRetentionPreference: String, CaseIterable, Sendable {
+    case keepOriginals = "keep_originals"
+    case discardOriginals = "discard_originals"
+}

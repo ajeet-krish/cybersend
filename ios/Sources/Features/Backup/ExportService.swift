@@ -2,11 +2,17 @@ import CryptoKit
 import CyberSendData
 import CyberSendDomain
 import Foundation
+import os
 
 // Device side export: full backup bytes and JSON/CSV text built from the repositories
 // (port of src/features/backup/export_service.ts). The share sheet and the on device
 // directories are M2 UI work; this layer writes to caller supplied directories and
 // returns file URLs. Works fully offline (US-14.4).
+
+/// Export side warnings (unsafe media uris and so on). The Logger keeps a record on
+/// device; the optional onWarning closure on buildBackupBytes lets callers and tests
+/// capture the same text.
+private let exportLogger = Logger(subsystem: "com.cybersend.app", category: "backup")
 
 public struct BuildBackupOptions: Equatable, Sendable {
     /// Include videos whose retention_class is not keep (kept videos always travel).
@@ -79,12 +85,15 @@ public func buildExportCSV(repos: Repositories, entity: CsvEntity) throws -> Str
 /// and docs/decisions.md), packed into one .cybersend archive (port of
 /// build_backup_bytes). The TypeScript service required both the keep flag and the
 /// opt in; the approved docs say keep or opt in, so the Swift port follows the docs.
+/// Media uris that are not safe relative paths are skipped with a warning instead of
+/// reading bytes from outside the document root (M1 review, export uri guard).
 public func buildBackupBytes(
     repos: Repositories,
     documentRoot: URL,
     appVersion: String,
     now: String,
-    options: BuildBackupOptions = BuildBackupOptions()
+    options: BuildBackupOptions = BuildBackupOptions(),
+    onWarning: ((String) -> Void)? = nil
 ) throws -> Data {
     let dump = try repos.dump.dumpAll()
     let schemaVersion = try repos.dump.schemaVersion()
@@ -94,7 +103,7 @@ public func buildBackupBytes(
     var mediaEntries: [BackupManifestMediaEntry] = []
     for photo in dump[.photos] {
         guard case .text(let uri) = photo["uri"] ?? .null, !uri.isEmpty else { continue }
-        guard let bytes = readMediaBytes(relativeURI: uri, at: documentRoot) else { continue }
+        guard let bytes = readMediaBytes(relativeURI: uri, at: documentRoot, onWarning: onWarning) else { continue }
         media[uri] = bytes
         mediaEntries.append(BackupManifestMediaEntry(path: uri, sha256: sha256Hex(bytes)))
     }
@@ -106,7 +115,7 @@ public func buildBackupBytes(
     }
     for video in dump[.videos] where keptOrOptedInVideo(video) {
         guard case .text(let uri) = video["uri"] ?? .null, !uri.isEmpty else { continue }
-        guard let bytes = readMediaBytes(relativeURI: uri, at: documentRoot) else { continue }
+        guard let bytes = readMediaBytes(relativeURI: uri, at: documentRoot, onWarning: onWarning) else { continue }
         media[uri] = bytes
         mediaEntries.append(BackupManifestMediaEntry(path: uri, sha256: sha256Hex(bytes)))
     }
@@ -126,8 +135,21 @@ public func buildBackupBytes(
 }
 
 /// Reads a media file stored relative to the document root. Returns nil when the file
-/// is gone (for example, a retention sweep already deleted a video).
-private func readMediaBytes(relativeURI: String, at documentRoot: URL) -> Data? {
+/// is gone (for example, a retention sweep already deleted a video) and when the uri
+/// is not a safe relative path, so a hostile or corrupt row can never pull bytes from
+/// outside the document root into the user's own backup (the same isSafeRelativePath
+/// rule the import side enforces on writes).
+private func readMediaBytes(
+    relativeURI: String,
+    at documentRoot: URL,
+    onWarning: ((String) -> Void)?
+) -> Data? {
+    guard isSafeRelativePath(relativeURI) else {
+        let message = "Skipped '\(relativeURI)', which is not a safe file path. It was left out of the backup."
+        exportLogger.warning("\(message, privacy: .public)")
+        onWarning?(message)
+        return nil
+    }
     let url = documentRoot.appendingPathComponent(relativeURI)
     return try? Data(contentsOf: url)
 }

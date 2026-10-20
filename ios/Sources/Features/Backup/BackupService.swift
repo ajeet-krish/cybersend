@@ -26,6 +26,23 @@ public enum BackupTrigger: String, Sendable {
     case appBackground = "app_background"
 }
 
+/// An injected backup clock that is not an ISO 8601 timestamp. The throttle fails
+/// explicitly on a caller bug instead of silently falling back to the wall clock
+/// Date() (M1 review, throttle clock parsing).
+public struct BackupClockError: Error, Equatable, CustomStringConvertible, Sendable {
+    public let message: String
+
+    public init(_ message: String) {
+        self.message = message
+    }
+
+    public var description: String { message }
+}
+
+extension BackupClockError: LocalizedError {
+    public var errorDescription: String? { message }
+}
+
 public struct BackupFile: Equatable, Sendable {
     public let name: String
     public let url: URL
@@ -74,7 +91,7 @@ public func writeBackup(
     )
     let directory = try backupsDirectory(at: documentDirectory)
     let fileURL = directory.appendingPathComponent("backup_\(timestampSlug(now))\(backupExtension)")
-    try bytes.write(to: fileURL)
+    try bytes.write(to: fileURL, options: .atomic)
 
     let existing = (try? FileManager.default.contentsOfDirectory(atPath: directory.path)) ?? []
     for name in backupsToDelete(names: existing.filter { $0.hasSuffix(backupExtension) }) {
@@ -86,7 +103,11 @@ public func writeBackup(
 }
 
 /// Returns true when a backup was written, false when a background trigger was
-/// throttled (port of maybe_write_automatic_backup).
+/// throttled (port of maybe_write_automatic_backup). The injected now must be an ISO
+/// 8601 timestamp in either shape (with or without fractional seconds); an
+/// unparseable one throws BackupClockError instead of silently falling back to the
+/// wall clock Date(). The default path still stamps the wall clock through
+/// nowISO8601().
 public func maybeWriteAutomaticBackup(
     repos: Repositories,
     documentDirectory: URL,
@@ -94,13 +115,11 @@ public func maybeWriteAutomaticBackup(
     appVersion: String = currentAppVersion(),
     now: String = nowISO8601()
 ) throws -> Bool {
-    if trigger == .appBackground, let last = lastAutomaticBackupDate(repos: repos) {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let nowDate = formatter.date(from: now) ?? Date()
-        if nowDate.timeIntervalSince(last) < automaticBackupIntervalSeconds {
-            return false
-        }
+    let nowDate = try backupClockDate(now)
+    if trigger == .appBackground,
+       let last = lastAutomaticBackupDate(repos: repos),
+       nowDate.timeIntervalSince(last) < automaticBackupIntervalSeconds {
+        return false
     }
     _ = try writeBackup(
         repos: repos,
@@ -172,7 +191,8 @@ public func restoreBackup(
 
 /// Reads the last automatic backup timestamp from the settings table. Corrupt values
 /// read as nil, so the throttle falls through to writing a backup (the TypeScript
-/// getJson null behavior).
+/// getJson null behavior). Both ISO 8601 shapes parse, so a stored stamp without
+/// milliseconds still throttles instead of silently disabling the throttle.
 private func lastAutomaticBackupDate(repos: Repositories) -> Date? {
     guard let raw = try? repos.settings.get(key: settingsKeyLastBackupAt),
           let data = raw.data(using: .utf8),
@@ -180,9 +200,31 @@ private func lastAutomaticBackupDate(repos: Repositories) -> Date? {
     else {
         return nil
     }
-    let formatter = ISO8601DateFormatter()
-    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-    return formatter.date(from: iso)
+    return parseISO8601Tolerant(iso)
+}
+
+/// Parses an injected backup clock. Accepts both ISO 8601 shapes, with and without
+/// fractional seconds (the TypeScript Date.parse leniency the M1 review asked for);
+/// anything else throws instead of falling back to Date(), so a caller bug can never
+/// masquerade as a real backup time.
+private func backupClockDate(_ iso: String) throws -> Date {
+    guard let date = parseISO8601Tolerant(iso) else {
+        throw BackupClockError("'\(iso)' is not a valid ISO 8601 time. Nothing was backed up.")
+    }
+    return date
+}
+
+/// Lenient ISO 8601 parse: fractional seconds first (2026-10-19T12:00:00.000Z), then
+/// the plain shape (2026-10-19T12:00:00Z). Returns nil when neither shape parses.
+func parseISO8601Tolerant(_ iso: String) -> Date? {
+    let fractional = ISO8601DateFormatter()
+    fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    if let date = fractional.date(from: iso) {
+        return date
+    }
+    let plain = ISO8601DateFormatter()
+    plain.formatOptions = [.withInternetDateTime]
+    return plain.date(from: iso)
 }
 
 /// JSON encodes a plain string the way the settings repository stores it.

@@ -33,6 +33,23 @@ public struct UpsertCounts: Equatable, Sendable {
 /// Per table inserted and updated counts for one import.
 public typealias UpsertReport = [ExportTable: UpsertCounts]
 
+/// One row of PRAGMA foreign_key_check: the row at `rowid` in `table` has a foreign key
+/// (number `foreignKeyIndex`) pointing at a missing parent row in `parentTable`. An
+/// empty result means every foreign key link is intact.
+public struct ForeignKeyViolation: Equatable, Sendable {
+    public let table: String
+    public let rowid: Int64?
+    public let parentTable: String
+    public let foreignKeyIndex: Int
+
+    public init(table: String, rowid: Int64?, parentTable: String, foreignKeyIndex: Int) {
+        self.table = table
+        self.rowid = rowid
+        self.parentTable = parentTable
+        self.foreignKeyIndex = foreignKeyIndex
+    }
+}
+
 public enum DumpError: Error, Equatable, CustomStringConvertible, Sendable {
     case unsupportedColumnType
 
@@ -49,6 +66,10 @@ public protocol DumpRepository: Sendable {
     /// Upserts rows in FK safe order. The caller wraps this in a transaction so a
     /// failure anywhere rolls back every table (zero partial writes).
     func upsertAll(_ tables: [ExportTable: [ExportRow]], on db: Database) throws -> UpsertReport
+    /// PRAGMA foreign_key_check: every foreign key link that points at a missing parent
+    /// row, empty when the data is intact. The import service runs this inside its
+    /// transaction before commit (US-16.3); the SQL stays in Sources/Data.
+    func foreignKeyCheck(on db: Database) throws -> [ForeignKeyViolation]
 }
 
 public struct GRDBDumpRepository: DumpRepository {
@@ -104,6 +125,21 @@ public struct GRDBDumpRepository: DumpRepository {
             report[table] = counts
         }
         return report
+    }
+
+    public func foreignKeyCheck(on db: Database) throws -> [ForeignKeyViolation] {
+        try Row.fetchAll(db, sql: "PRAGMA foreign_key_check").map { row in
+            let table: String = row["table"] ?? ""
+            let rowid: Int64? = row["rowid"]
+            let parent: String = row["parent"] ?? ""
+            let foreignKeyIndex: Int = row["fkid"] ?? 0
+            return ForeignKeyViolation(
+                table: table,
+                rowid: rowid,
+                parentTable: parent,
+                foreignKeyIndex: foreignKeyIndex
+            )
+        }
     }
 }
 
