@@ -1,0 +1,9 @@
+// Release variant: App Store builds. The RELEASE compilation condition selects
+// BuildVariant.release in FeatureFlags and hides the feature flag toggles in Settings.
+
+#include "Base.xcconfig"
+
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = RELEASE
+SWIFT_COMPILATION_MODE = wholemodule
+ENABLE_NS_ASSERTIONS = NO
+VALIDATE_PRODUCT = YES

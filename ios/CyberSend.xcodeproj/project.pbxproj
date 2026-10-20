@@ -1,0 +1,612 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		C5E200000000000000000090 /* CyberSendDomain in Frameworks */ = {isa = PBXBuildFile; productRef = C5E200000000000000000081 /* CyberSendDomain */; };
+		C5E200000000000000000091 /* CyberSendData in Frameworks */ = {isa = PBXBuildFile; productRef = C5E200000000000000000082 /* CyberSendData */; };
+		C5E200000000000000000092 /* CyberSendFeatures in Frameworks */ = {isa = PBXBuildFile; productRef = C5E200000000000000000083 /* CyberSendFeatures */; };
+		C5E200000000000000000093 /* CyberSendDomain in Frameworks */ = {isa = PBXBuildFile; productRef = C5E200000000000000000084 /* CyberSendDomain */; };
+		C5E200000000000000000094 /* CyberSendData in Frameworks */ = {isa = PBXBuildFile; productRef = C5E200000000000000000085 /* CyberSendData */; };
+		C5E200000000000000000095 /* CyberSendFeatures in Frameworks */ = {isa = PBXBuildFile; productRef = C5E200000000000000000086 /* CyberSendFeatures */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		C5E200000000000000000051 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C5E200000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C5E200000000000000000040;
+			remoteInfo = CyberSend;
+		};
+		C5E200000000000000000053 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C5E200000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C5E200000000000000000040;
+			remoteInfo = CyberSend;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		C5E200000000000000000005 /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Base.xcconfig; sourceTree = "<group>"; };
+		C5E200000000000000000006 /* Development.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Development.xcconfig; sourceTree = "<group>"; };
+		C5E200000000000000000007 /* Internal.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Internal.xcconfig; sourceTree = "<group>"; };
+		C5E200000000000000000008 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
+		C5E200000000000000000010 /* CyberSend.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CyberSend.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C5E200000000000000000011 /* CyberSendAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CyberSendAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		C5E200000000000000000012 /* CyberSendUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CyberSendUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		C5E200000000000000000024 /* Exceptions for "App" folder in "CyberSend" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = C5E200000000000000000040 /* CyberSend */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		C5E200000000000000000020 /* App */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				C5E200000000000000000024 /* Exceptions for "App" folder in "CyberSend" target */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		C5E200000000000000000021 /* Resources */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		C5E200000000000000000022 /* CyberSendAppTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = CyberSendAppTests;
+			sourceTree = "<group>";
+		};
+		C5E200000000000000000023 /* CyberSendUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = CyberSendUITests;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		C5E200000000000000000031 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C5E200000000000000000090 /* CyberSendDomain in Frameworks */,
+				C5E200000000000000000091 /* CyberSendData in Frameworks */,
+				C5E200000000000000000092 /* CyberSendFeatures in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C5E200000000000000000034 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C5E200000000000000000093 /* CyberSendDomain in Frameworks */,
+				C5E200000000000000000094 /* CyberSendData in Frameworks */,
+				C5E200000000000000000095 /* CyberSendFeatures in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C5E200000000000000000037 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		C5E200000000000000000002 = {
+			isa = PBXGroup;
+			children = (
+				C5E200000000000000000020 /* App */,
+				C5E200000000000000000021 /* Resources */,
+				C5E200000000000000000004 /* Config */,
+				C5E200000000000000000022 /* CyberSendAppTests */,
+				C5E200000000000000000023 /* CyberSendUITests */,
+				C5E200000000000000000003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		C5E200000000000000000003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				C5E200000000000000000010 /* CyberSend.app */,
+				C5E200000000000000000011 /* CyberSendAppTests.xctest */,
+				C5E200000000000000000012 /* CyberSendUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		C5E200000000000000000004 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				C5E200000000000000000005 /* Base.xcconfig */,
+				C5E200000000000000000006 /* Development.xcconfig */,
+				C5E200000000000000000007 /* Internal.xcconfig */,
+				C5E200000000000000000008 /* Release.xcconfig */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		C5E200000000000000000040 /* CyberSend */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C5E200000000000000000061 /* Build configuration list for PBXNativeTarget "CyberSend" */;
+			buildPhases = (
+				C5E200000000000000000030 /* Sources */,
+				C5E200000000000000000031 /* Frameworks */,
+				C5E200000000000000000032 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				C5E200000000000000000020 /* App */,
+				C5E200000000000000000021 /* Resources */,
+			);
+			name = CyberSend;
+			packageProductDependencies = (
+				C5E200000000000000000081 /* CyberSendDomain */,
+				C5E200000000000000000082 /* CyberSendData */,
+				C5E200000000000000000083 /* CyberSendFeatures */,
+			);
+			productName = CyberSend;
+			productReference = C5E200000000000000000010 /* CyberSend.app */;
+			productType = "com.apple.product-type.application";
+		};
+		C5E200000000000000000041 /* CyberSendAppTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C5E200000000000000000062 /* Build configuration list for PBXNativeTarget "CyberSendAppTests" */;
+			buildPhases = (
+				C5E200000000000000000033 /* Sources */,
+				C5E200000000000000000034 /* Frameworks */,
+				C5E200000000000000000035 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C5E200000000000000000050 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				C5E200000000000000000022 /* CyberSendAppTests */,
+			);
+			name = CyberSendAppTests;
+			packageProductDependencies = (
+				C5E200000000000000000084 /* CyberSendDomain */,
+				C5E200000000000000000085 /* CyberSendData */,
+				C5E200000000000000000086 /* CyberSendFeatures */,
+			);
+			productName = CyberSendAppTests;
+			productReference = C5E200000000000000000011 /* CyberSendAppTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		C5E200000000000000000042 /* CyberSendUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C5E200000000000000000063 /* Build configuration list for PBXNativeTarget "CyberSendUITests" */;
+			buildPhases = (
+				C5E200000000000000000036 /* Sources */,
+				C5E200000000000000000037 /* Frameworks */,
+				C5E200000000000000000038 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C5E200000000000000000052 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				C5E200000000000000000023 /* CyberSendUITests */,
+			);
+			name = CyberSendUITests;
+			packageProductDependencies = (
+			);
+			productName = CyberSendUITests;
+			productReference = C5E200000000000000000012 /* CyberSendUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		C5E200000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					C5E200000000000000000040 = {
+						CreatedOnToolsVersion = 16.0;
+						ProvisioningStyle = Automatic;
+					};
+					C5E200000000000000000041 = {
+						CreatedOnToolsVersion = 16.0;
+						ProvisioningStyle = Automatic;
+						TestTargetID = C5E200000000000000000040;
+					};
+					C5E200000000000000000042 = {
+						CreatedOnToolsVersion = 16.0;
+						ProvisioningStyle = Automatic;
+						TestTargetID = C5E200000000000000000040;
+					};
+				};
+			};
+			buildConfigurationList = C5E200000000000000000060 /* Build configuration list for PBXProject "CyberSend" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = C5E200000000000000000002;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				C5E200000000000000000080 /* XCLocalSwiftPackageReference "." */,
+			);
+			productRefGroup = C5E200000000000000000003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				C5E200000000000000000040 /* CyberSend */,
+				C5E200000000000000000041 /* CyberSendAppTests */,
+				C5E200000000000000000042 /* CyberSendUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		C5E200000000000000000032 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C5E200000000000000000035 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C5E200000000000000000038 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		C5E200000000000000000030 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C5E200000000000000000033 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C5E200000000000000000036 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		C5E200000000000000000050 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C5E200000000000000000040 /* CyberSend */;
+			targetProxy = C5E200000000000000000051 /* PBXContainerItemProxy */;
+		};
+		C5E200000000000000000052 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C5E200000000000000000040 /* CyberSend */;
+			targetProxy = C5E200000000000000000053 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		C5E200000000000000000070 /* Development */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = C5E200000000000000000006 /* Development.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				SUPPORTS_MACCATALYST = NO;
+			};
+			name = Development;
+		};
+		C5E200000000000000000071 /* Internal */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = C5E200000000000000000007 /* Internal.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				SUPPORTS_MACCATALYST = NO;
+			};
+			name = Internal;
+		};
+		C5E200000000000000000072 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = C5E200000000000000000008 /* Release.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				SUPPORTS_MACCATALYST = NO;
+			};
+			name = Release;
+		};
+		C5E200000000000000000073 /* Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = App/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cybersend.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Development;
+		};
+		C5E200000000000000000074 /* Internal */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = App/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cybersend.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Internal;
+		};
+		C5E200000000000000000075 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = App/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cybersend.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		C5E200000000000000000076 /* Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cybersend.app.CyberSendAppTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/CyberSend.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/CyberSend";
+			};
+			name = Development;
+		};
+		C5E200000000000000000077 /* Internal */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cybersend.app.CyberSendAppTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/CyberSend.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/CyberSend";
+			};
+			name = Internal;
+		};
+		C5E200000000000000000078 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cybersend.app.CyberSendAppTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/CyberSend.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/CyberSend";
+			};
+			name = Release;
+		};
+		C5E200000000000000000079 /* Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cybersend.app.CyberSendUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = CyberSend;
+			};
+			name = Development;
+		};
+		C5E20000000000000000007A /* Internal */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cybersend.app.CyberSendUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = CyberSend;
+			};
+			name = Internal;
+		};
+		C5E20000000000000000007B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cybersend.app.CyberSendUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = CyberSend;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		C5E200000000000000000060 /* Build configuration list for PBXProject "CyberSend" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C5E200000000000000000070 /* Development */,
+				C5E200000000000000000071 /* Internal */,
+				C5E200000000000000000072 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C5E200000000000000000061 /* Build configuration list for PBXNativeTarget "CyberSend" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C5E200000000000000000073 /* Development */,
+				C5E200000000000000000074 /* Internal */,
+				C5E200000000000000000075 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C5E200000000000000000062 /* Build configuration list for PBXNativeTarget "CyberSendAppTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C5E200000000000000000076 /* Development */,
+				C5E200000000000000000077 /* Internal */,
+				C5E200000000000000000078 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C5E200000000000000000063 /* Build configuration list for PBXNativeTarget "CyberSendUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C5E200000000000000000079 /* Development */,
+				C5E20000000000000000007A /* Internal */,
+				C5E20000000000000000007B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		C5E200000000000000000080 /* XCLocalSwiftPackageReference "." */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ".";
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		C5E200000000000000000081 /* CyberSendDomain */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C5E200000000000000000080 /* XCLocalSwiftPackageReference "." */;
+			productName = CyberSendDomain;
+		};
+		C5E200000000000000000082 /* CyberSendData */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C5E200000000000000000080 /* XCLocalSwiftPackageReference "." */;
+			productName = CyberSendData;
+		};
+		C5E200000000000000000083 /* CyberSendFeatures */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C5E200000000000000000080 /* XCLocalSwiftPackageReference "." */;
+			productName = CyberSendFeatures;
+		};
+		C5E200000000000000000084 /* CyberSendDomain */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C5E200000000000000000080 /* XCLocalSwiftPackageReference "." */;
+			productName = CyberSendDomain;
+		};
+		C5E200000000000000000085 /* CyberSendData */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C5E200000000000000000080 /* XCLocalSwiftPackageReference "." */;
+			productName = CyberSendData;
+		};
+		C5E200000000000000000086 /* CyberSendFeatures */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C5E200000000000000000080 /* XCLocalSwiftPackageReference "." */;
+			productName = CyberSendFeatures;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = C5E200000000000000000001 /* Project object */;
+}

@@ -1,0 +1,11 @@
+// Shared build settings for every CyberSend configuration (docs/decisions.md, 2026-10-20 M2
+// app target record). Configuration specific overrides live in Development.xcconfig,
+// Internal.xcconfig, and Release.xcconfig.
+
+SDKROOT = iphoneos
+IPHONEOS_DEPLOYMENT_TARGET = 16.0
+TARGETED_DEVICE_FAMILY = 1
+SWIFT_VERSION = 6.0
+CODE_SIGN_STYLE = Automatic
+ENABLE_USER_SCRIPT_SANDBOXING = YES
+SWIFT_EMIT_LOC_STRINGS = NO
