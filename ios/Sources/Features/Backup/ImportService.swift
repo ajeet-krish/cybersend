@@ -30,10 +30,12 @@ public struct PayloadMigration: Sendable {
 /// the climb_holds membership rows from each hold's origin climb and stamps
 /// photos.original_uri as null; legacy TypeScript payloads translate to version 1
 /// column shape during parsing and pass through the same step. Version 2 to 3 (M4) stamps
-/// attempts.rpe null and rewrites the retired project outcome to fail.
+/// attempts.rpe null and rewrites the retired project outcome to fail. Version 3 to 4 (Problems
+/// catalog) stamps climbs.notes null.
 public let defaultPayloadMigrations: [PayloadMigration] = [
     PayloadMigration(from: 1, migrate: migrateV1PayloadToV2),
     PayloadMigration(from: 2, migrate: migrateV2PayloadToV3),
+    PayloadMigration(from: 3, migrate: migrateV3PayloadToV4),
 ]
 
 public struct ImportOptions: Sendable {

@@ -189,4 +189,33 @@ struct ClimbRepositoryTests {
         }
         #expect(attemptError?.code == "climb_has_attempts")
     }
+
+    @Test("problem details round trip, trim to nil when blank, and clear through the patch")
+    func notesRoundTrip() throws {
+        let test = try makeTestDatabase()
+        let gym = try test.repos.gyms.create(CreateGymInput(name: "Gym"))
+
+        let climb = try test.repos.climbs.create(
+            CreateClimbInput(gymId: gym.id, name: "Blue", notes: "  match the left crimp  ")
+        )
+        #expect(climb.notes == "match the left crimp")
+        #expect(try test.repos.climbs.get(id: climb.id)?.notes == "match the left crimp")
+
+        // Unchanged keeps the details, set replaces them, set(nil) clears them.
+        let renamed = try test.repos.climbs.update(id: climb.id, patch: UpdateClimbPatch(name: .set("Blue 2")))
+        #expect(renamed.notes == "match the left crimp")
+        let replaced = try test.repos.climbs.update(
+            id: climb.id,
+            patch: UpdateClimbPatch(notes: .set("  right hand gaston  "))
+        )
+        #expect(replaced.notes == "right hand gaston")
+        let cleared = try test.repos.climbs.update(id: climb.id, patch: UpdateClimbPatch(notes: .set(nil)))
+        #expect(cleared.notes == nil)
+
+        // Whitespace only details are no details at all.
+        let blank = try test.repos.climbs.create(
+            CreateClimbInput(gymId: gym.id, name: "Red", notes: "   ")
+        )
+        #expect(blank.notes == nil)
+    }
 }

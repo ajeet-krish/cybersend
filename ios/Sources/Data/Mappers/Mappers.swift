@@ -87,6 +87,7 @@ func rowToClimb(_ row: Row) -> Climb {
         gradeNorm: row["grade_norm"],
         colorCircuit: row["color_circuit"],
         angleDeg: row["angle_deg"],
+        notes: row["notes"],
         isActive: row["is_active"],
         isArchived: row["is_archived"],
         createdAt: row["created_at"],

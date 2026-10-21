@@ -487,6 +487,27 @@ struct ImportTests {
         }
     }
 
+    @Test("the golden native v3 fixture imports through the 3 to 4 migration and keeps effort")
+    func nativeV3FixtureImportsAndKeepsEffort() throws {
+        let test = try makeTestDatabase()
+
+        // The pinned v3 fixture has attempts.rpe null. Stamping one attempt with a real
+        // effort proves the version 3 shape (rpe present, climbs.notes absent) parses and
+        // that the 3 to 4 migration only stamps climb details rather than dropping effort.
+        let v3 = try fixtureString("data_native_golden_v3")
+            .replacingOccurrences(of: "\"rpe\": null", with: "\"rpe\": 7", options: [], range: nil)
+        let report = try importPayloadJSON(v3, on: test.writer)
+
+        #expect(report.schemaVersion == currentSchemaVersion)
+        #expect(report.migratedFrom == 3, "a v3 file upgrades through the 3 to 4 payload migration")
+        #expect(report.warnings.isEmpty)
+
+        let dump = try test.repos.dump.dumpAll()
+        #expect(dump[.attempts].first?["rpe"] == .integer(7), "per attempt effort survives the import")
+        #expect(dump[.climbs].first?["notes"] == .null, "the 3 to 4 migration stamps details null")
+        #expect(dump[.photos][0]["original_uri"] == .text("originals/photo-1.jpg"))
+    }
+
     @Test("a v2 file claiming schema version 1 keeps its climb_holds rows (idempotent migration)")
     func hybridV2ShapeClaimingV1DoesNotDuplicate() throws {
         let test = try makeTestDatabase()

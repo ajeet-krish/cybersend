@@ -5,9 +5,10 @@ import SwiftUI
 // Session screen (M2 Task 4), the quick log surface (docs/decisions.md 2026-10-20: quick
 // log lives on the open session screen, port of app/session/[id].tsx).
 //
-// Open state (US-11, US-12): pick a climb, tap an outcome and the tap saves; project and
-// fail prompt for the fall hold with a skip (worst case 4 taps from the logbook home,
-// enforced by the QuickLogSmokeTests tap accounting); flash is disabled once the selected
+// Open state (US-11, US-12): pick a climb, set an optional per attempt effort, tap an
+// outcome and the tap saves; fail prompts for the fall hold with a skip (worst case 4 taps
+// from the logbook home, enforced by the QuickLogSmokeTests tap accounting); flash is
+// disabled once the selected
 // climb has an attempt this session (flash implies first attempt send, US-12.2); closing
 // goes through the close sheet with an RPE stepper 1 to 10 and notes (US-11.1) and writes
 // an automatic backup (docs/architecture.md backup hooks).
@@ -552,7 +553,8 @@ final class TransientNoticeModel: ObservableObject {
     }
 }
 
-/// The project or fail tap that opened the fall hold sheet (item based presentation).
+/// The fail tap that opened the fall hold sheet, carrying the effort already chosen
+/// (item based presentation).
 private struct FallRequest: Identifiable {
     let outcome: AttemptOutcome
     /// The effort dialled in before tapping Fail, carried through the fall hold sheet so

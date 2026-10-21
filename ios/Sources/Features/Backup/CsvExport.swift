@@ -112,6 +112,9 @@ public let climbCsvHeaders: [String] = [
     "is_archived",
     "created_at",
     "updated_at",
+    // Version 4 addition (Problems catalog): problem details, appended so earlier
+    // columns keep their positions.
+    "notes",
 ]
 
 public func climbsToCsv(_ climbs: [Climb]) -> String {
@@ -131,6 +134,7 @@ public func climbsToCsv(_ climbs: [Climb]) -> String {
                 climb.isArchived ? "1" : "0",
                 climb.createdAt,
                 climb.updatedAt,
+                climb.notes,
             ]
         }
     )

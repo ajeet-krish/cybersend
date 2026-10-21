@@ -131,11 +131,28 @@ public func parseExportPayload(_ json: String) throws -> ParsedImportPayload {
         // than switching on schema_version) also tolerates a version 3 column set that was
         // stamped with an older version number, which the migration chain treats as
         // idempotent rather than rejecting as a bad column.
-        let parsed: [ExportTable: [ExportRow]]
-        do {
-            parsed = try parseTables(tables, lookup: { ExportTable(rawValue: $0)?.spec })
-        } catch {
-            parsed = try parseTables(tables, lookup: nativeV2TableSpec(for:))
+        // Shape fallbacks, newest first: the current spec, then the version 3 spec (no
+        // climbs.notes), then the version 2 spec (also no attempts.rpe). Trying each in
+        // turn keeps genuine old backups importable while still rejecting anything that
+        // matches none of them, and it tolerates a newer column set stamped with an older
+        // version number because the migration chain is idempotent.
+        let lookups: [(String) -> ExportTableSpec?] = [
+            { ExportTable(rawValue: $0)?.spec },
+            nativeV3TableSpec(for:),
+            nativeV2TableSpec(for:),
+        ]
+        var parsed: [ExportTable: [ExportRow]]?
+        var lastError: Error?
+        for lookup in lookups {
+            do {
+                parsed = try parseTables(tables, lookup: lookup)
+                break
+            } catch {
+                lastError = error
+            }
+        }
+        guard let parsed else {
+            throw lastError ?? ImportPayloadError(importInvalidPayloadMessage)
         }
         var nativeWarnings: [String] = []
         let guarded = renamingCollisionsInNativeGradeTables(parsed, warnings: &nativeWarnings)
@@ -371,6 +388,29 @@ public func migrateV2PayloadToV3(_ payload: ParsedImportPayload) -> ParsedImport
         }
         if case .text(let outcome) = copy["outcome"], outcome == "project" {
             copy["outcome"] = .text("fail")
+        }
+        return copy
+    }
+    return ParsedImportPayload(
+        schemaVersion: payload.schemaVersion,
+        exportedAt: payload.exportedAt,
+        legacyShape: payload.legacyShape,
+        tables: tables,
+        warnings: payload.warnings
+    )
+}
+
+// MARK: - Payload migration from 3 to 4
+
+/// Version 3 to 4 of the payload (Problems catalog): stamps climbs.notes null because
+/// version 3 never stored problem details. Idempotent: rows that already carry notes pass
+/// through unchanged.
+public func migrateV3PayloadToV4(_ payload: ParsedImportPayload) -> ParsedImportPayload {
+    var tables = payload.tables
+    tables[.climbs] = (tables[.climbs] ?? []).map { row in
+        var copy = row
+        if copy["notes"] == nil {
+            copy["notes"] = .null
         }
         return copy
     }

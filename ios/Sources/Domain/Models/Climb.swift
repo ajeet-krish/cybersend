@@ -16,6 +16,9 @@ public struct Climb: Codable, Equatable, Sendable, Identifiable {
     public var gradeNorm: Double?
     public var colorCircuit: String?
     public var angleDeg: Double?
+    /// Free text problem details (beta, style, what to remember). Added in Migration 004 so
+    /// the Problems catalog can carry more than a name and a grade.
+    public var notes: String?
     public var isActive: Bool
     public var isArchived: Bool
     public let createdAt: String
@@ -33,6 +36,7 @@ public struct Climb: Codable, Equatable, Sendable, Identifiable {
         gradeNorm: Double? = nil,
         colorCircuit: String? = nil,
         angleDeg: Double? = nil,
+        notes: String? = nil,
         isActive: Bool = true,
         isArchived: Bool = false,
         createdAt: String,
@@ -49,6 +53,7 @@ public struct Climb: Codable, Equatable, Sendable, Identifiable {
         self.gradeNorm = gradeNorm
         self.colorCircuit = colorCircuit
         self.angleDeg = angleDeg
+        self.notes = notes
         self.isActive = isActive
         self.isArchived = isArchived
         self.createdAt = createdAt

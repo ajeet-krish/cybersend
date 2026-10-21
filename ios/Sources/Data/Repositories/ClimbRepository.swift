@@ -16,6 +16,7 @@ public struct CreateClimbInput: Equatable, Sendable {
     public var gradeLevelId: String?
     public var colorCircuit: String?
     public var angleDeg: Double?
+    public var notes: String?
 
     public init(
         gymId: String,
@@ -24,7 +25,8 @@ public struct CreateClimbInput: Equatable, Sendable {
         gradeSystemId: String = defaultGradeSystemID,
         gradeLevelId: String? = nil,
         colorCircuit: String? = nil,
-        angleDeg: Double? = nil
+        angleDeg: Double? = nil,
+        notes: String? = nil
     ) {
         self.gymId = gymId
         self.wallId = wallId
@@ -33,6 +35,7 @@ public struct CreateClimbInput: Equatable, Sendable {
         self.gradeLevelId = gradeLevelId
         self.colorCircuit = colorCircuit
         self.angleDeg = angleDeg
+        self.notes = notes
     }
 }
 
@@ -43,6 +46,7 @@ public struct UpdateClimbPatch: Equatable, Sendable {
     public var gradeLevelId: PatchValue<String?>
     public var colorCircuit: PatchValue<String?>
     public var angleDeg: PatchValue<Double?>
+    public var notes: PatchValue<String?>
 
     public init(
         wallId: PatchValue<String?> = .unchanged,
@@ -50,7 +54,8 @@ public struct UpdateClimbPatch: Equatable, Sendable {
         gradeSystemId: PatchValue<String> = .unchanged,
         gradeLevelId: PatchValue<String?> = .unchanged,
         colorCircuit: PatchValue<String?> = .unchanged,
-        angleDeg: PatchValue<Double?> = .unchanged
+        angleDeg: PatchValue<Double?> = .unchanged,
+        notes: PatchValue<String?> = .unchanged
     ) {
         self.wallId = wallId
         self.name = name
@@ -58,6 +63,7 @@ public struct UpdateClimbPatch: Equatable, Sendable {
         self.gradeLevelId = gradeLevelId
         self.colorCircuit = colorCircuit
         self.angleDeg = angleDeg
+        self.notes = notes
     }
 }
 
@@ -107,6 +113,7 @@ public struct GRDBClimbRepository: ClimbRepository {
         try grades.assertValidGrade(systemId: input.gradeSystemId, levelId: input.gradeLevelId)
         let timestamp = nowISO8601()
         let trimmedName = input.name?.trimmingCharacters(in: .whitespaces)
+        let trimmedNotes = input.notes?.trimmingCharacters(in: .whitespacesAndNewlines)
         let climb = Climb(
             id: generateID(),
             gymId: input.gymId,
@@ -116,6 +123,7 @@ public struct GRDBClimbRepository: ClimbRepository {
             gradeLevelId: input.gradeLevelId,
             colorCircuit: input.colorCircuit,
             angleDeg: input.angleDeg,
+            notes: (trimmedNotes?.isEmpty ?? true) ? nil : trimmedNotes,
             isActive: true,
             isArchived: false,
             createdAt: timestamp,
@@ -125,12 +133,14 @@ public struct GRDBClimbRepository: ClimbRepository {
             try db.execute(
                 sql: """
                 INSERT INTO climbs (id, gym_id, wall_id, board_id, board_problem_id, name, grade_system_id,
-                    grade_level_id, grade_norm, color_circuit, angle_deg, is_active, is_archived, created_at, updated_at)
-                VALUES (?, ?, ?, NULL, NULL, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?)
+                    grade_level_id, grade_norm, color_circuit, angle_deg, notes, is_active, is_archived,
+                    created_at, updated_at)
+                VALUES (?, ?, ?, NULL, NULL, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 arguments: [
                     climb.id, climb.gymId, climb.wallId, climb.name, climb.gradeSystemId, climb.gradeLevelId,
-                    climb.colorCircuit, climb.angleDeg, climb.isActive, climb.isArchived, climb.createdAt, climb.updatedAt,
+                    climb.colorCircuit, climb.angleDeg, climb.notes, climb.isActive, climb.isArchived,
+                    climb.createdAt, climb.updatedAt,
                 ]
             )
         }
@@ -186,6 +196,10 @@ public struct GRDBClimbRepository: ClimbRepository {
         updated.gradeLevelId = gradeLevelId
         updated.colorCircuit = patch.colorCircuit.resolve(or: updated.colorCircuit)
         updated.angleDeg = angleDeg
+        if case .set = patch.notes {
+            let trimmedNotes = (patch.notes.resolve(or: nil) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            updated.notes = trimmedNotes.isEmpty ? nil : trimmedNotes
+        }
         updated.updatedAt = nowISO8601()
 
         try writer.write { db in
@@ -193,12 +207,12 @@ public struct GRDBClimbRepository: ClimbRepository {
                 sql: """
                 UPDATE climbs SET gym_id = ?, wall_id = ?, board_id = ?, board_problem_id = ?, name = ?,
                     grade_system_id = ?, grade_level_id = ?, grade_norm = ?, color_circuit = ?, angle_deg = ?,
-                    is_active = ?, is_archived = ?, updated_at = ? WHERE id = ?
+                    notes = ?, is_active = ?, is_archived = ?, updated_at = ? WHERE id = ?
                 """,
                 arguments: [
                     updated.gymId, updated.wallId, updated.boardId, updated.boardProblemId, updated.name,
                     updated.gradeSystemId, updated.gradeLevelId, updated.gradeNorm, updated.colorCircuit,
-                    updated.angleDeg, updated.isActive, updated.isArchived, updated.updatedAt, id,
+                    updated.angleDeg, updated.notes, updated.isActive, updated.isArchived, updated.updatedAt, id,
                 ]
             )
         }

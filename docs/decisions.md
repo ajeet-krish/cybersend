@@ -279,3 +279,13 @@ Entry format: "## [Date], Phase [N]: [Title]" with Context, Decision, Rationale,
 **Rationale:** SQLite cannot alter a CHECK constraint in place, so a table rebuild was unavoidable; doing both changes in one rebuild means one copy of the largest table and one atomic step. Rewriting project to fail inside the migration (and again in the payload migration) guarantees no row is lost and no row can violate the narrowed CHECK, including backups restored through the payload path. The parser fallback keeps a version 3 column set stamped with an older version number importable, which the migration chain already treats as idempotent.
 
 **Trade-offs:** The project outcome disappears from history, so any climb that was "in progress" now reads as fails. The rebuild copies every attempt row once, which is a one time cost proportional to history size but bounded by the existing 10k attempt budget. A version 2 backup keeps its project rows only as fails; nothing reconstructs the old label.
+
+## 2026-10-21, UI overhaul: climbs.notes for problem details
+
+**Context:** The Problems catalog needs a details field per problem (beta, style, what to remember) alongside name, grade scheme, level, angle, and photo. The frozen TypeScript schema had no such column, and the native track is now the active one.
+
+**Decision:** Migration 004 appends a nullable `climbs.notes` text column with `ALTER TABLE ADD COLUMN`. The domain model, `CreateClimbInput`, and `UpdateClimbPatch` carry the field; the repository trims it and stores whitespace only input as nil, on create and on set. The export payload moves to schema_version 4 with `nativeV3TableSpec` (current minus `climbs.notes`), `nativeV2TableSpec` composed on it (also minus `attempts.rpe`), `migrateV3PayloadToV4`, and a parser that tries the current spec, then v3, then v2. The climbs CSV gains a trailing `notes` column.
+
+**Rationale:** A nullable append needs no table rebuild, so the migration is one statement and existing climbs keep their rows untouched. Compositional versioned specs keep the number of pinned shapes linear rather than combinatorial: each version is the current spec minus the columns introduced after it. The ordered parser fallback covers genuine old backups and newer column sets stamped with an older version, and it still rejects any table that matches none of the shapes.
+
+**Trade-offs:** The export payload version and its golden fixture move again, which means one more fixture in the tree (v2, v3, and v4 all remain as import inputs). Problem details are plain text only, with no rich text or per attempt notes linkage beyond the existing attempt notes.

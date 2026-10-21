@@ -161,6 +161,8 @@ public enum ExportTable: String, CaseIterable, Sendable {
                 column("grade_norm", .real, nullable: true),
                 column("color_circuit", .text, nullable: true),
                 column("angle_deg", .real, nullable: true),
+                // Version 4 addition (Problems catalog): free text problem details.
+                column("notes", .text, nullable: true),
                 column("is_active", .integer),
                 column("is_archived", .integer),
                 column("created_at", .text),
@@ -448,17 +450,29 @@ public func nativeV1TableSpec(for name: String) -> ExportTableSpec? {
             conflictColumns: table.spec.conflictColumns
         )
     }
-    // Attempts also lost the version 3 rpe column in version 1, so the version 2 spec
-    // (which is the current spec minus rpe) is the right base here.
-    if table == .attempts {
-        return nativeV2TableSpec(for: name)
+    // Everything except photos matches the version 2 shape: version 1 predates both
+    // attempts.rpe and climbs.notes.
+    return nativeV2TableSpec(for: name)
+}
+
+/// The version 3 spec for one native table: identical to the current spec except climbs,
+/// which predates the notes column. Version 3 files were written before the Problems
+/// catalog added problem details.
+public func nativeV3TableSpec(for name: String) -> ExportTableSpec? {
+    guard let table = ExportTable(rawValue: name) else { return nil }
+    if table == .climbs {
+        return ExportTableSpec(
+            columns: table.spec.columns.filter { $0.name != "notes" },
+            conflictColumns: table.spec.conflictColumns
+        )
     }
     return table.spec
 }
 
-/// The version 2 spec for one native table: identical to the current spec except attempts,
-/// which predates the rpe column. Version 2 files were written by the M3 build and are the
-/// most likely backups in the field, so their shape is pinned here rather than inferred.
+/// The version 2 spec for one native table: the version 3 spec minus attempts.rpe, because
+/// version 2 predates per attempt effort as well as problem details. Version 2 files were
+/// written by the M3 build and are the most likely backups in the field, so their shape is
+/// pinned here rather than inferred.
 public func nativeV2TableSpec(for name: String) -> ExportTableSpec? {
     guard let table = ExportTable(rawValue: name) else { return nil }
     if table == .attempts {
@@ -467,7 +481,7 @@ public func nativeV2TableSpec(for name: String) -> ExportTableSpec? {
             conflictColumns: table.spec.conflictColumns
         )
     }
-    return table.spec
+    return nativeV3TableSpec(for: name)
 }
 
 /// One JSON safe cell value. docs/schema.sql has no BLOB columns, so text, integer,
