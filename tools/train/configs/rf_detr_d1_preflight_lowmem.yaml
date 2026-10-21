@@ -1,0 +1,68 @@
+# CyberSend D1 preflight, low-memory variant: ONE epoch on the merged dataset.
+#
+# WARNING: executing this config starts a training run (1 epoch). A 1-epoch
+# preflight run IS a training run: it REQUIRES USER APPROVAL BEFORE RUNNING.
+# See the preflight section of tools/train/README.md.
+#
+# Why this file exists: the first preflight attempt (configs/rf_detr_d1_preflight.yaml,
+# 2026-10-20) stalled at 20% on the 16 GB development Mac. Swap filled to
+# 15.75 of 16 GB and throughput collapsed from 1.2 it/s to 0.01 it/s, then to a
+# stop. The model was fine (loss 5.5 down to 2.6 in the trained portion); the
+# machine ran out of memory. The only differences from the original preflight are
+# memory footprint knobs, all validated RF-DETR TrainConfig fields:
+#
+#   multi_scale: off         (original used the per-batch default with an 800 px
+#                             scale, which decodes large frames on every step)
+#   expanded_scales: false   (do not widen the scale range on top of that)
+#   num_workers: 0           (no forked DataLoader workers holding their own
+#                             copies of the decode pipeline; decode in process)
+#   prefetch_factor: null    (no prefetch queue without workers)
+#   persistent_workers: false, pin_memory: false (no resident worker memory)
+#   eval_batch_size: 1       (validation forward passes one image at a time)
+#
+# Everything else (dataset, seed, batch 2, lr, 1 epoch, EMA for checkpoint
+# naming) is intentionally identical to the original preflight so the run still
+# validates the same plumbing. Training quality is not the point of a preflight.
+#
+# Run with (after explicit user approval):
+#   uv run hold-train-d1 --config configs/rf_detr_d1_preflight_lowmem.yaml 2>&1 | tee artifacts/train_rf_detr_d1_preflight_lowmem.log
+
+run_id: rf_detr_d1_preflight_lowmem
+description: >-
+  D1 preflight, low-memory variant: one RF-DETR-Nano epoch on datasets/merged at
+  batch 2 with multi-scale off and single-process loading, for 16 GB Macs.
+  Validates configuration, data, device, checkpoint naming, and export only;
+  gate numbers from this run mean nothing, never export it as a shippable model.
+
+dataset_dir: datasets/merged
+output_dir: artifacts/train_rf_detr_d1_preflight_lowmem
+
+device: mps
+seed: 20261019
+
+model:
+  resolution: 640
+
+train:
+  epochs: 1
+  batch_size: 2
+  lr: 0.0001
+  lr_encoder: 0.0001
+  weight_decay: 0.0001
+  multi_scale: off
+  expanded_scales: false
+  num_workers: 0
+  prefetch_factor: null
+  persistent_workers: false
+  pin_memory: false
+  eval_batch_size: 1
+  eval_interval: 1
+  eval_ema_only: false
+  progress_bar: true
+  notes: >-
+    CyberSend D1 PREFLIGHT LOWMEM (1 epoch, batch 2, multi-scale off, single
+    process loading) on datasets/merged (climbtag v29 + blackcreed v14 + pwals
+    v18, pHash deduped, cluster 60/20/20, seed 20261019, letterbox 640 baked by
+    hold-bake, category id 1). Memory variant of the 2026-10-20 preflight that
+    stalled on a 16 GB Mac. Validates plumbing only; not a quality run, never a
+    shippable model.
