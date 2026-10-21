@@ -17,10 +17,6 @@ struct LogbookTabView: View {
                 .navigationTitle("Logbook")
                 .navigationDestination(for: LogbookRoute.self) { route in
                     switch route {
-                    case .gyms:
-                        GymsManagerView()
-                    case .grades:
-                        GradeSchemesView()
                     case .climbDetail(let climbId):
                         if let services {
                             ClimbEditorView(climbId: climbId, services: services)
@@ -80,8 +76,6 @@ struct RoutePendingView: View {
 extension LogbookRoute {
     var pendingDescription: String {
         switch self {
-        case .gyms: return "Gym management"
-        case .grades: return "Grade schemes"
         case .gymDetail: return "Gym detail"
         case .climbDetail: return "Climb editor"
         case .tagging: return "Hold tagging"

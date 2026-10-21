@@ -107,11 +107,6 @@ struct LogbookHomeView: View {
                     }
                 }
             }
-            NavigationLink(value: LogbookRoute.gyms) {
-                Row(title: "Manage gyms", systemImage: "building.2")
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("logbook.manage-gyms")
         }
     }
 
@@ -148,11 +143,6 @@ struct LogbookHomeView: View {
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("logbook.add-climb")
-            NavigationLink(value: LogbookRoute.grades) {
-                Row(title: "Grade schemes", systemImage: "chart.line.uptrend.xyaxis")
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("logbook.grade-schemes")
         }
     }
 

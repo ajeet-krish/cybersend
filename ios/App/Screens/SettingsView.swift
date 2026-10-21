@@ -50,6 +50,7 @@ struct SettingsView: View {
             }
 
             defaultsSection
+            catalogSection
             appearanceSection
             photoSection
             exportSection
@@ -67,6 +68,10 @@ struct SettingsView: View {
         }
         .navigationDestination(for: SettingsRoute.self) { route in
             switch route {
+            case .gyms:
+                GymsManagerView()
+            case .grades:
+                GradeSchemesView()
             case .featureFlags:
                 FeatureFlagsView()
             case .appearance, .backups, .about:
@@ -168,6 +173,23 @@ struct SettingsView: View {
                 }
                 .accessibilityIdentifier("settings.default-scheme")
             }
+        }
+    }
+
+    /// Gym and grade scheme management now live in Settings, below Defaults and above
+    /// Appearance (previously rows on the Logbook home). Both destinations are pushed on
+    /// the Settings stack through SettingsRoute.
+    private var catalogSection: some View {
+        Section("Manage") {
+            NavigationLink(value: SettingsRoute.gyms) {
+                Row(title: "Manage gyms", systemImage: "building.2")
+            }
+            .accessibilityIdentifier("settings.manage-gyms")
+
+            NavigationLink(value: SettingsRoute.grades) {
+                Row(title: "Grade schemes", systemImage: "chart.line.uptrend.xyaxis")
+            }
+            .accessibilityIdentifier("settings.grade-schemes")
         }
     }
 

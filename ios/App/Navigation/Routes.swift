@@ -16,8 +16,6 @@ enum AppTab: Hashable, CaseIterable {
 
 /// Routes under the Logbook tab.
 enum LogbookRoute: Hashable {
-    case gyms
-    case grades
     case gymDetail(gymId: String)
     case climbDetail(climbId: String)
     /// Hold tagging canvas (M3). The climb editor photo and holds sections push it.
@@ -31,8 +29,12 @@ enum SessionsRoute: Hashable {
     case sessionDetail(sessionId: String, climbId: String?)
 }
 
-/// Routes under the Settings tab.
+/// Routes under the Settings tab. Gym and grade scheme management live here (they were
+/// previously rows on the Logbook home; the catalog surfaces belong with the other
+/// configuration screens).
 enum SettingsRoute: Hashable {
+    case gyms
+    case grades
     case appearance
     case featureFlags
     case backups
