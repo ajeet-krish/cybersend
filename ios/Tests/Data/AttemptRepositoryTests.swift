@@ -225,6 +225,34 @@ struct AttemptRepositoryTests {
         #expect(stored?.attemptedAt == result.attempt.attemptedAt)
     }
 
+    @Test("listRecent returns attempts across the log newest first and honours the limit")
+    func listRecentAcrossSessions() throws {
+        let test = try makeTestDatabase()
+        let fixture = try makeFixture(test)
+
+        _ = try test.repos.attempts.logAttempt(LogAttemptInput(
+            sessionId: fixture.sessionId, climbId: fixture.climbId, outcome: .fail,
+            attemptedAt: "2026-01-01T10:00:00.000Z"
+        ))
+        _ = try test.repos.attempts.logAttempt(LogAttemptInput(
+            sessionId: fixture.sessionId, climbId: fixture.climbId, outcome: .send,
+            attemptedAt: "2026-01-01T12:00:00.000Z"
+        ))
+        _ = try test.repos.attempts.logAttempt(LogAttemptInput(
+            sessionId: fixture.sessionId, climbId: fixture.climbId, outcome: .fail,
+            attemptedAt: "2026-01-01T11:00:00.000Z"
+        ))
+
+        let recent = try test.repos.attempts.listRecent(limit: 10)
+        #expect(recent.map(\.attemptedAt) == [
+            "2026-01-01T12:00:00.000Z",
+            "2026-01-01T11:00:00.000Z",
+            "2026-01-01T10:00:00.000Z",
+        ])
+        #expect(try test.repos.attempts.listRecent(limit: 2).count == 2)
+        #expect(try test.repos.attempts.listRecent(limit: 0).isEmpty)
+    }
+
     @Test("rpe is stored per attempt, patched, cleared, and range checked")
     func rpeRoundTripAndValidation() throws {
         let test = try makeTestDatabase()

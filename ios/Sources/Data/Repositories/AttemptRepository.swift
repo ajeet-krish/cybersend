@@ -76,6 +76,8 @@ public protocol AttemptRepository: Sendable {
     func get(id: String) throws -> Attempt?
     func listBySession(sessionId: String) throws -> [Attempt]
     func listByClimb(climbId: String) throws -> [Attempt]
+    /// Most recent attempts across every session, newest first (home screen recent climbs).
+    func listRecent(limit: Int) throws -> [Attempt]
     func countByClimb(climbId: String) throws -> Int
     func delete(id: String) throws
 }
@@ -183,6 +185,21 @@ public struct GRDBAttemptRepository: AttemptRepository {
         try writer.read { db in
             try Row
                 .fetchAll(db, sql: "SELECT * FROM attempts WHERE climb_id = ? ORDER BY attempted_at, attempt_no", arguments: [climbId])
+                .map { try rowToAttempt($0) }
+        }
+    }
+
+    /// Most recent attempts across every session, newest first. The home screen's recent
+    /// climbs block needs the climbs a climber touched last, which is an attempts question,
+    /// not a climbs one (climbs carry no last-touched column).
+    public func listRecent(limit: Int = 100) throws -> [Attempt] {
+        try writer.read { db in
+            try Row
+                .fetchAll(
+                    db,
+                    sql: "SELECT * FROM attempts ORDER BY attempted_at DESC, attempt_no DESC LIMIT ?",
+                    arguments: [max(0, limit)]
+                )
                 .map { try rowToAttempt($0) }
         }
     }

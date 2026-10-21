@@ -13,7 +13,19 @@ struct LogbookTabView: View {
 
     var body: some View {
         NavigationStack(path: $path) {
-            LogbookHomeView(path: $path)
+            Group {
+                if let services {
+                    LogbookHomeView(path: $path, services: services)
+                } else {
+                    Screen {
+                        EmptyState(
+                            systemImage: "exclamationmark.triangle",
+                            title: "Logbook unavailable",
+                            message: "The app services did not load."
+                        )
+                    }
+                }
+            }
                 .navigationTitle("Logbook")
                 .navigationDestination(for: LogbookRoute.self) { route in
                     switch route {

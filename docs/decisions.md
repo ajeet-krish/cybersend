@@ -299,3 +299,13 @@ Entry format: "## [Date], Phase [N]: [Title]" with Context, Decision, Rationale,
 **Rationale:** One entity keeps quick log, session editor, catalog, stats, and exports consistent: a problem added in the catalog is immediately quick loggable, and an attempt logged in a session shows up in the catalog history with no synchronization step. Reusing the editor avoids a second grade or photo code path. Newest first history matches how climbers read a project log.
 
 **Trade-offs:** The catalog and the quick log can show different sets (the catalog includes inactive rows and can include archived ones; the quick log excludes both), which is intentional but means the word "problem" and "climb" refer to the same row in different screens. The list computes one attempts query per problem, which is fine at personal scale and avoids a bespoke aggregate query.
+
+## 2026-10-21, UI overhaul: the logbook home is four blocks
+
+**Context:** The home screen carried the gym chip strip plus a quick log climb list whose rows pushed the climb editor. That made the home a management screen with no sense of history, and the Problems tab now owns climb management.
+
+**Decision:** The home is the session card, a consistency heatmap, the last three sessions, and the last three climbs. The heatmap is 20 weeks of local days ending on the current week, one filled cell per session start, with future days in the current week left empty; the window is fixed at 20 so the cells stay 12 pt inside the card on the smallest supported phone. Recent climbs means most recently attempted, not most recently created: a new `AttemptRepository.listRecent(limit:)` returns attempts newest first, and `HomeOverviewStore` keeps the first occurrence of each climb so a problem tried twice does not take two slots. The gym choice moved into the session card as a menu because only starting a session needs it.
+
+**Rationale:** Consistency is the thing a tracker should show first, and a calendar grid reads faster than a list of dates. Reading recent climbs from attempts, rather than adding a last-touched column to climbs, keeps the schema untouched and makes the row order match what the climber just did. Removing the quick log list from the home removed a second climb entry point, which is the point of the Problems tab.
+
+**Trade-offs:** The home no longer offers one tap to a climb editor; that path is now Problems, then the problem. The heatmap only counts session starts, not attempts or duration, and it does not label months, so a long streak has to be inferred from the grid position. The four blocks cost one snapshot of up to 500 session summaries plus recent attempts on every appearance; fine at personal scale, and the store is the single place to add caching if it ever is not.

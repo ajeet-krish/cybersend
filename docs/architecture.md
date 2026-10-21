@@ -78,6 +78,16 @@ restore:   import v1 or v2 or legacy -> payload migration -> staged transaction 
 - Navigation: LogbookRoute gains the tagging screen; ClimbEditor gains photo and holds sections (add, replace, delete photo with confirmation; link and unlink holds across climbs). FallHoldSheet lists real holds and can show the climb photo canvas; hold row tap or Skip stays one tap, so the quick-log budget of 5 taps survives.
 - Launch: MediaSweep removes photo rows whose working copy is missing and files with no row, async after first frame so the 2.5 s cold start budget is untouched.
 
+## App Layer (UI overhaul)
+
+Dark first Dracula palette with an Alucard light variant (Theme.swift); SettingsStore resolves an unset appearance to dark. Five tabs: Logbook, Problems, Stats, Sessions, Settings. Settings groups Appearance, then Defaults, then Gyms and Grade schemes.
+
+Logbook home (LogbookHomeView) composes four blocks over one snapshot from HomeOverviewStore: the session card (open session, or a gym menu plus Start session), the consistency heatmap, the last three sessions, and the last three climbs. The heatmap is 20 columns of 7 local days ending on the current week, one filled day per session start, future days in the current week drawn as holes. Recent climbs means most recently attempted: the store walks AttemptRepository.listRecent newest first and keeps the first occurrence of each climb, then resolves names, grades, and totals through the repositories. The store is the only home data source; the view holds no queries.
+
+Problems tab (ProblemsCatalogView, ProblemDetailView) is a catalog over climbs for the selected gym. Adding and editing push ClimbEditorView with noun "problem"; the editor's grade scheme and level are menu pickers, and the details field is climbs.notes. The detail screen shows the photo hero, grade, angle, color, details, and the complete attempt history newest first with per attempt RPE and notes, plus edit, tag holds, and archive. Archiving is the only removal there; delete stays in the editor and remains blocked while attempts exist. The problems stack also registers LogbookRoute.tagging because the shared editor links to it.
+
+Session editor (SessionDetailView) picks the quick log climb from a menu showing the selected climb and grade, and logs outcomes with Flash, Send, and Fail side by side plus a per attempt effort picker. Per attempt RPE is attempts.rpe (nullable, 1 to 10) and the Project outcome is retired: historical rows were rewritten to fail by Migration 003.
+
 ## Migration Plan (M0 to M6)
 
 | Milestone | Scope | US mapping | Status |
@@ -108,7 +118,7 @@ Format unchanged (.cybersend zip: manifest.json, data.json, media/), but the pay
 
 - swift-testing for package code; in-memory GRDB via makeTestRepositories; synthetic CGImages for ingest tests (EXIF orientations 1, 3, 6, 8; 8000x6000 memory path).
 - Golden fixtures: v1 export bytes pinned as import fixture, v2 export bytes pinned current; legacy translation tests unchanged.
-- XCUITest smoke set grows to five: quick-log tap accounting (including a hold row as the 4th tap), session history, settings and restore, synthetic capture plus tagging three holds with roles, fall-on-hold from real holds. System pickers (camera, PhotosPicker) are never driven by tests; Debug seams feed the identical pipeline.
+- XCUITest smoke set: quick-log tap accounting (including a hold row as the fifth tap), session history, settings catalog, settings and restore, synthetic capture plus tagging three holds with roles, fall-on-hold from real holds, and the problems catalog (list, history, archive, archived filter). System pickers (camera, PhotosPicker) are never driven by tests; Debug seams feed the identical pipeline.
 - Canvas performance: DEVELOPMENT FPS HUD (CADisplayLink) plus a seeded 100 hold fixture; measure in dogfood on device, simulator is a documented proxy. Tap placement accuracy is proven by round-trip unit tests plus a deterministic XCUITest coordinate check.
 - ML regression stays in tools/eval.
 
@@ -120,4 +130,4 @@ Format unchanged (.cybersend zip: manifest.json, data.json, media/), but the pay
 - Export compatibility break at payload v2. Mitigation: additive tables only, PayloadMigration 1 to 2, v1 fixtures pinned forever, frozen TS tree untouched.
 - Simulator has no camera. Mitigation: PhotosPicker plus synthetic capture share the ingest pipeline; camera verified in dogfood only; documented in docs/tests.md.
 - Canvas fps misses budget on iPhone 11. Mitigation: CAShapeLayer and UIImageView redraw discipline, FPS HUD with 100 hold seed, simplify selection handles at high zoom if needed.
-- Quick-log budget regression from the richer fall hold sheet. Mitigation: single tap row save preserved; tap-accounting UI test fails at a fifth tap.
+- Quick-log budget regression from the richer fall hold sheet or the climb dropdown. Mitigation: single tap row save preserved, the dropdown costs one extra tap only when the climb changes, and the tap-accounting UI test fails on any extra tap.

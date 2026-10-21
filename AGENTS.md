@@ -79,6 +79,19 @@ Native migration milestones (the app track since 2026-10-19):
 | M5 | Hold detection (Core ML, parity gate, eval gates) | Not Started |
 | M6 | BoulderVision video analysis (experimental flag) | Not Started |
 
+UI overhaul (the current track, started 2026-10-21):
+
+| Item | Description | Status |
+|------|-------------|--------|
+| UI-1 | Theme: Dracula dark first, Alucard light variant, accent versus accentSolid tokens | Complete |
+| UI-2 | Settings regrouped (Appearance, Defaults, Gyms and Grade schemes) with routes moved off the Logbook | Complete |
+| UI-3 | Per attempt RPE, Project outcome retired (history rewritten to fail) | Complete |
+| UI-4 | Problems catalog fifth tab (list, detail, history, archive, archived filter) | Complete |
+| UI-5 | Quick log climb dropdown (tap budget 5, or 3 when the climb is already selected) | Complete |
+| UI-6 | Home: session card, 20 week consistency heatmap, last three sessions, last three climbs | Complete |
+| UI-7 | Session editor: add and edit a climb inline with its photo | Not Started |
+| UI-8 | Old sessions: attach a photo or video after the fact (library import and playback only) | Not Started |
+
 ## Deep Docs
 
 - [Requirements](docs/requirements.md)

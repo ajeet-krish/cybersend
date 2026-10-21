@@ -59,9 +59,31 @@ cross-cutting budgets and section 4 definition of done). Status vocabulary:
 | 8 | Cold start to interactive | <= 2.5 s on the floor device (iPhone 11 class) | PENDING DEVICE | Procedure: on the floor device, force quit the app, then launch from the home screen with an external stopwatch (or the Xcode Debug gauge time to first significant interactive); take 5 cold starts and record the median; confirm MediaSweep activity does not delay the first frame (it runs after first frame by design). The pass condition is the Logbook tab tappable within the budget. |
 | 9a | Quick-log tap budget | <= 5 taps per attempt (3 when the climb is already selected) | PASS (automated evidence) | QuickLogSmokeTests.testLogAttemptWithinFiveTaps counts taps and refuses an extra tap (assertion before the tap); testLogAttemptWithHoldRowAsTheFifthTap proves the M3 fall hold row keeps the 5 tap budget; FallHoldSmokeTests proves a row tap saves. |
 | 9b | Quick-log time budget | <= 5 s per attempt at the wall | PENDING DEVICE | Procedure: at the gym (or standing at a wall), start a stopwatch, open the app, open the session, choose a climb, tap Fail, tap Skip or a hold row; record the elapsed time for 5 consecutive attempts including one cold (app just foregrounded) attempt; record the worst case. |
-| 10 | Backup and restore round trip | Lossless, <= 5 s backup of 1000 sessions + 5000 attempts, <= 15 s restore | PASS (automated evidence) | Golden fixture round trips (data_native_v1 pinned import fixture, data_native_golden_v2 pinned export), BackupServiceTests US-15.4 budget test (5000 attempts seeded, measured 0.59 s of the 5 s budget), RestoreGateTests confirmation lifecycle, and SettingsRestoreSmokeTests UI proof that a confirmed restore reverts data while a cancel changes nothing. |
+| 10 | Backup and restore round trip | Lossless, <= 5 s backup of 1000 sessions + 5000 attempts, <= 15 s restore | PASS (automated evidence) | Golden fixture round trips (data_native_v1 pinned import fixture, data_native_golden_v4 pinned export, v2 and v3 pinned import fixtures), BackupServiceTests US-15.4 budget test (5000 attempts seeded, measured 0.59 s of the 5 s budget), RestoreGateTests confirmation lifecycle, and SettingsRestoreSmokeTests UI proof that a confirmed restore reverts data while a cancel changes nothing. |
 | 11 | Stats dashboard render | <= 300 ms with 10k attempts, DB query <= 100 ms | PASS (automated evidence) | StatsStoreTests "aggregating 10k attempts stays well under the 100 ms query budget" seeds a real in-memory DB with 10k attempts, 40 climbs, 100 tagged holds and asserts best of three full refreshes under 100 ms via ContinuousClock. Measured on this machine: about 88 ms debug (dominated by DumpRepository dictionary mapping under -Onone) and about 14 ms optimized; the store aggregation itself is about 20 ms of that. The 300 ms render budget is covered by the store budget plus the charts rendering bounded series (grade rows, week buckets, hold markers). |
 
 Gate decision: items 3, 6, 9a, 10, and 11 are PASS with automated evidence; items 1, 2, 4, 5, 7,
 8, and 9b are PENDING DEVICE with the procedures above. The Phase 2 MVP ship gate stays closed
 until every PENDING DEVICE item is executed by the user and recorded here with dates and results.
+
+## UI overhaul verification (2026-10-21)
+
+Package suite: 267 swift-testing cases in 47 suites, green. App suite: 25 XCTest cases, green
+(HomeOverviewTests adds two). UI smoke set: 14 cases covering quick log (dropdown plus a hold row
+as the fifth tap), fall hold, session history, stats, settings catalog, settings and restore,
+tagging, capture, and the problems catalog.
+
+| Item | Covered by | Status |
+|------|-----------|--------|
+| Per attempt RPE stored, patched, cleared, range checked | AttemptRepositoryTests rpe round trip, Migration003Tests, ExportSerializeTests golden v3 import | PASS |
+| Project outcome retired and historical rows rewritten to fail | Migration003Tests historical project rows, repository outcome checks | PASS |
+| Problem details column | Migration004Tests, ClimbRepositoryTests.notesRoundTrip, CsvExportTests climbs notes, ImportTests nativeV3FixtureImportsAndKeepsEffort | PASS |
+| Problems catalog list, detail, history, archive, archived filter | ProblemsCatalogSmokeTests (two cases) | PASS |
+| Home recent sessions, recent climbs order, heatmap shape | HomeOverviewTests (two cases), AttemptRepositoryTests.listRecentAcrossSessions | PASS |
+| Quick log climb dropdown and tap budget | QuickLogSmokeTests.testLogAttemptWithinFiveTaps, testLogAttemptWithHoldRowAsTheFifthTap | PASS |
+| Appearance defaults to dark and keeps the light variant | SettingsCatalogSmokeTests, Theme contrast notes in docs/reviews.md | PASS (automated) |
+| Per screen dark mode contrast on device | Gate item 7 above | PENDING DEVICE |
+| Home visual pass (heatmap, recent blocks, gym menu) | Simulator screenshots reviewed 2026-10-21 | PASS (visual) |
+
+Known gap: the session editor does not yet add or edit a climb inline, and old sessions cannot
+attach a photo or video after the fact. Both are tracked in docs/decisions.md and AGENTS.md.
