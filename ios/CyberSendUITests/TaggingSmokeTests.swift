@@ -19,12 +19,16 @@ final class TaggingSmokeTests: XCTestCase {
         app.launchArguments += ["-CYBERSEND_UI_TEST_SEED", "1"]
         app.launch()
 
-        // 1: logbook home, open the seeded bare Climb One (row identifiers carry the
-        // random climb id, so the query is by the deterministic label).
-        XCTAssertTrue(app.tabBars.buttons["Logbook"].waitForExistence(timeout: 20))
-        let climbRow = app.buttons.matching(NSPredicate(format: "label == %@", "Climb One, V3")).firstMatch
-        XCTAssertTrue(climbRow.waitForExistence(timeout: 10), "the logbook lists the seeded Climb One with its grade")
+        // 1: the Problems catalog owns climb management, so open the seeded bare Climb One
+        // there, then its editor (the photo and holds sections live in the editor).
+        XCTAssertTrue(app.tabBars.buttons["Problems"].waitForExistence(timeout: 20))
+        app.tabBars.buttons["Problems"].tap()
+        let climbRow = app.staticTexts["Climb One"]
+        XCTAssertTrue(climbRow.waitForExistence(timeout: 10), "the problems catalog lists the seeded Climb One")
         climbRow.tap()
+        let editProblem = app.buttons["problem.edit"]
+        XCTAssertTrue(editProblem.waitForExistence(timeout: 10), "the problem detail offers its editor")
+        editProblem.tap()
 
         // 2: add the Development only synthetic photo (same ingest pipeline as camera
         // and library; docs/decisions.md M3 photo capture record).
@@ -150,11 +154,15 @@ final class TaggingSmokeTests: XCTestCase {
         app.launch()
 
         // Reach the tagging screen on the seeded bare Climb One with a synthetic photo
-        // (same setup as the tagging smoke above).
-        XCTAssertTrue(app.tabBars.buttons["Logbook"].waitForExistence(timeout: 20))
-        let climbRow = app.buttons.matching(NSPredicate(format: "label == %@", "Climb One, V3")).firstMatch
+        // (same setup as the tagging smoke above): catalog, detail, editor.
+        XCTAssertTrue(app.tabBars.buttons["Problems"].waitForExistence(timeout: 20))
+        app.tabBars.buttons["Problems"].tap()
+        let climbRow = app.staticTexts["Climb One"]
         XCTAssertTrue(climbRow.waitForExistence(timeout: 10))
         climbRow.tap()
+        let editProblem = app.buttons["problem.edit"]
+        XCTAssertTrue(editProblem.waitForExistence(timeout: 10))
+        editProblem.tap()
         let addPhoto = app.buttons["climb.photo.add"]
         scrollIntoView(addPhoto, in: app)
         XCTAssertTrue(addPhoto.waitForExistence(timeout: 10))

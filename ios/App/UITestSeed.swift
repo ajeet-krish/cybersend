@@ -143,9 +143,10 @@ enum UITestSeed {
 
         // Open session for the quick log smoke, created last so the one open session
         // rule (US-11.2) holds at the end of seeding.
-        _ = try repos.sessions.create(
+        let open = try repos.sessions.create(
             CreateSessionInput(gymId: gym.id, startedAt: "2026-10-20T09:00:00.000Z")
         )
+        try seedSessionMedia(repos: repos, documentDirectory: documentDirectory, sessionId: open.id)
 
         // The canvas performance fixture: "-CYBERSEND_UI_TEST_SEED_HOLDS 100" adds a
         // climb with a synthetic photo and N holds at deterministic grid positions.
@@ -252,6 +253,50 @@ enum UITestSeed {
     /// photo row (working copy and thumb), bypassing the async ingest: seeding runs
     /// synchronously at launch and the synthetic source already matches the working copy
     /// policy (1200 by 1600 is within the 2048 px long edge).
+    /// One session photo and one session clip, so the session media block renders its photo
+    /// strip, its video row, and the player wiring without a system picker (UI overhaul).
+    /// The clip bytes are deliberately not a real movie: the smoke proves the row, the
+    /// duration label, and that a player sheet presents, not codec playback.
+    private static func seedSessionMedia(
+        repos: Repositories,
+        documentDirectory: URL,
+        sessionId: String
+    ) throws {
+        let storage = MediaStorage(root: documentDirectory)
+        let photoID = "00000000-0000-4000-8000-0000000000d1"
+        if let jpeg = SyntheticPhotoSource.wallJPEG() {
+            let workingUri = try storage.writeWorking(jpeg, photoID: photoID)
+            let thumbUri = try storage.writeThumb(jpeg, photoID: photoID)
+            _ = try repos.media.createPhoto(CreatePhotoInput(
+                id: photoID,
+                uri: workingUri,
+                width: SyntheticPhotoSource.width,
+                height: SyntheticPhotoSource.height,
+                climbId: nil,
+                sessionId: sessionId,
+                thumbUri: thumbUri,
+                originalUri: nil,
+                source: .library,
+                capturedAt: fixtureTimestamp
+            ))
+        }
+
+        let videoID = "00000000-0000-4000-8000-0000000000d2"
+        let videoBytes = Data("seed clip placeholder".utf8)
+        let videoUri = try storage.writeVideo(videoBytes, videoID: videoID, fileExtension: "mp4")
+        _ = try repos.media.createVideo(CreateVideoInput(
+            uri: videoUri,
+            sessionId: sessionId,
+            climbId: nil,
+            width: 1080,
+            height: 1920,
+            durationMs: 12000,
+            fps: nil,
+            poseStatus: .none,
+            retentionClass: .keep
+        ))
+    }
+
     private static func seedWallPhoto(
         repos: Repositories,
         documentDirectory: URL,

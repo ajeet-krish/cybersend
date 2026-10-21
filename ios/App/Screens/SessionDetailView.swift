@@ -60,8 +60,13 @@ struct SessionDetailView: View {
             if let session = store.session {
                 header(session)
                 if isSessionOpen(session) {
+                    // Quick log first while the session is live: the outcome buttons must
+                    // stay near the thumb at the wall. Media sits under the attempt list.
                     openSessionContent
+                    SessionMediaSection(sessionId: session.id, services: services)
                 } else {
+                    // A closed session is the retroactive media path, so the gallery leads.
+                    SessionMediaSection(sessionId: session.id, services: services)
                     closedSessionContent
                 }
             } else {

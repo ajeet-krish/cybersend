@@ -89,6 +89,46 @@ public final class PhotoStore: ObservableObject {
         }
     }
 
+    /// Ingests a photo attached to a session rather than a climb (UI overhaul: retroactive
+    /// session media). A session holds a gallery, so unlike addPhoto there is no
+    /// one-photo-per-owner rule and nothing is loaded into the published climb photo.
+    @discardableResult
+    public func addSessionPhoto(
+        bytes: Data,
+        source: PhotoSource,
+        sessionId: String
+    ) async throws -> Photo {
+        do {
+            let capturedAt = nowISO8601()
+            let result = try await runIngest(PhotoIngestRequest(
+                photoID: generateID(),
+                bytes: bytes,
+                source: source,
+                capturedAt: capturedAt,
+                retention: currentRetention(),
+                climbId: nil,
+                sessionId: sessionId
+            ))
+            let created = try repos.media.createPhoto(CreatePhotoInput(
+                id: result.photoID,
+                uri: result.workingUri,
+                width: result.width,
+                height: result.height,
+                climbId: nil,
+                sessionId: sessionId,
+                thumbUri: result.thumbUri,
+                originalUri: result.originalUri,
+                source: source,
+                capturedAt: capturedAt
+            ))
+            lastErrorMessage = nil
+            return created
+        } catch {
+            lastErrorMessage = error.localizedDescription
+            throw error
+        }
+    }
+
     /// Re-ingests new bytes over the current photo: the working copy, thumb, and
     /// retained original are rewritten in place under the same id and the row is patched
     /// in one write. An original retained by the previous capture that the new

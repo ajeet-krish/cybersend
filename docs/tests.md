@@ -69,7 +69,7 @@ until every PENDING DEVICE item is executed by the user and recorded here with d
 ## UI overhaul verification (2026-10-21)
 
 Package suite: 267 swift-testing cases in 47 suites, green. App suite: 25 XCTest cases, green
-(HomeOverviewTests adds two). UI smoke set: 14 cases covering quick log (dropdown plus a hold row
+(HomeOverviewTests adds two). UI smoke set: 19 cases covering quick log (dropdown plus a hold row
 as the fifth tap), fall hold, session history, stats, settings catalog, settings and restore,
 tagging, capture, and the problems catalog.
 
@@ -82,6 +82,8 @@ tagging, capture, and the problems catalog.
 | Home recent sessions, recent climbs order, heatmap shape | HomeOverviewTests (two cases), AttemptRepositoryTests.listRecentAcrossSessions | PASS |
 | Quick log climb dropdown and tap budget | QuickLogSmokeTests.testLogAttemptWithinFiveTaps, testLogAttemptWithHoldRowAsTheFifthTap | PASS |
 | Inline problem create and edit from the session screen | SessionClimbInlineSmokeTests (two cases: create and stay open into the photo section, then edit and rename) | PASS |
+| Session media rows, duration, playback sheet, closed session access | SessionMediaSmokeTests (two cases) | PASS |
+| Video storage path, extension and id validation | MediaStorageTests.videoWriteAndRead | PASS |
 | Appearance defaults to dark and keeps the light variant | SettingsCatalogSmokeTests, Theme contrast notes in docs/reviews.md | PASS (automated) |
 | Per screen dark mode contrast on device | Gate item 7 above | PENDING DEVICE |
 | Home visual pass (heatmap, recent blocks, gym menu) | Simulator screenshots reviewed 2026-10-21 | PASS (visual) |

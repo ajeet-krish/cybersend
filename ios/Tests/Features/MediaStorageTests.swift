@@ -29,6 +29,32 @@ struct MediaStorageTests {
         #expect(try storage.read(relativeURI: workingUri) == Data([0x09]))
     }
 
+    @Test("video bytes land in the videos tree under a validated id and extension")
+    func videoWriteAndRead() throws {
+        let storage = MediaStorage(root: try makeTempMediaRoot())
+        let id = UUID().uuidString.lowercased()
+
+        let uri = try storage.writeVideo(Data([0x00, 0x01, 0x02]), videoID: id, fileExtension: "MOV")
+        #expect(uri == "videos/\(id).mov")
+        #expect(try storage.read(relativeURI: uri) == Data([0x00, 0x01, 0x02]))
+        #expect(storage.fileExists(relativeURI: uri))
+
+        // Videos never appear in the photo sweep list: the sweep only owns photo files.
+        #expect(try storage.listPhotoFileRelativeURIs() == [])
+
+        let extensionEscape = #expect(throws: MediaStorageError.self) {
+            try storage.videoRelativeURI(videoID: id, fileExtension: "../escape")
+        }
+        #expect(extensionEscape != nil)
+        let idEscape = #expect(throws: MediaStorageError.self) {
+            try storage.videoRelativeURI(videoID: "../escape", fileExtension: "mov")
+        }
+        #expect(idEscape != nil)
+
+        try storage.delete(relativeURI: uri)
+        #expect(!storage.fileExists(relativeURI: uri))
+    }
+
     @Test("reading a missing file returns nil while unsafe uris throw")
     func readMissingAndUnsafe() throws {
         let storage = MediaStorage(root: try makeTempMediaRoot())

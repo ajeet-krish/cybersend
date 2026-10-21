@@ -60,6 +60,12 @@ public struct MediaStorage: Sendable {
         photosDirectory.appendingPathComponent("originals", isDirectory: true)
     }
 
+    /// Imported video files (UI overhaul: retroactive session media). Videos are not
+    /// re-encoded, so the byte for byte clip the library handed over is what playback reads.
+    public var videosDirectory: URL {
+        root.appendingPathComponent("videos", isDirectory: true)
+    }
+
     // MARK: - Relative uris
 
     /// The stored uri of the pixels up working copy ("photos/working/<uuid>.jpg").
@@ -81,6 +87,15 @@ public struct MediaStorage: Sendable {
         return "photos/originals/\(try validatedPhotoID(photoID)).\(ext)"
     }
 
+    /// The stored uri of an imported video ("videos/<uuid>.<ext>").
+    public func videoRelativeURI(videoID: String, fileExtension: String) throws -> String {
+        let ext = fileExtension.lowercased()
+        guard !ext.isEmpty, !ext.contains("/"), !ext.contains("..") else {
+            throw MediaStorageError.unsafeRelativeURI(fileExtension)
+        }
+        return "videos/\(try validatedPhotoID(videoID)).\(ext)"
+    }
+
     // MARK: - Writes
 
     /// Writes the working copy bytes atomically, creating the directory tree as needed.
@@ -96,6 +111,14 @@ public struct MediaStorage: Sendable {
     @discardableResult
     public func writeThumb(_ bytes: Data, photoID: String) throws -> String {
         let uri = try thumbRelativeURI(photoID: photoID)
+        try write(bytes, toRelativeURI: uri)
+        return uri
+    }
+
+    /// Writes an imported video atomically. Returns the stored relative uri.
+    @discardableResult
+    public func writeVideo(_ bytes: Data, videoID: String, fileExtension: String) throws -> String {
+        let uri = try videoRelativeURI(videoID: videoID, fileExtension: fileExtension)
         try write(bytes, toRelativeURI: uri)
         return uri
     }
