@@ -1,0 +1,82 @@
+# CyberSend D1 baseline, low-memory variant: 40 epochs on the merged dataset.
+#
+# WARNING: executing this config starts a 15-22 hour training run that writes
+# checkpoints of 500 MB and more (several GB total over 40 epochs). D1 runs
+# require the user's explicit approval before execution (see tools/train
+# README.md). Approved by the user 2026-10-20, with this low-memory recipe
+# and with the machine kept quiet during the run.
+#
+# Why this file exists: configs/rf_detr_d1.yaml was written before we had
+# memory data from the 16 GB development Mac. Its settings (batch 4, multi-scale
+# per-batch default, 2 DataLoader workers) are strictly heavier than the
+# configuration that stalled the first preflight at 20% (swap exhaustion, 15.75
+# of 16 GB, throughput 1.2 down to 0.01 it/s). The tuned low-memory preflight
+# (configs/rf_detr_d1_preflight_lowmem.yaml, commit aa0489e) ran 902/902
+# batches cleanly at 1.61 it/s with these knobs, so the full run adopts them:
+#
+#   batch_size: 2              (half the activation footprint)
+#   multi_scale: off           (no per-step 800 px decode; the single biggest
+#                               memory driver. Deviation accepted by the user:
+#                               both D1 baselines (RF-DETR and YOLOX) train at
+#                               fixed letterbox 640, so the comparison between
+#                               them stays consistent, and the quality target is
+#                               the gate in docs/requirements.md, not matching
+#                               a reference augmentation recipe)
+#   expanded_scales: false     (do not widen the scale range on top of that)
+#   num_workers: 0             (decode in process, no forked workers holding
+#                               their own copies of the pipeline)
+#   prefetch_factor: null      (no prefetch queue without workers)
+#   persistent_workers: false, pin_memory: false (no resident worker memory)
+#   eval_batch_size: 1         (validation passes one image at a time)
+#
+# Everything else (dataset, seed, lr, 40 epochs, eval cadence, gate note) is
+# identical to configs/rf_detr_d1.yaml so this remains the same D1 baseline
+# experiment with only memory footprint changed.
+#
+# Run with (after explicit user approval):
+#   uv run hold-train-d1 --config configs/rf_detr_d1_lowmem.yaml 2>&1 | tee artifacts/train_rf_detr_d1_lowmem.log
+# Prerequisite: uv run hold-build (creates datasets/merged).
+
+run_id: rf_detr_d1_lowmem
+description: >-
+  D1 baseline, low-memory variant: RF-DETR-Nano fine-tuned from Apache-2.0
+  Roboflow pretrained weights on the merged, deduplicated, single-class hold
+  dataset, at batch 2 with multi-scale off and single-process loading for
+  16 GB Apple Silicon Macs. Approved by the user 2026-10-20.
+
+# Relative to tools/train. hold-train-d1 creates merged/valid as a symlink to
+# merged/val because RF-DETR's Roboflow-style loader expects the name "valid".
+dataset_dir: datasets/merged
+output_dir: artifacts/train_rf_detr_d1
+
+device: mps          # Apple Silicon MPS; use cpu only if MPS misbehaves
+seed: 20261019       # must match the hold-build split seed for provenance
+
+model:
+  resolution: 640    # shared preprocess contract, see docs/architecture.md
+
+# Every key here is a validated RF-DETR TrainConfig field (rfdetr 1.11.2).
+train:
+  epochs: 40
+  batch_size: 2      # low-memory: 16 GB ceiling, proven at 1.61 it/s in preflight
+  lr: 0.0001
+  lr_encoder: 0.0001
+  weight_decay: 0.0001
+  multi_scale: off
+  expanded_scales: false
+  num_workers: 0
+  prefetch_factor: null
+  persistent_workers: false
+  pin_memory: false
+  eval_batch_size: 1
+  eval_interval: 1
+  eval_ema_only: false
+  progress_bar: true
+  notes: >-
+    CyberSend D1 baseline LOWMEM (40 epochs, batch 2, multi-scale off, single
+    process loading) on datasets/merged (climbtag v29 + blackcreed v14 + pwals
+    v18, pHash deduped, cluster 60/20/20, seed 20261019, letterbox 640 baked by
+    hold-bake, category id 1). Memory variant of configs/rf_detr_d1.yaml for a
+    16 GB Mac; user approved this recipe 2026-10-20. Gate: precision >= 0.85,
+    recall >= 0.80, mAP50 >= 0.75 on the frozen test split per
+    docs/requirements.md section 6 (test split touched once, at the end).
