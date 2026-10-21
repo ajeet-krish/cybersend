@@ -1,19 +1,23 @@
 import Foundation
 
 // Export payload table metadata (port of src/domain/validation/tables.ts, reconciled with
-// docs/schema.sql per the schema reconciliation record in docs/decisions.md). Two payload
-// shapes exist:
+// docs/schema.sql per the schema reconciliation record in docs/decisions.md). Payload
+// shapes exist per schema version:
 //
-//  * native: the reconciled Swift schema (15 tables, normalized grade_systems and
-//    grade_levels, holds.role, attempts.fall_on_hold_id and attempts.attempted_at,
-//    gyms.is_archived).
+//  * native v2 (current): the reconciled Swift schema (16 tables, the normalized
+//    grade_systems and grade_levels, holds.role, attempts.fall_on_hold_id and
+//    attempts.attempted_at, gyms.is_archived, plus the M3 climb_holds table and
+//    photos.original_uri column).
+//  * native v1: the same 15 tables before the M3 additions (no climb_holds, no
+//    photos.original_uri). Import accepts it and the registered payload migration
+//    from 1 synthesizes the version 2 additions.
 //  * legacy: the frozen TypeScript spec shape (13 tables, climbs.grade_system and
 //    climbs.grade_raw text, holds.label and holds.color, attempts.fell_on_hold_id and
 //    attempts.created_at, gyms.is_active).
 //
-// Export always writes native. Import accepts both: old exports must always import
-// (US-16), so the parser validates either shape strictly (no unknown columns, exact
-// types) and translates legacy rows to native columns.
+// Export always writes native v2. Import accepts all three: old exports must always
+// import (US-16), so the parser validates each shape strictly (no unknown columns,
+// exact types) and translates legacy rows to native columns.
 
 public enum ExportColumnType: String, Equatable, Sendable {
     case text
@@ -37,12 +41,14 @@ public struct ExportColumn: Equatable, Sendable {
 /// never from imported data, so every SQL statement built from it is injection safe.
 public struct ExportTableSpec: Equatable, Sendable {
     public let columns: [ExportColumn]
-    /// The upsert conflict target: "key" for settings, "id" everywhere else.
-    public let conflictTarget: String
+    /// The upsert conflict target columns: one column for most tables ("id" everywhere,
+    /// "key" for settings), the composite primary key (climb_id, hold_id) for
+    /// climb_holds.
+    public let conflictColumns: [String]
 
-    public init(columns: [ExportColumn], conflictTarget: String = "id") {
+    public init(columns: [ExportColumn], conflictColumns: [String] = ["id"]) {
         self.columns = columns
-        self.conflictTarget = conflictTarget
+        self.conflictColumns = conflictColumns
     }
 
     public var columnNames: [String] {
@@ -71,6 +77,7 @@ public enum ExportTable: String, CaseIterable, Sendable {
     case boardProblems = "board_problems"
     case climbs = "climbs"
     case holds = "holds"
+    case climbHolds = "climb_holds"
     case sessions = "sessions"
     case photos = "photos"
     case videos = "videos"
@@ -173,6 +180,15 @@ public enum ExportTable: String, CaseIterable, Sendable {
                 column("created_at", .text),
                 column("updated_at", .text),
             ])
+        case .climbHolds:
+            // M3 (US-20): membership keyed by the composite primary key, so the import
+            // upsert targets (climb_id, hold_id) and re-linking updates the sequence.
+            return ExportTableSpec(columns: [
+                column("climb_id", .text),
+                column("hold_id", .text),
+                column("sequence", .integer, nullable: true),
+                column("created_at", .text),
+            ], conflictColumns: ["climb_id", "hold_id"])
         case .sessions:
             return ExportTableSpec(columns: [
                 column("id", .text),
@@ -191,6 +207,7 @@ public enum ExportTable: String, CaseIterable, Sendable {
                 column("session_id", .text, nullable: true),
                 column("uri", .text),
                 column("thumb_uri", .text, nullable: true),
+                column("original_uri", .text, nullable: true),
                 column("width", .integer),
                 column("height", .integer),
                 column("source", .text),
@@ -246,14 +263,16 @@ public enum ExportTable: String, CaseIterable, Sendable {
                 column("key", .text),
                 column("value_json", .text),
                 column("updated_at", .text),
-            ], conflictTarget: "key")
+            ], conflictColumns: ["key"])
         }
     }
 }
 
 /// The legacy TypeScript spec shape (src/domain/validation/tables.ts) keyed by table
 /// name. Only the four reconciled tables differ from the native spec; the rest are
-/// byte identical.
+/// byte identical. The legacy photos spec deliberately predates photos.original_uri:
+/// the frozen TypeScript shape never had the column, and the payload migration from 1
+/// adds it as null after translation.
 public let legacyExportTableSpecs: [String: ExportTableSpec] = [
     "gyms": ExportTableSpec(columns: [
         column("id", .text),
@@ -389,7 +408,7 @@ public let legacyExportTableSpecs: [String: ExportTableSpec] = [
         column("key", .text),
         column("value_json", .text),
         column("updated_at", .text),
-    ], conflictTarget: "key"),
+    ], conflictColumns: ["key"]),
 ]
 
 /// The legacy table names in FK safe insert order.
@@ -408,6 +427,26 @@ public let legacyTableNamesInInsertOrder: [String] = [
     "grade_norm_params",
     "settings",
 ]
+
+/// The native version 1 table names: the current set without climb_holds. Exports
+/// written before payload schema version 2 validate against nativeV1TableSpec(for:);
+/// the registered payload migration from 1 then synthesizes the version 2 additions.
+public let nativeV1TableNames: [String] = ExportTable.allCases
+    .map(\.rawValue)
+    .filter { $0 != ExportTable.climbHolds.rawValue }
+
+/// The version 1 spec for one native table: identical to the current spec except photos,
+/// which predates original_uri. Anything else is not a version 1 table.
+public func nativeV1TableSpec(for name: String) -> ExportTableSpec? {
+    guard let table = ExportTable(rawValue: name), table != .climbHolds else { return nil }
+    if table == .photos {
+        return ExportTableSpec(
+            columns: table.spec.columns.filter { $0.name != "original_uri" },
+            conflictColumns: table.spec.conflictColumns
+        )
+    }
+    return table.spec
+}
 
 /// One JSON safe cell value. docs/schema.sql has no BLOB columns, so text, integer,
 /// real, and null cover every stored value (the TypeScript ExportRow equivalent).

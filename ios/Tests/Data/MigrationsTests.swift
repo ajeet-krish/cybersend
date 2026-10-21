@@ -9,22 +9,23 @@ import Testing
 
 @Suite("Migrations from an empty database")
 struct MigrationsFromEmptyTests {
-    @Test("creates the full v1 schema and mirrors user_version")
+    @Test("creates the full schema and mirrors user_version")
     func createsFullSchema() throws {
         let db = try DatabaseQueue()
         let result = try runPendingMigrations(on: db)
 
-        #expect(result.applied == [1])
+        #expect(result.applied == [1, 2])
         let version = try db.read { try readSchemaVersion(on: $0) }
         #expect(version == currentSchemaVersion)
         #expect(result.schemaVersion == currentSchemaVersion)
 
         let tables = try db.read { try tableNames($0) }
-        // grdb_migrations is GRDB's own runner bookkeeping; everything else is our v1 schema.
+        // grdb_migrations is GRDB's own runner bookkeeping; everything else is our schema.
         #expect(tables == [
             "attempts",
             "board_problems",
             "boards",
+            "climb_holds",
             "climbs",
             "grade_levels",
             "grade_norm_params",
@@ -44,11 +45,11 @@ struct MigrationsFromEmptyTests {
         let recorded = try db.read { db in
             try Row.fetchAll(db, sql: "SELECT version, name FROM schema_migrations ORDER BY version")
         }
-        #expect(recorded.count == 1)
-        let recordedVersion: Int = recorded[0]["version"]
-        let recordedName: String = recorded[0]["name"]
-        #expect(recordedVersion == 1)
-        #expect(recordedName == "initial")
+        #expect(recorded.count == 2)
+        let recordedVersions = recorded.map { $0["version"] as Int }
+        let recordedNames = recorded.map { $0["name"] as String }
+        #expect(recordedVersions == [1, 2])
+        #expect(recordedNames == ["initial", "climb_holds"])
     }
 
     @Test("seeds the built-in grade systems with ordered levels")
@@ -96,11 +97,11 @@ struct MigrationsFromEmptyTests {
 
         #expect(second.applied.isEmpty)
         let version = try db.read { try readSchemaVersion(on: $0) }
-        #expect(version == 1)
+        #expect(version == 2)
         let recorded = try db.read { db in
             try Int64.fetchOne(db, sql: "SELECT COUNT(*) FROM schema_migrations") ?? 0
         }
-        #expect(recorded == 1)
+        #expect(recorded == 2)
     }
 
     @Test("every index from docs/schema.sql exists")
@@ -112,6 +113,7 @@ struct MigrationsFromEmptyTests {
             "idx_attempts_climb",
             "idx_attempts_session",
             "idx_attempts_session_climb",
+            "idx_climb_holds_hold",
             "idx_climbs_gym",
             "idx_climbs_gym_status",
             "idx_grade_levels_system",
@@ -135,21 +137,21 @@ struct MigrationsOnPopulatedTests {
         let test = try makeTestDatabase()
         let (gymId, climbId) = try seedGymAndClimb(test.repos)
 
-        let addsColumn = Migration(version: 2, name: "test_add_column") { db in
+        let addsColumn = Migration(version: 3, name: "test_add_column") { db in
             try db.execute(sql: "ALTER TABLE climbs ADD COLUMN nickname TEXT")
         }
         let second = try runPendingMigrations(on: test.writer, migrations: defaultMigrations() + [addsColumn])
 
-        #expect(second.applied == [2])
+        #expect(second.applied == [3])
         let version = try test.writer.read { try readSchemaVersion(on: $0) }
-        #expect(version == 2)
+        #expect(version == 3)
         let loaded = try test.repos.climbs.get(id: climbId)
         #expect(loaded?.name == "Blue V4")
         #expect(loaded?.gymId == gymId)
         let recorded = try test.writer.read { db in
             try Int64.fetchAll(db, sql: "SELECT version FROM schema_migrations ORDER BY version")
         }
-        #expect(recorded == [1, 2])
+        #expect(recorded == [1, 2, 3])
     }
 }
 
@@ -160,7 +162,7 @@ struct MigrationFailureTests {
         let db = try DatabaseQueue()
         _ = try runPendingMigrations(on: db)
 
-        let failing = Migration(version: 2, name: "test_failing") { db in
+        let failing = Migration(version: 3, name: "test_failing") { db in
             try db.execute(sql: "CREATE TABLE half_done (id TEXT PRIMARY KEY)")
             throw ForcedMigrationFailure()
         }
@@ -172,11 +174,11 @@ struct MigrationFailureTests {
         let tables = try db.read { try tableNames($0) }
         #expect(!tables.contains("half_done"))
         let version = try db.read { try readSchemaVersion(on: $0) }
-        #expect(version == 1)
+        #expect(version == 2)
         let recorded = try db.read { db in
-            try Int64.fetchOne(db, sql: "SELECT COUNT(*) FROM schema_migrations") ?? 0
+            try Int64.fetchAll(db, sql: "SELECT version FROM schema_migrations ORDER BY version")
         }
-        #expect(recorded == 1)
+        #expect(recorded == [1, 2])
     }
 
     @Test("a database newer than the app is refused with restore guidance (US-7.4)")

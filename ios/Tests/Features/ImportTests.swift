@@ -117,7 +117,7 @@ struct ImportTests {
             try importPayloadJSON(
                 gymsPayloadJSON(schemaVersion: 1),
                 on: test.writer,
-                options: ImportOptions(currentVersion: 2)
+                options: ImportOptions(currentVersion: 2, payloadMigrations: [])
             )
         }
         #expect(error?.message == "This file uses schema version 1, which this app cannot upgrade to version 2. Nothing was imported.")
@@ -353,8 +353,7 @@ struct ImportTests {
     }
 
     @Test("a native level id colliding with a built-in never overwrites the built-in level")
-    func nativeLevelIdCollisionKeepsBuiltins() throws {
-        let test = try makeTestDatabase()
+    func nativeLevelIdCollisionKeepsBuiltins() throws {        let test = try makeTestDatabase()
         // A crafted native file smuggling a level under the reserved id "v4" inside an
         // otherwise ordinary custom scheme, plus a climb that references it.
         let payload = buildExportPayload(dump: [
@@ -418,5 +417,87 @@ struct ImportTests {
         #expect(climbs.count == 1)
         #expect(climbs[0]["grade_system_id"] == .text("kilter_soft"))
         #expect(climbs[0]["grade_level_id"] == .text("v4_imported"))
+    }
+
+    @Test("the pinned native v1 fixture imports and synthesizes climb_holds (M3 payload v2)")
+    func nativeV1FixtureImportsAndSynthesizesClimbHolds() throws {
+        let test = try makeTestDatabase()
+        let v1 = try fixtureString("data_native_v1")
+        let report = try importPayloadJSON(v1, on: test.writer)
+
+        // The version 1 file arrived through the registered payload migration from 1.
+        #expect(report.schemaVersion == currentSchemaVersion)
+        #expect(report.migratedFrom == 1)
+        #expect(report.warnings.isEmpty)
+
+        let dump = try test.repos.dump.dumpAll()
+
+        // climb_holds was synthesized from holds.climb_id with the ordinal as the
+        // sequence, exactly like the Migration 002 database backfill.
+        #expect(dump[.climbHolds].count == 1)
+        #expect(dump[.climbHolds][0]["climb_id"] == .text("climb-1"))
+        #expect(dump[.climbHolds][0]["hold_id"] == .text("hold-1"))
+        #expect(dump[.climbHolds][0]["sequence"] == .integer(1))
+        #expect(dump[.climbHolds][0]["created_at"] == .text("2026-10-01T00:00:00.000Z"))
+
+        // Version 1 never stored originals: the column imports as null.
+        #expect(dump[.photos].count == 1)
+        #expect(dump[.photos][0]["original_uri"] == .null)
+        #expect(dump[.photos][0]["uri"] == .text("photos/photo-1.jpg"))
+
+        // The hold row itself is unchanged by the synthesis.
+        #expect(dump[.holds].count == 1)
+        #expect(dump[.holds][0]["climb_id"] == .text("climb-1"))
+        #expect(dump[.holds][0]["ordinal"] == .integer(1))
+
+        // Membership is live: the repository reads the synthesized link.
+        #expect(try test.repos.holds.idsLinkedToClimb(climbId: "climb-1") == ["hold-1"])
+
+        // Re-importing the same v1 file stays idempotent: the synthesized rows update
+        // in place on the (climb_id, hold_id) key instead of duplicating.
+        let second = try importPayloadJSON(v1, on: test.writer)
+        #expect(second.restoredRows == 0)
+        #expect(try rowCount(test.writer, table: .climbHolds) == 1)
+    }
+
+    @Test("the golden native v2 fixture imports without migration and round trips (M3 payload v2)")
+    func nativeV2FixtureImportsAndRoundTrips() throws {
+        let test = try makeTestDatabase()
+        let v2 = try fixtureString("data_native_golden_v2")
+        let report = try importPayloadJSON(v2, on: test.writer)
+
+        #expect(report.schemaVersion == currentSchemaVersion)
+        #expect(report.migratedFrom == nil, "a v2 file needs no payload migration")
+        #expect(report.warnings.isEmpty)
+
+        let dump = try test.repos.dump.dumpAll()
+        #expect(dump[.climbHolds].count == 1)
+        #expect(dump[.climbHolds][0]["sequence"] == .integer(1))
+        #expect(dump[.photos][0]["original_uri"] == .text("originals/photo-1.jpg"))
+
+        // A second export from the imported data imports losslessly into a third
+        // database: dumps converge, so v2 round trips are stable.
+        let exported = try buildExportJSON(repos: test.repos, now: fixtureExportTime)
+        let third = try makeTestDatabase()
+        let secondReport = try importPayloadJSON(exported, on: third.writer)
+        #expect(secondReport.migratedFrom == nil)
+        let thirdDump = try third.repos.dump.dumpAll()
+        for table in ExportTable.allCases {
+            #expect(dump[table] == thirdDump[table], "table \(table.rawValue) must survive a v2 round trip")
+        }
+    }
+
+    @Test("a v2 file claiming schema version 1 keeps its climb_holds rows (idempotent migration)")
+    func hybridV2ShapeClaimingV1DoesNotDuplicate() throws {
+        let test = try makeTestDatabase()
+        try seedDatabase(test.writer, repos: test.repos, rows: goldenSeedRows())
+
+        // gymsPayloadJSON serializes the current v2 shape; stamping it version 1 makes
+        // a hybrid: the registered migration must pass its climb_holds rows through
+        // instead of synthesizing duplicates from the holds rows.
+        let report = try importPayloadJSON(gymsPayloadJSON(gymID: "gym-1", name: "Renamed"), on: test.writer)
+        #expect(report.migratedFrom == 1)
+        #expect(try rowCount(test.writer, table: .climbHolds) == 1)
+        #expect(try rowCount(test.writer, table: .holds) == 1)
     }
 }

@@ -23,19 +23,29 @@ struct ExportSerializeTests {
         }
     }
 
-    @Test("golden export matches the fixture byte for byte")
+    @Test("golden v2 export matches the fixture byte for byte")
     func goldenBytesMatch() throws {
         // Serialization only, no database: the fixture pins the exact bytes the exporter
-        // produces for the seed dump, so any drift in column order, key order, number
-        // formatting, or escaping fails here.
+        // produces for the seed dump at schema version 2, so any drift in table order,
+        // column order, key order, number formatting, or escaping fails here. The
+        // formatting is cross-checked against Node JSON.stringify(payload, null, 2).
         let json = serializeExportPayload(buildExportPayload(
             dump: goldenSeedRows(),
-            schemaVersion: 1,
+            schemaVersion: 2,
             exportedAt: fixtureExportTime
         ))
-        let golden = try fixtureString("data_native_golden")
+        let golden = try fixtureString("data_native_golden_v2")
         #expect(json == golden)
         #expect(Data(json.utf8) == Data(golden.utf8))
+    }
+
+    @Test("the pinned v1 fixture still parses as a native version 1 payload")
+    func pinnedV1FixtureParsesAsV1() throws {
+        let parsed = try parseExportPayload(try fixtureString("data_native_v1"))
+        #expect(parsed.schemaVersion == 1)
+        #expect(parsed.legacyShape == false)
+        #expect(parsed.tables[.climbHolds] == nil, "the v1 shape has no climb_holds table")
+        #expect(parsed.tables[.photos]?[0]["original_uri"] == nil, "the v1 photos rows predate original_uri")
     }
 
     @Test("serialization is deterministic for the same seed")

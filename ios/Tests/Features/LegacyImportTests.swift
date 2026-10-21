@@ -17,7 +17,7 @@ struct LegacyImportTests {
         let legacy = try fixtureString("data_legacy_ts_shape")
         let report = try importPayloadJSON(legacy, on: test.writer)
         #expect(report.schemaVersion == currentSchemaVersion)
-        #expect(report.migratedFrom == nil)
+        #expect(report.migratedFrom == 1, "the legacy file is version 1 and upgrades through the payload migration")
         #expect(report.restoredRows > 0)
 
         let dump = try test.repos.dump.dumpAll()
@@ -43,6 +43,22 @@ struct LegacyImportTests {
         #expect(holdsByID["hold-1"]?["color_family"] == .text("blue"))
         #expect(holdsByID["hold-2"]?["role"] == .null, "'jib' is not a valid role")
         #expect(holdsByID["hold-2"]?["color_family"] == .text("red"))
+
+        // M3 payload migration from 1: every translated hold gains a climb_holds
+        // membership row keyed by its legacy climb_id, ordinal carried as sequence.
+        #expect(dump[.climbHolds].count == 2)
+        let membership = Dictionary(uniqueKeysWithValues: dump[.climbHolds].map { row in
+            (row["hold_id"]?.textValue ?? "", row)
+        })
+        #expect(membership["hold-1"]?["climb_id"] == .text("climb-1"))
+        #expect(membership["hold-1"]?["sequence"] == .integer(1))
+        #expect(membership["hold-2"]?["climb_id"] == .text("climb-1"))
+        #expect(membership["hold-2"]?["sequence"] == .integer(2))
+        #expect(try test.repos.holds.idsLinkedToClimb(climbId: "climb-1") == ["hold-1", "hold-2"])
+
+        // The legacy photos table is empty, but the original_uri column still exists
+        // on every imported row as null.
+        #expect(dump[.photos].isEmpty)
 
         // attempts: fell_on_hold_id becomes fall_on_hold_id, created_at becomes
         // attempted_at.

@@ -15,6 +15,10 @@ public struct Photo: Codable, Equatable, Sendable, Identifiable {
     public var sessionId: String?
     public var uri: String
     public var thumbUri: String?
+    /// The retained full resolution original (M3): written when the photo retention
+    /// preference keeps originals, nil otherwise (tagging save discards it at save when
+    /// the preference is discard).
+    public var originalUri: String?
     public var width: Int
     public var height: Int
     public var source: PhotoSource
@@ -27,6 +31,7 @@ public struct Photo: Codable, Equatable, Sendable, Identifiable {
         sessionId: String? = nil,
         uri: String,
         thumbUri: String? = nil,
+        originalUri: String? = nil,
         width: Int,
         height: Int,
         source: PhotoSource = .camera,
@@ -38,6 +43,7 @@ public struct Photo: Codable, Equatable, Sendable, Identifiable {
         self.sessionId = sessionId
         self.uri = uri
         self.thumbUri = thumbUri
+        self.originalUri = originalUri
         self.width = width
         self.height = height
         self.source = source

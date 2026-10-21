@@ -5,7 +5,8 @@ import GRDB
 // Climb repository (port of src/data/repositories/climb_repository.ts, reconciled). Grades are
 // stored as (grade_system_id, grade_level_id) references (US-9, never a free string); both are
 // validated against the scheme before write. Deleting a climb with attempts is blocked,
-// archive is the only path (US-26).
+// archive is the only path (US-26); since M3 it is also blocked when the climb's owned
+// holds are shared through climb_holds or referenced by attempts (US-20).
 
 public struct CreateClimbInput: Equatable, Sendable {
     public var gymId: String
@@ -82,7 +83,9 @@ public protocol ClimbRepository: Sendable {
     func archive(id: String) throws -> Climb
     func unarchive(id: String) throws -> Climb
     func setActive(id: String, active: Bool) throws -> Climb
-    /// Blocked when attempts exist. US-26: fall data survives gym resets, archive only.
+    /// Blocked when attempts exist, when an owned hold is shared with another climb,
+    /// or when an owned hold is referenced by any logged attempt. US-26 and US-20:
+    /// fall data and shared betas survive gym resets, archive only.
     func delete(id: String) throws
     func countAttempts(id: String) throws -> Int
 }
@@ -223,6 +226,7 @@ public struct GRDBClimbRepository: ClimbRepository {
                 "This climb has \(attempts) logged attempt\(plural). Archive it instead of deleting."
             )
         }
+        try assertOwnedHoldsAreUnshared(id: id)
         try writer.write { db in
             try db.execute(sql: "DELETE FROM climbs WHERE id = ?", arguments: [id])
         }
@@ -254,6 +258,49 @@ public struct GRDBClimbRepository: ClimbRepository {
             throw DomainValidationError("climb_not_found", "Climb not found.")
         }
         return climb
+    }
+
+    /// A climb owns the holds whose holds.climb_id is the climb (the origin climb,
+    /// per the M3 decision record). Delete is blocked when an owned hold is linked
+    /// into another climb's climb_holds membership (the delete would cascade the join
+    /// row away and orphan that climb's beta) or referenced by any logged attempt as a
+    /// fall hold (the attempts FK is ON DELETE SET NULL, which would silently erase
+    /// fall data on another climb).
+    private func assertOwnedHoldsAreUnshared(id: String) throws {
+        let shared = try writer.read { db in
+            try Int64.fetchOne(
+                db,
+                sql: """
+                SELECT COUNT(*) FROM climb_holds
+                JOIN holds ON holds.id = climb_holds.hold_id
+                WHERE holds.climb_id = ? AND climb_holds.climb_id <> ?
+                """,
+                arguments: [id, id]
+            ) ?? 0
+        }
+        if shared > 0 {
+            throw DomainValidationError(
+                "climb_has_shared_holds",
+                "This climb owns holds that are shared with other climbs. Unlink them, or archive this climb instead of deleting."
+            )
+        }
+        let referenced = try writer.read { db in
+            try Int64.fetchOne(
+                db,
+                sql: """
+                SELECT COUNT(*) FROM attempts
+                JOIN holds ON holds.id = attempts.fall_on_hold_id
+                WHERE holds.climb_id = ?
+                """,
+                arguments: [id]
+            ) ?? 0
+        }
+        if referenced > 0 {
+            throw DomainValidationError(
+                "climb_holds_in_attempts",
+                "This climb owns holds that are referenced by logged attempts. Archive it instead of deleting."
+            )
+        }
     }
 
     private func assertGymExists(gymId: String) throws {

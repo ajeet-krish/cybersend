@@ -138,4 +138,55 @@ struct ClimbRepositoryTests {
         try test.repos.climbs.delete(id: climbId)
         #expect(try test.repos.climbs.get(id: climbId) == nil)
     }
+
+    @Test("deleting a climb whose holds are shared with another climb is blocked (US-20)")
+    func deleteBlockedWithSharedHolds() throws {
+        let test = try makeTestDatabase()
+        let (gymId, climbA) = try seedGymAndClimb(test.repos)
+        let climbB = try test.repos.climbs.create(CreateClimbInput(gymId: gymId, name: "B"))
+        let hold = try test.repos.holds.create(CreateHoldInput(climbId: climbA, xNorm: 0.4, yNorm: 0.4))
+        _ = try test.repos.holds.linkHold(climbId: climbB.id, holdId: hold.id, sequence: 1)
+
+        let error = #expect(throws: DomainValidationError.self) {
+            try test.repos.climbs.delete(id: climbA)
+        }
+        #expect(error?.code == "climb_has_shared_holds")
+        #expect(try test.repos.climbs.get(id: climbA) != nil)
+
+        // After unlinking, the delete goes through: no attempts, no shares left.
+        try test.repos.holds.unlinkHold(climbId: climbB.id, holdId: hold.id)
+        try test.repos.climbs.delete(id: climbA)
+        #expect(try test.repos.climbs.get(id: climbA) == nil)
+        #expect(try test.repos.holds.get(id: hold.id) == nil, "the owned hold cascades with its origin climb")
+    }
+
+    @Test("deleting a climb whose owned holds are attempt-referenced elsewhere is blocked")
+    func deleteBlockedWithAttemptReferencedHolds() throws {
+        let test = try makeTestDatabase()
+        let (gymId, climbA) = try seedGymAndClimb(test.repos)
+        let climbB = try test.repos.climbs.create(CreateClimbInput(gymId: gymId, name: "B"))
+        let hold = try test.repos.holds.create(CreateHoldInput(climbId: climbA, xNorm: 0.4, yNorm: 0.4))
+        _ = try test.repos.holds.linkHold(climbId: climbB.id, holdId: hold.id, sequence: 1)
+        let session = try test.repos.sessions.create(CreateSessionInput(gymId: gymId))
+        // The attempt is logged on climb B and falls on the hold climb A owns; deleting
+        // climb A would SET NULL the fall hold and lose the fall data.
+        _ = try test.repos.attempts.logAttempt(
+            LogAttemptInput(sessionId: session.id, climbId: climbB.id, outcome: .fail, fallOnHoldId: hold.id)
+        )
+        // Unlinking the membership does not clear the attempt's fall hold reference,
+        // so the hold stays attempt-referenced while no longer shared.
+        try test.repos.holds.unlinkHold(climbId: climbB.id, holdId: hold.id)
+
+        let error = #expect(throws: DomainValidationError.self) {
+            try test.repos.climbs.delete(id: climbA)
+        }
+        #expect(error?.code == "climb_holds_in_attempts")
+        #expect(try test.repos.climbs.get(id: climbA) != nil)
+
+        // The climb with the attempt on it stays blocked by the attempts guard itself.
+        let attemptError = #expect(throws: DomainValidationError.self) {
+            try test.repos.climbs.delete(id: climbB.id)
+        }
+        #expect(attemptError?.code == "climb_has_attempts")
+    }
 }

@@ -39,6 +39,23 @@ struct MediaRepositoryTests {
         #expect(photo.source == .library)
     }
 
+    @Test("createPhoto honors an injected row id (M3 ingest writes the files first)")
+    func createPhotoInjectedID() throws {
+        let test = try makeTestDatabase()
+        let injected = generateID()
+
+        let photo = try test.repos.media.createPhoto(CreatePhotoInput(
+            id: injected, uri: "photos/working/\(injected).jpg", width: 10, height: 10
+        ))
+
+        #expect(photo.id == injected)
+        #expect(try test.repos.media.getPhoto(id: injected) == photo)
+
+        // Without the override the repository generates a UUID like before.
+        let generated = try test.repos.media.createPhoto(CreatePhotoInput(uri: "photos/other.jpg", width: 1, height: 1))
+        #expect(UUID(uuidString: generated.id) != nil)
+    }
+
     @Test("creates videos with defaults and filters by retention class")
     func videoLifecycle() throws {
         let test = try makeTestDatabase()
@@ -73,5 +90,105 @@ struct MediaRepositoryTests {
         // Deleting the video cascades to its keypoints (schema ON DELETE CASCADE).
         try test.repos.media.deleteVideo(id: video.id)
         #expect(try test.repos.media.listPoseKeypoints(videoId: video.id).isEmpty)
+    }
+
+    @Test("originalUri round trips through create, get, and the dump (M3)")
+    func originalUriRoundTrip() throws {
+        let test = try makeTestDatabase()
+        let (_, climbId) = try seedGymAndClimb(test.repos)
+
+        let photo = try test.repos.media.createPhoto(CreatePhotoInput(
+            uri: "photos/wall.jpg",
+            width: 2048,
+            height: 1536,
+            climbId: climbId,
+            thumbUri: "photos/wall_thumb.jpg",
+            originalUri: "originals/wall_original.jpg"
+        ))
+        #expect(photo.originalUri == "originals/wall_original.jpg")
+        #expect(try test.repos.media.getPhoto(id: photo.id) == photo)
+
+        let dump = try test.repos.dump.dumpAll()
+        #expect(dump[.photos][0]["original_uri"] == .text("originals/wall_original.jpg"))
+
+        // The discard path stores nil, which round trips as null.
+        let discarded = try test.repos.media.createPhoto(CreatePhotoInput(
+            uri: "photos/no_original.jpg", width: 100, height: 100
+        ))
+        #expect(discarded.originalUri == nil)
+        #expect(try test.repos.media.getPhoto(id: discarded.id) == discarded)
+    }
+
+    @Test("listAllPhotos returns every photo for the retention sweep (M3)")
+    func listAllPhotos() throws {
+        let test = try makeTestDatabase()
+        let (gymId, climbId) = try seedGymAndClimb(test.repos)
+        let session = try test.repos.sessions.create(CreateSessionInput(gymId: gymId))
+
+        let onClimb = try test.repos.media.createPhoto(CreatePhotoInput(
+            uri: "photos/a.jpg", width: 10, height: 10, climbId: climbId, originalUri: "originals/a.jpg"
+        ))
+        let onSession = try test.repos.media.createPhoto(CreatePhotoInput(
+            uri: "photos/b.jpg", width: 10, height: 10, sessionId: session.id
+        ))
+        let orphan = try test.repos.media.createPhoto(CreatePhotoInput(uri: "photos/c.jpg", width: 10, height: 10))
+
+        let all = try test.repos.media.listAllPhotos()
+        #expect(Set(all.map(\.id)) == Set([onClimb.id, onSession.id, orphan.id]))
+        // The sweep can see which photos still reference an original.
+        #expect(all.filter { $0.originalUri != nil }.map(\.id) == [onClimb.id])
+    }
+
+    @Test("updatePhoto patches the file fields and rejects unknown ids (M3)")
+    func updatePhotoPatch() throws {
+        let test = try makeTestDatabase()
+        let photo = try test.repos.media.createPhoto(CreatePhotoInput(
+            uri: "photos/working/a.jpg", width: 2048, height: 1536,
+            thumbUri: "photos/thumbs/a.jpg", originalUri: "photos/originals/a.jpg", source: .library
+        ))
+
+        // The replace flow rewrites every file field in one write.
+        let replaced = try test.repos.media.updatePhoto(id: photo.id, patch: UpdatePhotoPatch(
+            uri: .set("photos/working/b.jpg"),
+            thumbUri: .set("photos/thumbs/b.jpg"),
+            originalUri: .set(nil),
+            width: .set(1024),
+            height: .set(768)
+        ))
+        #expect(replaced.uri == "photos/working/b.jpg")
+        #expect(replaced.thumbUri == "photos/thumbs/b.jpg")
+        #expect(replaced.originalUri == nil)
+        #expect(replaced.width == 1024)
+        #expect(replaced.height == 768)
+        #expect(replaced.source == .library, "source and timestamps are not part of the patch")
+        #expect(try test.repos.media.getPhoto(id: photo.id) == replaced)
+
+        // The tagging save discard clears only the original uri.
+        let discarded = try test.repos.media.updatePhoto(id: photo.id, patch: UpdatePhotoPatch(
+            originalUri: .set("photos/originals/c.jpg")
+        ))
+        #expect(discarded.originalUri == "photos/originals/c.jpg")
+        #expect(discarded.uri == "photos/working/b.jpg")
+
+        let error = #expect(throws: DomainValidationError.self) {
+            try test.repos.media.updatePhoto(id: "missing", patch: UpdatePhotoPatch(width: .set(1)))
+        }
+        #expect(error?.code == "photo_not_found")
+    }
+
+    @Test("deletePhotos removes every listed row in one batch (M3 sweep)")
+    func deletePhotosBatch() throws {
+        let test = try makeTestDatabase()
+        let first = try test.repos.media.createPhoto(CreatePhotoInput(uri: "photos/a.jpg", width: 1, height: 1))
+        let second = try test.repos.media.createPhoto(CreatePhotoInput(uri: "photos/b.jpg", width: 1, height: 1))
+        let third = try test.repos.media.createPhoto(CreatePhotoInput(uri: "photos/c.jpg", width: 1, height: 1))
+
+        try test.repos.media.deletePhotos(ids: [first.id, third.id, "unknown-id"])
+
+        #expect(try test.repos.media.listAllPhotos().map(\.id) == [second.id])
+
+        // The empty batch is a no op.
+        try test.repos.media.deletePhotos(ids: [])
+        #expect(try test.repos.media.listAllPhotos().count == 1)
     }
 }

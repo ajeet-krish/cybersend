@@ -104,11 +104,11 @@ public struct GRDBDumpRepository: DumpRepository {
             let existsSQL = selectConflictSQL(table: table, spec: spec)
             var counts = UpsertCounts(inserted: 0, updated: 0)
             for row in tables[table] ?? [] {
-                let target = row[spec.conflictTarget] ?? .null
+                let conflictArguments = spec.conflictColumns.map { bindableValue(of: row[$0] ?? .null) }
                 let present = try Row.fetchOne(
                     db,
                     sql: existsSQL,
-                    arguments: StatementArguments([bindableValue(of: target)])
+                    arguments: StatementArguments(conflictArguments)
                 ) != nil
                 let arguments = StatementArguments(spec.columnNames.map { bindableValue(of: row[$0] ?? .null) })
                 do {
@@ -178,22 +178,26 @@ private func bindableValue(of value: ExportValue) -> (any DatabaseValueConvertib
 }
 
 /// Builds an upsert statement from the fixed column whitelist. Column names never come
-/// from imported data, only from ExportTable.spec, so this is injection safe.
+/// from imported data, only from ExportTable.spec, so this is injection safe. The
+/// conflict target may be one column (id, key) or a composite primary key
+/// (climb_id, hold_id for climb_holds); conflict columns never update to themselves.
 private func upsertSQL(table: ExportTable, spec: ExportTableSpec) -> String {
     let columns = spec.columnNames
     let placeholders = Array(repeating: "?", count: columns.count).joined(separator: ", ")
+    let conflict = spec.conflictColumns.joined(separator: ", ")
     let updates = columns
-        .filter { $0 != spec.conflictTarget }
+        .filter { !spec.conflictColumns.contains($0) }
         .map { "\($0) = excluded.\($0)" }
         .joined(separator: ", ")
     return """
     INSERT INTO \(table.rawValue) (\(columns.joined(separator: ", "))) VALUES (\(placeholders))
-    ON CONFLICT(\(spec.conflictTarget)) DO UPDATE SET \(updates)
+    ON CONFLICT(\(conflict)) DO UPDATE SET \(updates)
     """
 }
 
 private func selectConflictSQL(table: ExportTable, spec: ExportTableSpec) -> String {
-    "SELECT 1 AS present FROM \(table.rawValue) WHERE \(spec.conflictTarget) = ?"
+    let conditions = spec.conflictColumns.map { "\($0) = ?" }.joined(separator: " AND ")
+    return "SELECT 1 AS present FROM \(table.rawValue) WHERE \(conditions)"
 }
 
 /// Maps GRDB constraint failures to the plain-language import errors of the TypeScript

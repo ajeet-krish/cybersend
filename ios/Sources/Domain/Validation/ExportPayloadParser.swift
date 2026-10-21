@@ -4,12 +4,14 @@ import Foundation
 // src/domain/validation/tables.ts plus the validation half of
 // src/features/backup/import_service.ts). Order of operations guarantees zero writes on
 // any failure: parse JSON, validate every row strictly (exact columns, exact types),
-// reject newer schema versions, migrate older payloads forward. The parser also accepts
-// the legacy TypeScript shape and translates old column names to the reconciled schema
-// (docs/decisions.md schema reconciliation): old exports must always import (US-16).
-// Both shapes rename imported grade scheme and level ids that collide with the built-in
-// ids Migration 001 seeds (with a warning), so a crafted file can never upsert over a
-// built-in grade row.
+// reject newer schema versions, migrate older payloads forward. The parser accepts
+// three shapes: native v2 (the current 16 tables), native v1 (the 15 tables before the
+// M3 additions), and the legacy TypeScript shape; old exports must always import
+// (US-16). Native and legacy payloads in version 1 column shape are upgraded by the
+// registered payload migration from 1, which synthesizes climb_holds rows and stamps
+// photos.original_uri as null. Both native shapes rename imported grade scheme and
+// level ids that collide with the built-in ids Migration 001 seeds (with a warning),
+// so a crafted file can never upsert over a built-in grade row.
 
 public let exportAppID = "cybersend"
 
@@ -123,6 +125,21 @@ public func parseExportPayload(_ json: String) throws -> ParsedImportPayload {
     let providedNames = Set(tables.keys)
     if providedNames == nativeNames {
         let parsed = try parseTables(tables, lookup: { ExportTable(rawValue: $0)?.spec })
+        var nativeWarnings: [String] = []
+        let guarded = renamingCollisionsInNativeGradeTables(parsed, warnings: &nativeWarnings)
+        return ParsedImportPayload(
+            schemaVersion: schemaVersion,
+            exportedAt: exportedAt,
+            legacyShape: false,
+            tables: guarded,
+            warnings: nativeWarnings
+        )
+    }
+    if providedNames == Set(nativeV1TableNames) {
+        // Native version 1 shape: no climb_holds table and no photos.original_uri
+        // column. Rows validate against the version 1 specs; the registered payload
+        // migration from 1 synthesizes the version 2 additions after this parse.
+        let parsed = try parseTables(tables, lookup: nativeV1TableSpec(for:))
         var nativeWarnings: [String] = []
         let guarded = renamingCollisionsInNativeGradeTables(parsed, warnings: &nativeWarnings)
         return ParsedImportPayload(
@@ -285,6 +302,43 @@ public func validateMigratedPayload(_ payload: ParsedImportPayload) throws {
             }
         }
     }
+}
+
+// MARK: - Payload migration from 1 to 2
+
+/// Version 1 to 2 of the payload (M3, US-20): synthesizes climb_holds membership rows
+/// from each hold's origin climb (holds.climb_id), carrying the hold's ordinal across
+/// as the beta sequence and its created_at as the membership timestamp, and stamps
+/// photos.original_uri as null because version 1 never stored originals. Native v1 and
+/// legacy translated payloads both arrive here in version 1 column shape, so one step
+/// upgrades either. Idempotent by construction: a payload that already carries
+/// climb_holds rows or original_uri columns passes them through unchanged, so a hybrid
+/// file claiming version 1 cannot gain duplicate membership rows.
+public func migrateV1PayloadToV2(_ payload: ParsedImportPayload) -> ParsedImportPayload {
+    var tables = payload.tables
+    tables[.photos] = (tables[.photos] ?? []).map { row in
+        guard row["original_uri"] == nil else { return row }
+        var copy = row
+        copy["original_uri"] = .null
+        return copy
+    }
+    if tables[.climbHolds] == nil {
+        tables[.climbHolds] = (tables[.holds] ?? []).map { hold in
+            [
+                "climb_id": hold["climb_id"] ?? .null,
+                "hold_id": hold["id"] ?? .null,
+                "sequence": hold["ordinal"] ?? .null,
+                "created_at": hold["created_at"] ?? .null,
+            ]
+        }
+    }
+    return ParsedImportPayload(
+        schemaVersion: payload.schemaVersion,
+        exportedAt: payload.exportedAt,
+        legacyShape: payload.legacyShape,
+        tables: tables,
+        warnings: payload.warnings
+    )
 }
 
 // MARK: - Legacy translation

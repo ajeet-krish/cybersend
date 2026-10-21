@@ -97,4 +97,32 @@ struct HoldRepositoryTests {
         try test.repos.holds.deleteByClimb(climbId: climbId)
         #expect(try test.repos.holds.idsForClimb(climbId: climbId).isEmpty)
     }
+
+    @Test("createRestoring re-inserts an exact hold with its membership row (M3 undo)")
+    func createRestoringReinsertsExactRow() throws {
+        let test = try makeTestDatabase()
+        let (_, climbId) = try seedGymAndClimb(test.repos)
+        let hold = try test.repos.holds.create(CreateHoldInput(
+            climbId: climbId, xNorm: 0.4, yNorm: 0.6, radiusNorm: 0.03, role: .top, ordinal: 2
+        ))
+
+        // The delete cascades the membership row away with the hold.
+        try test.repos.holds.delete(id: hold.id)
+        #expect(try test.repos.holds.get(id: hold.id) == nil)
+        #expect(try test.repos.holds.idsLinkedToClimb(climbId: climbId).isEmpty)
+
+        // Restore brings back the identical row: same id, timestamps, and membership.
+        try test.repos.holds.createRestoring(hold)
+        #expect(try test.repos.holds.get(id: hold.id) == hold)
+        #expect(try test.repos.holds.idsLinkedToClimb(climbId: climbId) == [hold.id])
+        #expect(try test.repos.holds.listByClimb(climbId: climbId) == [hold])
+
+        // Restoring validates coordinates like create does, before any write.
+        var invalid = hold
+        invalid.xNorm = 5
+        let error = #expect(throws: DomainValidationError.self) {
+            try test.repos.holds.createRestoring(invalid)
+        }
+        #expect(error?.code == "hold_x_out_of_range")
+    }
 }

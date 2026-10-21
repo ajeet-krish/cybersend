@@ -12,9 +12,9 @@ import GRDB
 // table and runs foreign_key_check before commit. Re-import is idempotent: upserts key
 // on stable ids (US-16.4).
 
-/// A payload level schema upgrade (port of PayloadMigration). The registry is empty
-/// while the shipped schema is version 1 (there is nothing to upgrade from in
-/// production); tests inject migrations through ImportOptions so future schema
+/// A payload level schema upgrade (port of PayloadMigration). The registry this build
+/// ships lives in defaultPayloadMigrations (version 1 to 2 for the M3 climb_holds
+/// payload); tests can inject their own steps through ImportOptions so future schema
 /// versions have a proven path (US-16.2).
 public struct PayloadMigration: Sendable {
     public let from: Int
@@ -26,11 +26,22 @@ public struct PayloadMigration: Sendable {
     }
 }
 
+/// The payload migrations this build registers. Version 1 to 2 (M3, US-20) synthesizes
+/// the climb_holds membership rows from each hold's origin climb and stamps
+/// photos.original_uri as null; legacy TypeScript payloads translate to version 1
+/// column shape during parsing and pass through the same step.
+public let defaultPayloadMigrations: [PayloadMigration] = [
+    PayloadMigration(from: 1, migrate: migrateV1PayloadToV2)
+]
+
 public struct ImportOptions: Sendable {
     public var currentVersion: Int
     public var payloadMigrations: [PayloadMigration]
 
-    public init(currentVersion: Int = currentSchemaVersion, payloadMigrations: [PayloadMigration] = []) {
+    public init(
+        currentVersion: Int = currentSchemaVersion,
+        payloadMigrations: [PayloadMigration] = defaultPayloadMigrations
+    ) {
         self.currentVersion = currentVersion
         self.payloadMigrations = payloadMigrations
     }

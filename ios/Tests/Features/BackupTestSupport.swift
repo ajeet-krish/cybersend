@@ -82,6 +82,14 @@ func goldenSeedRows() -> [ExportTable: [ExportRow]] {
                 "updated_at": .text(fixtureSeedTime),
             ]),
         ],
+        .climbHolds: [
+            exportRow(.climbHolds, [
+                "climb_id": .text("climb-1"),
+                "hold_id": .text("hold-1"),
+                "sequence": .integer(1),
+                "created_at": .text(fixtureSeedTime),
+            ]),
+        ],
         .sessions: [
             exportRow(.sessions, [
                 "id": .text("session-1"),
@@ -99,6 +107,8 @@ func goldenSeedRows() -> [ExportTable: [ExportRow]] {
                 "id": .text("photo-1"),
                 "climb_id": .text("climb-1"),
                 "uri": .text("photos/photo-1.jpg"),
+                "thumb_uri": .text("thumbs/photo-1.jpg"),
+                "original_uri": .text("originals/photo-1.jpg"),
                 "width": .integer(4032),
                 "height": .integer(3024),
                 "source": .text("camera"),

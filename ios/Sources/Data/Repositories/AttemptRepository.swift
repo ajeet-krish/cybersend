@@ -198,7 +198,13 @@ public struct GRDBAttemptRepository: AttemptRepository {
     }
 
     private func climbHoldIDs(tx: Database, climbId: String) throws -> [String] {
-        try String.fetchAll(tx, sql: "SELECT id FROM holds WHERE climb_id = ?", arguments: [climbId])
+        // M3 (US-20): fall hold validation is climb_holds membership, not ownership
+        // through holds.climb_id, so a borrowed hold is a valid fall hold too.
+        try String.fetchAll(
+            tx,
+            sql: "SELECT hold_id FROM climb_holds WHERE climb_id = ?",
+            arguments: [climbId]
+        )
     }
 
     private func requireAttempt(tx: Database, id: String) throws -> Attempt {

@@ -158,6 +158,15 @@ func rowToHold(_ row: Row) throws -> Hold {
     )
 }
 
+func rowToClimbHold(_ row: Row) -> ClimbHold {
+    ClimbHold(
+        climbId: row["climb_id"],
+        holdId: row["hold_id"],
+        sequence: row["sequence"],
+        createdAt: row["created_at"]
+    )
+}
+
 func rowToPhoto(_ row: Row) throws -> Photo {
     let sourceRaw: String = row["source"]
     guard let source = PhotoSource(rawValue: sourceRaw) else {
@@ -169,6 +178,7 @@ func rowToPhoto(_ row: Row) throws -> Photo {
         sessionId: row["session_id"],
         uri: row["uri"],
         thumbUri: row["thumb_uri"],
+        originalUri: row["original_uri"],
         width: row["width"],
         height: row["height"],
         source: source,
