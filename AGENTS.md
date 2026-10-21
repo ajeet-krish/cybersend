@@ -89,7 +89,7 @@ UI overhaul (the current track, started 2026-10-21):
 | UI-4 | Problems catalog fifth tab (list, detail, history, archive, archived filter) | Complete |
 | UI-5 | Quick log climb dropdown (tap budget 5, or 3 when the climb is already selected) | Complete |
 | UI-6 | Home: session card, 20 week consistency heatmap, last three sessions, last three climbs | Complete |
-| UI-7 | Session editor: add and edit a climb inline with its photo | Not Started |
+| UI-7 | Session editor: add and edit a problem inline (the sheet continues into the photo section) | Complete |
 | UI-8 | Old sessions: attach a photo or video after the fact (library import and playback only) | Not Started |
 
 ## Deep Docs

@@ -81,9 +81,10 @@ tagging, capture, and the problems catalog.
 | Problems catalog list, detail, history, archive, archived filter | ProblemsCatalogSmokeTests (two cases) | PASS |
 | Home recent sessions, recent climbs order, heatmap shape | HomeOverviewTests (two cases), AttemptRepositoryTests.listRecentAcrossSessions | PASS |
 | Quick log climb dropdown and tap budget | QuickLogSmokeTests.testLogAttemptWithinFiveTaps, testLogAttemptWithHoldRowAsTheFifthTap | PASS |
+| Inline problem create and edit from the session screen | SessionClimbInlineSmokeTests (two cases: create and stay open into the photo section, then edit and rename) | PASS |
 | Appearance defaults to dark and keeps the light variant | SettingsCatalogSmokeTests, Theme contrast notes in docs/reviews.md | PASS (automated) |
 | Per screen dark mode contrast on device | Gate item 7 above | PENDING DEVICE |
 | Home visual pass (heatmap, recent blocks, gym menu) | Simulator screenshots reviewed 2026-10-21 | PASS (visual) |
 
-Known gap: the session editor does not yet add or edit a climb inline, and old sessions cannot
-attach a photo or video after the fact. Both are tracked in docs/decisions.md and AGENTS.md.
+Known gap: old sessions cannot yet attach a photo or video after the fact. Tracked in
+docs/decisions.md and AGENTS.md.

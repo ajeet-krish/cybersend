@@ -86,7 +86,7 @@ Logbook home (LogbookHomeView) composes four blocks over one snapshot from HomeO
 
 Problems tab (ProblemsCatalogView, ProblemDetailView) is a catalog over climbs for the selected gym. Adding and editing push ClimbEditorView with noun "problem"; the editor's grade scheme and level are menu pickers, and the details field is climbs.notes. The detail screen shows the photo hero, grade, angle, color, details, and the complete attempt history newest first with per attempt RPE and notes, plus edit, tag holds, and archive. Archiving is the only removal there; delete stays in the editor and remains blocked while attempts exist. The problems stack also registers LogbookRoute.tagging because the shared editor links to it.
 
-Session editor (SessionDetailView) picks the quick log climb from a menu showing the selected climb and grade, and logs outcomes with Flash, Send, and Fail side by side plus a per attempt effort picker. Per attempt RPE is attempts.rpe (nullable, 1 to 10) and the Project outcome is retired: historical rows were rewritten to fail by Migration 003.
+Session editor (SessionDetailView) picks the quick log climb from a menu showing the selected climb and grade, adds and edits a problem inline through ClimbEditorView in a sheet (the create path passes the session's gym and keeps the sheet open in edit mode so the photo is reachable), and logs outcomes with Flash, Send, and Fail side by side plus a per attempt effort picker. Per attempt RPE is attempts.rpe (nullable, 1 to 10) and the Project outcome is retired: historical rows were rewritten to fail by Migration 003.
 
 ## Migration Plan (M0 to M6)
 

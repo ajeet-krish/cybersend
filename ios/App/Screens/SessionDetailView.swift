@@ -36,6 +36,9 @@ struct SessionDetailView: View {
     @State private var pendingAttemptDelete: Attempt?
     @State private var confirmSessionDelete = false
     @State private var actionError: String?
+    /// Inline climb editor: create a problem for this session's gym, or edit the selected
+    /// one, without leaving the session screen.
+    @State private var editorTarget: SessionClimbEditorTarget?
 
     init(sessionId: String, services: AppServices, initialClimbId: String? = nil) {
         self.sessionId = sessionId
@@ -96,6 +99,31 @@ struct SessionDetailView: View {
             CloseSessionSheet(existingRPE: store.session?.rpe, existingNotes: store.session?.notes) { rpe, notes in
                 showCloseSheet = false
                 closeSession(rpe: rpe, notes: notes)
+            }
+        }
+        .sheet(item: $editorTarget) { target in
+            NavigationStack {
+                ClimbEditorView(
+                    climbId: target.climbId,
+                    services: services,
+                    noun: "problem",
+                    gymId: store.session?.gymId,
+                    keepsOpenAfterCreate: true,
+                    onSaved: { saved in
+                        // The row exists the moment it is saved: refresh the quick log list
+                        // and target the new or edited problem for the next attempt.
+                        store.refresh()
+                        store.selectClimb(saved)
+                    }
+                )
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Close") {
+                            editorTarget = nil
+                        }
+                        .accessibilityIdentifier("climb.close")
+                    }
+                }
             }
         }
         .sheet(item: $editingAttempt) { attempt in
@@ -184,8 +212,17 @@ struct SessionDetailView: View {
                 EmptyState(
                     systemImage: "figure.climbing",
                     title: "No quick log climbs",
-                    message: "Add active, not archived climbs for this gym to log attempts against."
+                    message: "Add a problem for this gym to log attempts against."
                 )
+                Button {
+                    editorTarget = .new
+                } label: {
+                    Label("New problem", systemImage: "plus")
+                        .font(.subheadline.weight(.medium))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("session.climb.new")
             } else {
                 // A single dropdown replaces the chip strip: the climb list grows past a
                 // screenful once a gym has real problems, and a strip of chips made the
@@ -226,6 +263,35 @@ struct SessionDetailView: View {
                 }
                 .accessibilityIdentifier("session.climb.select")
                 .accessibilityLabel("Climb: \(selectedClimbName)")
+
+                Divider()
+                    .overlay(Theme.separator)
+                    .padding(.vertical, 8)
+
+                HStack(spacing: 10) {
+                    Button {
+                        editorTarget = .new
+                    } label: {
+                        Label("New problem", systemImage: "plus")
+                            .font(.subheadline.weight(.medium))
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("session.climb.new")
+
+                    Button {
+                        if let climbId = store.selectedClimbId {
+                            editorTarget = .edit(climbId)
+                        }
+                    } label: {
+                        Label("Edit problem", systemImage: "pencil")
+                            .font(.subheadline.weight(.medium))
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(store.selectedClimbId == nil)
+                    .accessibilityIdentifier("session.climb.edit")
+                }
             }
         }
         .accessibilityElement(children: .contain)
@@ -828,5 +894,27 @@ struct EditAttemptSheet: View {
     /// The current fall hold label, resolved against the climb's real holds.
     private var fallHoldTitle: String {
         DisplayText.fallHoldTitle(fallOnHoldId: fallOnHoldId, holds: holds) ?? "No fall hold"
+    }
+}
+
+/// The inline climb editor target on the session screen (UI overhaul): a new problem for
+/// this session's gym, or an edit of the selected one.
+enum SessionClimbEditorTarget: Identifiable, Hashable {
+    case new
+    case edit(String)
+
+    var id: String {
+        switch self {
+        case .new: return "new"
+        case .edit(let climbId): return climbId
+        }
+    }
+
+    /// The climb id the editor loads: "new" is the create sentinel ClimbEditorView expects.
+    var climbId: String {
+        switch self {
+        case .new: return "new"
+        case .edit(let climbId): return climbId
+        }
     }
 }

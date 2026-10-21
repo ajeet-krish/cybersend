@@ -309,3 +309,13 @@ Entry format: "## [Date], Phase [N]: [Title]" with Context, Decision, Rationale,
 **Rationale:** Consistency is the thing a tracker should show first, and a calendar grid reads faster than a list of dates. Reading recent climbs from attempts, rather than adding a last-touched column to climbs, keeps the schema untouched and makes the row order match what the climber just did. Removing the quick log list from the home removed a second climb entry point, which is the point of the Problems tab.
 
 **Trade-offs:** The home no longer offers one tap to a climb editor; that path is now Problems, then the problem. The heatmap only counts session starts, not attempts or duration, and it does not label months, so a long streak has to be inferred from the grid position. The four blocks cost one snapshot of up to 500 session summaries plus recent attempts on every appearance; fine at personal scale, and the store is the single place to add caching if it ever is not.
+
+## 2026-10-21, UI overhaul: the session screen adds and edits problems inline
+
+**Context:** Logging an attempt used to require the climb to exist already, so a climber who walked up to an unlisted problem had to leave the session, go to another tab, create the climb, come back, and reopen the session. The climb editor is also where the wall photo is added, and a new climb had no photo section until it existed.
+
+**Decision:** The session screen presents `ClimbEditorView` in a sheet for `New problem` and `Edit problem`. The create path passes the session's gym as a `gymId` override, so an inline add lands in the gym the climber is in rather than the persisted home selection. The editor takes `onSaved`, and the session refreshes and selects the saved climb, so the next outcome tap logs against it. With `keepsOpenAfterCreate` the sheet stays open after a create, reloads the row it just wrote, and therefore exposes the photo and holds sections immediately. The sheet carries a `Close` toolbar button because a sheet has no back button.
+
+**Rationale:** One editor, one validation path, and one photo pipeline. Staying open after create turns the common "add it, shoot the wall, log the send" sequence into one uninterrupted sheet. Selecting the saved climb removes a step that used to cost a dropdown open plus a pick.
+
+**Trade-offs:** `ClimbEditorStore.isNew` is now mutable state rather than a constant, which is a small loss of simplicity for a real flow win. The sheet keeps a second copy of the editor in memory while the session screen is behind it. Inline adds only create problems in the session's gym, so moving a problem to another gym still goes through the catalog.

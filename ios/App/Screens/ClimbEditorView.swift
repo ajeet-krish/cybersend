@@ -19,6 +19,14 @@ struct ClimbEditorView: View {
     /// "climb" from the Logbook stack, "problem" from the Problems catalog. The row is the
     /// same entity; only the wording the climber reads changes.
     var noun: String = "climb"
+    /// Overrides the gym a create writes to. The session editor passes the session's gym so
+    /// an inline add lands in the gym the climber is standing in, not the home selection.
+    var gymId: String?
+    /// Keeps the sheet open after a create, switched to that climb's edit state, so the
+    /// photo and holds sections are reachable without closing and reopening.
+    var keepsOpenAfterCreate: Bool = false
+    /// Called with the stored climb after every successful save, before dismissal.
+    var onSaved: ((Climb) -> Void)?
 
     @EnvironmentObject private var logbook: LogbookStore
     @Environment(\.dismiss) private var dismiss
@@ -34,10 +42,20 @@ struct ClimbEditorView: View {
     @State private var confirmPhotoDelete = false
     @State private var photoIngestError: String?
 
-    init(climbId: String, services: AppServices, noun: String = "climb") {
+    init(
+        climbId: String,
+        services: AppServices,
+        noun: String = "climb",
+        gymId: String? = nil,
+        keepsOpenAfterCreate: Bool = false,
+        onSaved: ((Climb) -> Void)? = nil
+    ) {
         self.climbId = climbId
         self.services = services
         self.noun = noun
+        self.gymId = gymId
+        self.keepsOpenAfterCreate = keepsOpenAfterCreate
+        self.onSaved = onSaved
         // "new" is the LogbookRoute creation id (port of the TypeScript climb screen).
         _store = StateObject(wrappedValue: ClimbEditorStore(
             repos: services.repos,
@@ -428,10 +446,15 @@ struct ClimbEditorView: View {
 
     private func save() {
         do {
-            try store.save(gymId: logbook.selectedGymId)
+            let stored = try store.save(gymId: gymId ?? logbook.selectedGymId)
             actionError = nil
+            onSaved?(stored)
             logbook.refresh()
-            dismiss()
+            if store.isNew, keepsOpenAfterCreate {
+                store.reloadAfterCreate(climbId: stored.id)
+            } else {
+                dismiss()
+            }
         } catch {
             actionError = (error as? DomainValidationError)?.message ?? error.localizedDescription
         }

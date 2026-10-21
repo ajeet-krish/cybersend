@@ -35,7 +35,9 @@ final class ClimbEditorStore: ObservableObject {
     @Published private(set) var lastErrorMessage: String?
 
     /// True when the screen creates a new climb instead of editing an existing one.
-    let isNew: Bool
+    /// Flipped by reloadAfterCreate so an inline create can continue into the photo and
+    /// holds sections without closing and reopening the sheet.
+    private(set) var isNew: Bool
 
     private let repos: Repositories
 
@@ -53,7 +55,14 @@ final class ClimbEditorStore: ObservableObject {
         }
     }
 
-    /// The selected scheme's levels for the level chips; nil when the scheme is unknown.
+    /// Continues an inline create as an edit of the row that was just written. The climb
+    /// already exists, so the photo and holds sections become available in place.
+    func reloadAfterCreate(climbId: String) {
+        isNew = false
+        load(climbId: climbId)
+    }
+
+    /// The selected scheme's levels for the level picker; nil when the scheme is unknown.
     var selectedLevels: [GradeLevel]? {
         gradeSystems.first(where: { $0.id == schemeId })?.levels
     }
