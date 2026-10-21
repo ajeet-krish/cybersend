@@ -23,6 +23,9 @@ struct AppEnvironment {
     let migration: MigrationRunResult
     /// Writer bound restore and import entry points for the settings screen (M2 Task 5).
     let backupProcedures: BackupProcedures
+    /// Photo file storage and the launch sweep entry point (M3), built from the same
+    /// document directory so the composition root stays the only wiring place.
+    let media: MediaServices
     let variant: BuildVariant
     /// Resolved flag values: xcconfig compile time defaults merged with settings overrides.
     let flags: FlagValues

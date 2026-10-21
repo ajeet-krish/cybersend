@@ -15,6 +15,12 @@ final class ClimbEditorStore: ObservableObject {
     /// Attempt count for the manage card; deleting a climb with attempts is blocked
     /// (US-26), so the editor surfaces the count before the user tries.
     @Published private(set) var attemptCount: Int = 0
+    /// Hold count for the holds card (M3, US-19): drives the summary, the tagging link,
+    /// and the delete and replace photo warnings when holds exist.
+    @Published private(set) var holdCount: Int = 0
+    /// The climb's holds (M3): the holds card renders the count and the role breakdown
+    /// from this list, and the tagging screen edits the same rows.
+    @Published private(set) var holds: [Hold] = []
     /// Every grade scheme for the scheme chips (US-9: grade is a pair, never free text).
     @Published private(set) var gradeSystems: [GradeSystem] = []
 
@@ -61,12 +67,38 @@ final class ClimbEditorStore: ObservableObject {
                 angleText = climb.angleDeg.map { String(Int($0)) } ?? ""
                 colorCircuit = climb.colorCircuit ?? ""
                 attemptCount = try repos.climbs.countAttempts(id: climbId)
+                refreshHolds()
             } else {
                 lastErrorMessage = "This climb was deleted."
             }
         } catch {
             lastErrorMessage = error.localizedDescription
         }
+    }
+
+    /// Reloads the climb's holds (US-20 membership via climb_holds). Called after
+    /// photo operations too: replacing or deleting a photo warns when holds exist.
+    func refreshHolds() {
+        guard let climb else { return }
+        holds = ((try? repos.holds.listByClimb(climbId: climb.id)) ?? [])
+        holdCount = holds.count
+    }
+
+    /// The role breakdown for the holds card, for example "1 start, 1 intermediate,
+    /// 1 top"; empty when there are no holds.
+    var roleBreakdown: String {
+        var parts: [String] = []
+        for (role, label) in [(HoldRole.start, "start"), (.intermediate, "intermediate"), (.top, "top")] {
+            let count = holds.filter { $0.role == role }.count
+            if count > 0 {
+                parts.append(count == 1 ? "1 \(label)" : "\(count) \(label)s")
+            }
+        }
+        let unassigned = holds.filter { $0.role == nil }.count
+        if unassigned > 0 {
+            parts.append(unassigned == 1 ? "1 unassigned" : "\(unassigned) unassigned")
+        }
+        return parts.joined(separator: ", ")
     }
 
     /// Saves the climb: create at gymId (the logbook selection, US-11 surfaces the gym)

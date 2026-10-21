@@ -20,14 +20,23 @@ struct RootView: View {
                     .environmentObject(environment.stores.grades)
                     .environmentObject(environment.stores.settings)
                     .environmentObject(environment.stores.history)
+                    .environmentObject(environment.stores.climbThumbnails)
+                    .environmentObject(environment.stores.stats)
                     .environment(
                         \.appServices,
                         AppServices(
                             repos: environment.repos,
                             documentDirectory: environment.documentDirectory,
-                            backupProcedures: environment.backupProcedures
+                            backupProcedures: environment.backupProcedures,
+                            media: environment.media
                         )
                     )
+                    .task {
+                        // M3 launch hook (docs/architecture.md): the media sweep runs
+                        // async after the first frame, so the cold start budget is
+                        // untouched. Best effort; failures never block the UI.
+                        launch.performLaunchMediaSweep()
+                    }
             } else {
                 // Defensive: ready without an environment should be impossible.
                 LaunchProgressView()
@@ -42,10 +51,10 @@ struct RootView: View {
     }
 }
 
-/// The three tab shells (Logbook, Sessions, Settings per docs/architecture.md M2; the
-/// frozen TypeScript spec app/(tabs) had a fourth Stats tab that moves to a later
-/// milestone). Appearance override applies at the root so every screen follows US-24;
-/// SettingsStore persists it under settingsKeyAppearance ("ui.appearance").
+/// The four tab shells (Logbook, Stats, Sessions, Settings per docs/architecture.md M3;
+/// the frozen TypeScript spec app/(tabs)/_layout.tsx carried the Stats tab and US-23
+/// lands it with M3). Appearance override applies at the root so every screen follows
+/// US-24; SettingsStore persists it under settingsKeyAppearance ("ui.appearance").
 struct MainTabView: View {
     @EnvironmentObject private var settings: SettingsStore
     @Environment(\.appServices) private var services
@@ -55,6 +64,9 @@ struct MainTabView: View {
             LogbookTabView()
                 .tabItem { Label("Logbook", systemImage: "list.bullet") }
                 .tag(AppTab.logbook)
+            StatsTabView()
+                .tabItem { Label("Stats", systemImage: "chart.bar.xaxis") }
+                .tag(AppTab.stats)
             SessionsTabView()
                 .tabItem { Label("Sessions", systemImage: "calendar") }
                 .tag(AppTab.sessions)

@@ -20,6 +20,33 @@ struct AppServices: Sendable {
     /// dependency hygiene). Every settings path reaches them only through the destructive
     /// confirmation dialog (docs/reviews.md M1 review obligation).
     let backupProcedures: BackupProcedures
+    /// The photo file storage and the launch sweep entry point (M3), built at bootstrap
+    /// from the document directory.
+    let media: MediaServices
+}
+
+/// Media services (M3, docs/architecture.md launch flow): the photos file storage over
+/// the app root plus the sweep entry point. Built at bootstrap from the document
+/// directory with the same value and closure pattern as BackupProcedures, so app sources
+/// never import GRDB and the screen side only names MediaStorage and Sendable values.
+struct MediaServices: Sendable {
+    /// File storage for working copies, thumbnails, and retained originals.
+    let storage: MediaStorage
+    /// Reconciles photo rows against files (rows without a working copy, files without a
+    /// row). Best effort by design: the launch path ignores failures and the next launch
+    /// reconciles again.
+    let runSweep: @Sendable () throws -> MediaSweepReport
+
+    /// The live pair against the app storage root and the launch repositories.
+    static func make(repos: Repositories, documentDirectory: URL) -> MediaServices {
+        let storage = MediaStorage(root: documentDirectory)
+        return MediaServices(
+            storage: storage,
+            runSweep: {
+                try sweep(repos: repos, storage: storage)
+            }
+        )
+    }
 }
 
 /// The database writer bound backup operations, packaged so app sources never name a

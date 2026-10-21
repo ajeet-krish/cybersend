@@ -78,9 +78,11 @@ struct SessionDetailView: View {
         }
         .sheet(item: $pendingFall) { request in
             FallHoldSheet(
-                outcome: request.outcome,
                 climbTitle: store.selectedClimb.map { DisplayText.climbTitle($0, systems: logbook.gradeSystems) } ?? "Climb",
-                holds: holdsForSelectedClimb()
+                climbId: store.selectedClimbId ?? "",
+                outcome: request.outcome,
+                holds: holdsForSelectedClimb(),
+                services: services
             ) { holdId in
                 pendingFall = nil
                 logAttempt(request.outcome, fallOnHoldId: holdId)
@@ -93,9 +95,14 @@ struct SessionDetailView: View {
             }
         }
         .sheet(item: $editingAttempt) { attempt in
-            EditAttemptSheet(attempt: attempt) { outcome, notes in
+            EditAttemptSheet(
+                attempt: attempt,
+                climbId: attempt.climbId,
+                holds: holdsForClimb(attempt.climbId),
+                services: services
+            ) { outcome, notes, fallOnHoldId in
                 editingAttempt = nil
-                updateAttempt(attempt, outcome: outcome, notes: notes)
+                updateAttempt(attempt, outcome: outcome, notes: notes, fallOnHoldId: fallOnHoldId)
             }
         }
         .confirmationDialog(
@@ -417,8 +424,9 @@ struct SessionDetailView: View {
         case .flash, .send:
             logAttempt(outcome, fallOnHoldId: nil)
         case .project, .fail:
-            // The fall hold prompt: hold list from the climb's holds (empty until M3
-            // tagging), skip saves nil (docs/decisions.md quick log decision).
+            // The fall hold prompt: the climb's real holds from climb_holds (M3), with
+            // the photo canvas when the climb has a photo; skip saves nil
+            // (docs/decisions.md quick log decision).
             pendingFall = FallRequest(outcome: outcome)
         }
     }
@@ -464,10 +472,16 @@ struct SessionDetailView: View {
         }
     }
 
-    private func updateAttempt(_ attempt: Attempt, outcome: AttemptOutcome, notes: String?) {
+    private func updateAttempt(_ attempt: Attempt, outcome: AttemptOutcome, notes: String?, fallOnHoldId: String?) {
         do {
-            try store.updateAttempt(id: attempt.id, outcome: .set(outcome), notes: .set(notes))
+            try store.updateAttempt(
+                id: attempt.id,
+                outcome: .set(outcome),
+                fallOnHoldId: .set(fallOnHoldId),
+                notes: .set(notes)
+            )
             actionError = nil
+            logbook.refresh()
         } catch {
             actionError = (error as? DomainValidationError)?.message ?? error.localizedDescription
         }
@@ -527,56 +541,9 @@ private struct FallRequest: Identifiable {
 
 // MARK: - Fall hold sheet
 
-/// Fall hold prompt for project and fail (US-12.3). Lists the selected climb's holds
-/// with a skip; until M3 photo tagging gives climbs holds the list is honestly empty
-/// ("Hold tagging arrives with photos"). Skip saves nil.
-struct FallHoldSheet: View {
-    let outcome: AttemptOutcome
-    let climbTitle: String
-    let holds: [Hold]
-    let onSelect: (String?) -> Void
-
-    var body: some View {
-        NavigationStack {
-            Screen {
-                SectionTitle("Where did you fall?")
-                Card {
-                    Text("\(climbTitle): \(DisplayText.outcomeTitle(outcome))")
-                        .font(.subheadline)
-                        .foregroundStyle(Theme.secondaryText)
-                }
-                if holds.isEmpty {
-                    Card {
-                        EmptyState(
-                            systemImage: "hand.tap",
-                            title: "Hold tagging arrives with photos",
-                            message: "Photo tagging lands in M3. Until then your fall is logged without a hold."
-                        )
-                    }
-                    .accessibilityIdentifier("fall.sheet.empty")
-                } else {
-                    Card {
-                        ForEach(holds) { hold in
-                            Button {
-                                onSelect(hold.id)
-                            } label: {
-                                Row(title: DisplayText.holdTitle(hold))
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityIdentifier("fall.hold.\(hold.id)")
-                        }
-                    }
-                }
-                SecondaryButton("Skip fall hold") {
-                    onSelect(nil)
-                }
-                .accessibilityIdentifier("fall.sheet.skip")
-            }
-            .accessibilityIdentifier("fall.sheet")
-            .navigationTitle("Fall hold")
-        }
-    }
-}
+// The M3 fall hold sheet lives in ios/App/Screens/FallHoldSheet.swift: real climb holds
+// from climb_holds with role and ordinal labels, one tap per row, plus the read only
+// photo canvas in selection mode when the climb has a wall photo.
 
 // MARK: - Close session sheet
 
@@ -645,22 +612,39 @@ struct CloseSessionSheet: View {
 
 // MARK: - Edit attempt sheet
 
-/// Edit an attempt's outcome and notes (US-22.3). Outcome and fall hold are revalidated
-/// against the domain rules exactly like a fresh log; notes edit with patch semantics
-/// (clearing the field clears the stored value).
+/// Edit an attempt's outcome, fall hold, and notes (US-22.3, M3 wires the fall hold
+/// picker to the climb's real holds). Outcome and fall hold are revalidated against the
+/// domain rules exactly like a fresh log; notes edit with patch semantics (clearing the
+/// field clears the stored value). Sends never record a fall hold: the domain drops the
+/// value with a warning, and the sheet says so up front.
 struct EditAttemptSheet: View {
     let attempt: Attempt
-    let onSave: (AttemptOutcome, String?) -> Void
+    let climbId: String
+    let holds: [Hold]
+    let services: AppServices
+    let onSave: (AttemptOutcome, String?, String?) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var outcome: AttemptOutcome
     @State private var notes: String
+    @State private var fallOnHoldId: String?
+    @State private var showFallSheet = false
 
-    init(attempt: Attempt, onSave: @escaping (AttemptOutcome, String?) -> Void) {
+    init(
+        attempt: Attempt,
+        climbId: String,
+        holds: [Hold],
+        services: AppServices,
+        onSave: @escaping (AttemptOutcome, String?, String?) -> Void
+    ) {
         self.attempt = attempt
+        self.climbId = climbId
+        self.holds = holds
+        self.services = services
         self.onSave = onSave
         _outcome = State(initialValue: attempt.outcome)
         _notes = State(initialValue: attempt.notes ?? "")
+        _fallOnHoldId = State(initialValue: attempt.fallOnHoldId)
     }
 
     var body: some View {
@@ -675,6 +659,38 @@ struct EditAttemptSheet: View {
                     }
                     .pickerStyle(.segmented)
                     .accessibilityIdentifier("attempt.edit.outcome")
+                }
+
+                SectionTitle("Fall hold")
+                Card {
+                    Text(fallHoldTitle)
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.secondaryText)
+                        .accessibilityIdentifier("attempt.edit.fall")
+                    if holds.isEmpty {
+                        Text("Tag holds on the climb photo to pick a fall hold.")
+                            .font(.caption)
+                            .foregroundStyle(Theme.secondaryText)
+                            .accessibilityIdentifier("attempt.edit.fall.empty")
+                    } else {
+                        SecondaryButton("Choose fall hold") {
+                            showFallSheet = true
+                        }
+                        .accessibilityIdentifier("attempt.edit.fall.choose")
+                        if fallOnHoldId != nil {
+                            Button("Clear fall hold", role: .destructive) {
+                                fallOnHoldId = nil
+                            }
+                            .frame(maxWidth: .infinity)
+                            .accessibilityIdentifier("attempt.edit.fall.clear")
+                        }
+                    }
+                    if outcome == .flash || outcome == .send {
+                        Text("Sends do not record a fall hold.")
+                            .font(.caption)
+                            .foregroundStyle(Theme.secondaryText)
+                            .accessibilityIdentifier("attempt.edit.fall.send-note")
+                    }
                 }
 
                 SectionTitle("Notes")
@@ -696,11 +712,28 @@ struct EditAttemptSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        onSave(outcome, notes.isEmpty ? nil : notes)
+                        onSave(outcome, notes.isEmpty ? nil : notes, fallOnHoldId)
                     }
                     .accessibilityIdentifier("attempt.edit.save")
                 }
             }
         }
+        .sheet(isPresented: $showFallSheet) {
+            FallHoldSheet(
+                climbTitle: "Climb",
+                climbId: climbId,
+                outcome: outcome,
+                holds: holds,
+                services: services
+            ) { holdId in
+                showFallSheet = false
+                fallOnHoldId = holdId
+            }
+        }
+    }
+
+    /// The current fall hold label, resolved against the climb's real holds.
+    private var fallHoldTitle: String {
+        DisplayText.fallHoldTitle(fallOnHoldId: fallOnHoldId, holds: holds) ?? "No fall hold"
     }
 }

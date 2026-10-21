@@ -32,6 +32,7 @@ final class LaunchModel: ObservableObject {
     @Published private(set) var environment: AppEnvironment?
 
     private var bootstrap: AppBootstrap
+    private var mediaSweepRan = false
 
     init(bootstrap: AppBootstrap = .live()) {
         self.bootstrap = bootstrap
@@ -45,6 +46,18 @@ final class LaunchModel: ObservableObject {
         let result = bootstrap.run()
         state = result.state
         environment = result.environment
+    }
+
+    /// The M3 media sweep (docs/architecture.md launch): reconciles photo rows and files
+    /// off the main actor, async after the first frame so the 2.5 s cold start budget is
+    /// untouched. Runs once per launch, best effort; the next launch reconciles again.
+    func performLaunchMediaSweep() {
+        guard !mediaSweepRan, let environment else { return }
+        mediaSweepRan = true
+        let runSweep = environment.media.runSweep
+        Task.detached(priority: .utility) {
+            _ = try? runSweep()
+        }
     }
 
     /// The scenePhase background hook: throttled automatic backup, best effort. Failures

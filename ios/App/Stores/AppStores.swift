@@ -23,12 +23,18 @@ struct AppStores {
     let settings: SettingsStore
     /// Sessions tab history rows (US-22.1).
     let history: SessionsHistoryStore
+    /// Logbook climb row thumbnails (M3): climb id to thumbnail file URL.
+    let climbThumbnails: ClimbThumbnailsModel
+    /// Stats tab dashboard (M3 Task 5, US-23): rates by grade, volume, fall heatmap.
+    let stats: StatsStore
 
-    init(repos: Repositories, variant: BuildVariant) {
+    init(repos: Repositories, storage: MediaStorage, variant: BuildVariant) {
         self.logbook = LogbookStore(repos: repos)
         self.gyms = GymsStore(repos: repos)
         self.grades = GradeSchemesStore(repos: repos)
         self.settings = SettingsStore(repos: repos, variant: variant)
         self.history = SessionsHistoryStore(repos: repos)
+        self.climbThumbnails = ClimbThumbnailsModel(repos: repos, storage: storage)
+        self.stats = StatsStore(repos: repos, storage: storage)
     }
 }

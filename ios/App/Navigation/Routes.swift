@@ -9,6 +9,7 @@ import Foundation
 /// The tab identifiers.
 enum AppTab: Hashable, CaseIterable {
     case logbook
+    case stats
     case sessions
     case settings
 }
@@ -19,6 +20,8 @@ enum LogbookRoute: Hashable {
     case grades
     case gymDetail(gymId: String)
     case climbDetail(climbId: String)
+    /// Hold tagging canvas (M3). The climb editor photo and holds sections push it.
+    case tagging(climbId: String)
 }
 
 /// Routes under the Sessions tab. The session screen is also reachable from the Logbook

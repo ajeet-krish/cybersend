@@ -11,6 +11,7 @@ import SwiftUI
 struct LogbookHomeView: View {
     @Binding var path: NavigationPath
     @EnvironmentObject private var store: LogbookStore
+    @EnvironmentObject private var thumbnails: ClimbThumbnailsModel
 
     @State private var actionError: String?
     @State private var offerOpenExisting = false
@@ -40,6 +41,7 @@ struct LogbookHomeView: View {
         .accessibilityIdentifier("logbook.screen")
         .onAppear {
             store.refresh()
+            thumbnails.refresh()
         }
     }
 
@@ -128,7 +130,13 @@ struct LogbookHomeView: View {
                 ForEach(store.quickLogClimbs) { climb in
                     let title = DisplayText.climbTitle(climb, systems: store.gradeSystems)
                     NavigationLink(value: LogbookRoute.climbDetail(climbId: climb.id)) {
-                        Row(title: title)
+                        HStack(spacing: 10) {
+                            climbThumbnail(climb.id)
+                            Text(title)
+                                .foregroundStyle(Theme.primaryText)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("logbook.climb.row.\(climb.id)")
@@ -149,6 +157,26 @@ struct LogbookHomeView: View {
     }
 
     // MARK: - Actions
+
+    /// The climb's photo thumbnail when it has one (M3, US-17): AsyncImage decodes off
+    /// the main thread and the URL comes from the shared ClimbThumbnailsModel lookup,
+    /// so rows cost one map read and the list keeps scrolling smoothly.
+    @ViewBuilder
+    private func climbThumbnail(_ climbId: String) -> some View {
+        if let url = thumbnails.thumbURL(for: climbId) {
+            AsyncImage(url: url) { image in
+                image.resizable().scaledToFill()
+            } placeholder: {
+                Image(systemName: "photo")
+                    .resizable()
+                    .scaledToFit()
+                    .foregroundStyle(Theme.secondaryText)
+            }
+            .frame(width: 44, height: 44)
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .accessibilityHidden(true)
+        }
+    }
 
     private func startSession() {
         do {

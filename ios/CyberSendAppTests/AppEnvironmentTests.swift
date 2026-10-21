@@ -67,4 +67,35 @@ final class AppEnvironmentTests: XCTestCase {
         XCTAssertTrue(merged.aiHoldDetection, "settings override wins over the compile time default")
         XCTAssertTrue(merged.boulderVision, "unrelated defaults survive the merge")
     }
+
+    func testBootstrapWiresMediaServicesToTheDocumentDirectory() throws {
+        let root = try makeTemporaryRoot(label: "media-wiring")
+        defer { removeTemporaryRoot(root) }
+
+        let environment = try XCTUnwrap(
+            AppBootstrap(documentDirectory: root, variant: .development).run().environment
+        )
+
+        // The media services are built from the same storage root the database uses, so
+        // stored relative uris resolve against the app's real files (M3 wiring).
+        XCTAssertEqual(environment.media.storage.root, root)
+        XCTAssertEqual(environment.media.storage.workingDirectory.path, root.appendingPathComponent("photos/working").path)
+    }
+
+    func testLaunchMediaSweepRunsCleanOnAFreshRoot() throws {
+        let root = try makeTemporaryRoot(label: "media-sweep")
+        defer { removeTemporaryRoot(root) }
+
+        let environment = try XCTUnwrap(
+            AppBootstrap(documentDirectory: root, variant: .development).run().environment
+        )
+
+        // The launch hook runs the sweep detached; the same closure must succeed
+        // synchronously and report a no-op on an already clean install.
+        let report = try environment.media.runSweep()
+        XCTAssertEqual(report, MediaSweepReport())
+
+        // A second sweep stays idempotent (docs/architecture.md M3 launch path).
+        XCTAssertEqual(try environment.media.runSweep(), MediaSweepReport())
+    }
 }

@@ -11,7 +11,9 @@ import XCTest
 //   4. tap Skip (saves the attempt without a hold)
 //
 // The test fails on a fifth tap: the tap helper refuses to exceed the budget, and the
-// final assertions prove the attempt saved without any further interaction.
+// final assertions prove the attempt saved without any further interaction. The M3
+// variant swaps Skip for a real hold row (the climb's seeded climb_holds), keeping the
+// same 4 tap budget with the fall hold recorded.
 
 @MainActor
 final class QuickLogSmokeTests: XCTestCase {
@@ -65,6 +67,48 @@ final class QuickLogSmokeTests: XCTestCase {
         XCTAssertTrue(newestAttempt.exists, "the logged attempt is listed newest first")
         XCTAssertTrue(newestAttempt.label.contains("Fail"), "the logged attempt records the fail outcome")
         XCTAssertTrue(newestAttempt.label.contains("Climb Two"), "the attempt lands on the selected climb")
+    }
+
+    func testLogAttemptWithHoldRowAsTheFourthTap() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-CYBERSEND_UI_TEST_SEED", "1"]
+        app.launch()
+
+        // 1: open the seeded session from the logbook home.
+        XCTAssertTrue(
+            app.buttons["session.card.open"].waitForExistence(timeout: 20),
+            "the seeded open session renders its open action"
+        )
+        tap(app.buttons["session.card.open"])
+
+        // 2: switch the quick log climb to the seeded Climb Two (the climb with real
+        // holds tagged on its wall photo, M3).
+        let climbChip = app.buttons["session.climb.chip.Climb Two"]
+        XCTAssertTrue(climbChip.waitForExistence(timeout: 10), "the session screen lists quick log climb chips")
+        tap(climbChip)
+
+        // 3: tap Fail, which opens the fall hold sheet with the climb's real holds.
+        let failButton = app.buttons["outcome.fail"]
+        XCTAssertTrue(failButton.waitForExistence(timeout: 10), "the open session screen shows the four outcome buttons")
+        tap(failButton)
+
+        // 4: a real hold row is the 4th tap and saves the attempt with the fall hold.
+        let holdRow = app.buttons["fall.hold.1"]
+        XCTAssertTrue(holdRow.waitForExistence(timeout: 10), "the fall hold sheet lists the climb's real holds")
+        XCTAssertTrue(holdRow.label.contains("intermediate hold"), "hold 2 is the seeded intermediate hold")
+        tap(holdRow)
+
+        XCTAssertEqual(taps, tapBudget, "the hold row quick log path uses exactly the 4 budgeted taps")
+
+        // No further taps: the tap helper refuses a 5th tap, and the attempt must already
+        // be saved with its fall hold.
+        let newestAttempt = app.staticTexts["session.attempt.0"]
+        XCTAssertTrue(newestAttempt.waitForExistence(timeout: 10), "the attempt list renders after the save")
+        XCTAssertTrue(newestAttempt.label.contains("Fail"), "the logged attempt records the fail outcome")
+        XCTAssertTrue(
+            newestAttempt.label.contains("Fell on intermediate hold"),
+            "the attempt records the fall hold from the 4th tap row"
+        )
     }
 
     /// Counts taps against the quick log budget and fails before a fifth tap can happen,

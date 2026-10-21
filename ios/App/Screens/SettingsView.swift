@@ -190,8 +190,16 @@ struct SettingsView: View {
                 }
             }
             .accessibilityIdentifier("settings.photo-retention")
+            Text("Originals are discarded after tagging when set to discard. Keep originals stores the full resolution capture alongside the working copy.")
+                .font(.footnote)
+                .foregroundStyle(Theme.secondaryText)
+                .accessibilityIdentifier("settings.photo-retention.explain")
             Row(title: "Videos", detail: "Kept with backups")
                 .accessibilityIdentifier("settings.video-retention")
+            Text("Photos and videos are stored only on this device, under the app's own storage. They travel out only in backups you export.")
+                .font(.footnote)
+                .foregroundStyle(Theme.secondaryText)
+                .accessibilityIdentifier("settings.storage.note")
         }
     }
 
@@ -272,6 +280,10 @@ struct SettingsView: View {
                 .accessibilityIdentifier("settings.schema-version")
             Row(title: "Build variant", detail: settings.variant.rawValue)
                 .accessibilityIdentifier("settings.variant")
+            Text("CyberSend makes zero network calls. Photos, videos, and logs never leave your device.")
+                .font(.footnote)
+                .foregroundStyle(Theme.secondaryText)
+                .accessibilityIdentifier("settings.privacy")
         }
     }
 

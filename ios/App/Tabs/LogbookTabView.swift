@@ -32,6 +32,12 @@ struct LogbookTabView: View {
                         // happens on the gyms screen); the typed route stays registered
                         // so later tasks fill it in without navigation churn.
                         RoutePendingView(routeDescription: route.pendingDescription)
+                    case .tagging(let climbId):
+                        if let services {
+                            TaggingView(climbId: climbId, services: services)
+                        } else {
+                            RoutePendingView(routeDescription: route.pendingDescription)
+                        }
                     }
                 }
                 .navigationDestination(for: SessionsRoute.self) { route in
@@ -78,6 +84,7 @@ extension LogbookRoute {
         case .grades: return "Grade schemes"
         case .gymDetail: return "Gym detail"
         case .climbDetail: return "Climb editor"
+        case .tagging: return "Hold tagging"
         }
     }
 }

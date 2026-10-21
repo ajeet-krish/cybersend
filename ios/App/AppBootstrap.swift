@@ -116,14 +116,16 @@ struct AppBootstrap {
                 #endif
             }
             let flags = try resolvedFlags(for: variant, settings: repos.settings)
+            let media = MediaServices.make(repos: repos, documentDirectory: documentDirectory)
             let environment = AppEnvironment(
                 documentDirectory: documentDirectory,
                 repos: repos,
                 migration: opened.migration,
                 backupProcedures: opened.backup,
+                media: media,
                 variant: variant,
                 flags: flags,
-                stores: AppStores(repos: repos, variant: variant)
+                stores: AppStores(repos: repos, storage: media.storage, variant: variant)
             )
             return (.ready, environment)
         } catch let error as MigrationError {
@@ -136,10 +138,12 @@ struct AppBootstrap {
         }
     }
 
-    /// True when the running Debug build was launched with the UI test seeding argument.
+    /// True when the running Debug build was launched with the UI test seeding argument
+    /// (either the base seed or the 100 hold canvas fixture, which also wipes first).
     private func uiTestSeedRequested() -> Bool {
         #if DEVELOPMENT
-        return ProcessInfo.processInfo.arguments.contains(uiTestSeedArgument)
+        let arguments = ProcessInfo.processInfo.arguments
+        return arguments.contains(uiTestSeedArgument) || arguments.contains(uiTestSeedHoldsArgument)
         #else
         return false
         #endif

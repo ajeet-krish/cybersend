@@ -160,7 +160,8 @@ final class RestoreGateTests: XCTestCase {
         let services = AppServices(
             repos: environment.repos,
             documentDirectory: environment.documentDirectory,
-            backupProcedures: environment.backupProcedures
+            backupProcedures: environment.backupProcedures,
+            media: environment.media
         )
         let backup = BackupStore(services: services)
         let gate = RestoreGate()
@@ -197,7 +198,8 @@ final class RestoreGateTests: XCTestCase {
         let services = AppServices(
             repos: environment.repos,
             documentDirectory: environment.documentDirectory,
-            backupProcedures: environment.backupProcedures
+            backupProcedures: environment.backupProcedures,
+            media: environment.media
         )
         let backup = BackupStore(services: services)
         let gate = RestoreGate()
