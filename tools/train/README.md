@@ -410,8 +410,23 @@ cd tools/train
 
 Checkpoints, train_log.txt, and tensorboard events land in
 artifacts/train_yolox_d1/yolox_d1/. latest_ckpt.pth is rewritten every epoch;
-restart an interrupted run with the same command plus --resume, which reads
-latest_ckpt.pth and ignores -c.
+restart an interrupted run with --resume and WITHOUT -c:
+
+```bash
+cd tools/train
+TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1 .venv-yolox/bin/python -m yolox.tools.train \
+  -f configs/yolox_d1.py -b 4 --resume
+```
+
+Two traps to avoid:
+
+- Do not combine --resume with -c. resume_train prefers args.ckpt when both
+  are set, so it would load the pretrained nano as full training state, see
+  start_epoch 291, and exit immediately without training.
+- TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1 is required on torch 2.14 because
+  latest_ckpt.pth stores the best_ap metric as a numpy scalar, which the
+  weights_only loader rejects. The file is a trusted local artifact, so
+  disabling the weights-only check is safe here.
 
 Comparison protocol: export both models to ONNX, evaluate both on the same
 frozen test split with the same harness, and record precision, recall, mAP@0.5,
