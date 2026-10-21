@@ -14,6 +14,11 @@ expo-env.d.ts
 android/
 ios/.build/
 ios/.swiftpm/
+ios/build/
+
+# Xcode per-user state (schemes, breakpoints, window geometry)
+xcuserdata/
+*.xcuserstate
 
 # Signing and provisioning
 *.jks
