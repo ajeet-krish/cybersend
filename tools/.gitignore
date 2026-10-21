@@ -1,5 +1,6 @@
-# Python virtual envs (tools/train/.venv)
+# Python virtual envs (tools/train/.venv and the isolated YOLOX env)
 .venv/
+.venv-yolox/
 __pycache__/
 
 # Generated datasets: raw downloads and merged output are re-creatable

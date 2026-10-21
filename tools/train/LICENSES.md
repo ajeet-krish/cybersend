@@ -14,7 +14,7 @@ copies into `assets/models/manifest.json`.
 |-----------|---------|--------|
 | RF-DETR framework (roboflow/rf-detr) | Apache-2.0 | In use, approved |
 | RF-DETR-Nano pretrained weights (rf-detr-nano.pth) | Apache-2.0 | In use, approved |
-| YOLOX framework (Megvii-BaseDetection/YOLOX) | Apache-2.0 | D1 comparison run, approved but not yet installed or executed |
+| YOLOX framework (Megvii-BaseDetection/YOLOX 0.3.0, official PyPI) | Apache-2.0 | D1 comparison run approved 2026-10-20; installed in isolated env .venv-yolox with committed MPS patch |
 | PyTorch (torch, torchvision) | BSD-3-Clause | Toolchain only, not shipped |
 | ONNX, onnxruntime (Python and Node) | Apache-2.0, MIT | Toolchain only, not shipped |
 | PyYAML | MIT | Toolchain only, not shipped |
@@ -42,14 +42,25 @@ Apache-2.0 by this project, with dataset attributions carried in
 
 ## YOLOX (Apache-2.0, D1 comparison)
 
-The planned D1 comparison baseline is YOLOX-Nano from the Megvii
-BaseDetection/YOLOX repository, Apache-2.0:
+The D1 comparison baseline is YOLOX-Nano from the Megvii BaseDetection/YOLOX
+repository, Apache-2.0:
 https://github.com/Megvii-BaseDetection/YOLOX
 
 This is the only YOLO stack allowed in this project. It is deliberately NOT a
-dependency of tools/train today; it gets installed in an isolated environment
-only when the comparison run is approved (see the WARNING in
-tools/train/README.md). The experiment file is configs/yolox_d1.py.
+dependency of tools/train; the yolox 0.3.0 package from the official PyPI
+project (maintainer "megvii basedet team") is installed in the isolated
+environment tools/train/.venv-yolox only (see README.md, section "D1 comparison
+run"). The installed package carries a committed device patch,
+tools/train/patches/yolox-0.3.0-mps.patch, that adds MPS/CPU device selection;
+every change is CUDA-equivalent, and the patch is this project's own
+Apache-2.0 work. The experiment file is configs/yolox_d1.py.
+
+Pretrained initialization for the comparison run: yolox_nano.pth
+(7,694,953 bytes), the official Apache-2.0 Nano checkpoint distributed on the
+Megvii YOLOX releases page:
+https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_nano.pth
+Stored in tools/train/artifacts/pretrained/ (git ignored), same Apache-2.0
+terms as the framework.
 
 ## climbtag "Climbing Hold Detection" (CC BY 4.0)
 

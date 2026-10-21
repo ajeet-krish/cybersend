@@ -4,7 +4,7 @@ Apache-2.0 stack only. No Ultralytics code or weights anywhere (AGPL, excluded b
 decision 2026-10-19, see LICENSES.md and docs/decisions.md).
 
 This directory builds the merged D1 dataset, trains the on-device hold detector
-candidates (RF-DETR-Nano baseline plus a planned YOLOX-Nano comparison), and
+candidates (RF-DETR-Nano baseline plus an approved YOLOX-Nano comparison), and
 exports the chosen model to ONNX with its license provenance. The Node eval
 harness in tools/eval scores the export on the val split by default and, under
 the one gated test run policy, once on the frozen COCO test split.
@@ -93,7 +93,11 @@ tools/train/
   configs/
     rf_detr_d1.yaml       D1 baseline run config (RF-DETR-Nano, 40 epochs)
     rf_detr_d1_preflight.yaml  D1 1-epoch preflight config (batch 2, approval required)
-    yolox_d1.py           D1 comparison experiment (YOLOX-Nano, planned)
+    rf_detr_d1_lowmem.yaml     D1 low-memory run config (batch 2, multi-scale off)
+    rf_detr_d1_lowmem_resume.yaml  resume config for an interrupted lowmem run
+    yolox_d1.py           D1 comparison experiment (YOLOX-Nano, approved 2026-10-20)
+    yolox_mps_microcheck.py     5-check MPS patch sanity run (seconds, no dataset)
+  patches/                committed device patch applied to the isolated yolox install
   datasets/               raw/ + merged/ (git ignored, re-creatable via hold-build + hold-bake)
   artifacts/              checkpoints, ONNX, manifests, logs (binaries git ignored)
   DATASET_CARD.md         dataset documentation (sources, method, counts, limits)
@@ -350,16 +354,37 @@ npm test           # unit tests incl. end-to-end stub evaluation
 npm run eval:stub  # stub detector run; writes reports/stub_eval.json, labeled STUB
 ```
 
-## D1 comparison run: YOLOX-Nano (planned, not executed)
+## D1 comparison run: YOLOX-Nano (approved 2026-10-20, staged)
 
-Apache-2.0 Megvii YOLOX only, exp file configs/yolox_d1.py (40 epochs, batch 8,
-640 px, num_classes 1, same seed). The yolox package is deliberately not a
-project dependency; install it in an isolated environment only when this run is
-approved. Expect to adapt device handling: Megvii YOLOX targets CUDA, and MPS
-support is unverified, so this run may fall back to CPU (3 to 5 times slower,
-roughly 1 to 3 days at batch 8) or need a small device patch; resolve that
-before committing to the run. Estimated epoch time on MPS if it works: 8 to 15
-minutes, so 40 epochs in the 6 to 10 hour range.
+Apache-2.0 Megvii YOLOX only, exp file configs/yolox_d1.py (40 epochs, batch 4,
+fixed 640 px with multiscale off, num_classes 1, same seed, single-process
+loading; the low-memory recipe mirrors rf_detr_d1_lowmem, and YOLOX scales the
+LR by batch through basic_lr_per_img, so per-image LR is unchanged). The yolox
+package is deliberately not a project dependency; it lives in the isolated
+environment tools/train/.venv-yolox (Python 3.12.13, torch 2.14.1, created
+2026-10-20). Megvii YOLOX targets CUDA, so the installed package carries a
+committed MPS device patch (tools/train/patches/yolox-0.3.0-mps.patch, 7 files,
+every change CUDA-equivalent). Rebuild the environment from scratch with:
+
+```bash
+cd tools/train
+uv venv .venv-yolox --python 3.12
+uv pip install --python .venv-yolox/bin/python \
+  torch==2.14.1 torchvision==0.29.1 pycocotools tabulate thop pillow numpy \
+  setuptools wheel
+# yolox 0.3.0 pins onnxruntime==1.8.0 (no Python 3.12 wheels); that dependency
+# is export-only and unused for training, so --no-deps drops it, and its
+# setup.py imports torch at build time, so --no-build-isolation is required.
+uv pip install --python .venv-yolox/bin/python --no-deps --no-build-isolation yolox==0.3.0
+uv pip install --python .venv-yolox/bin/python \
+  loguru opencv-python-headless tqdm tensorboard
+patch -p1 -d .venv-yolox/lib/python3.12/site-packages < patches/yolox-0.3.0-mps.patch
+```
+
+Pretrained initialization: tools/train/artifacts/pretrained/yolox_nano.pth
+(7,694,953 bytes), the official Apache-2.0 Nano checkpoint from the Megvii
+releases page, recorded in LICENSES.md:
+https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_nano.pth
 
 YOLOX loads COCO data as `data_dir/<split>/<file_name>` with the annotation
 JSONs under `data_dir/annotations/`. Create the symlink adapter once:
@@ -373,11 +398,20 @@ ln -sfn ../../merged/train/_annotations.coco.json  merged_yolox/annotations/inst
 ln -sfn ../../merged/val/_annotations.coco.json    merged_yolox/annotations/instances_val2017.json
 ```
 
-Then, in the isolated environment with yolox installed:
+Sanity check the MPS patch, then launch (one training job at a time, machine
+otherwise idle, per the low-memory rules):
 
 ```bash
-python -m yolox.tools.train -f configs/yolox_d1.py -b 8 -c <apache2.0-yolox-nano-pretrained.pt>
+cd tools/train
+.venv-yolox/bin/python configs/yolox_mps_microcheck.py
+.venv-yolox/bin/python -m yolox.tools.train \
+  -f configs/yolox_d1.py -b 4 -c artifacts/pretrained/yolox_nano.pth
 ```
+
+Checkpoints, train_log.txt, and tensorboard events land in
+artifacts/train_yolox_d1/yolox_d1/. latest_ckpt.pth is rewritten every epoch;
+restart an interrupted run with the same command plus --resume, which reads
+latest_ckpt.pth and ignores -c.
 
 Comparison protocol: export both models to ONNX, evaluate both on the same
 frozen test split with the same harness, and record precision, recall, mAP@0.5,

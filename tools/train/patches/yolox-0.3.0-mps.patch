@@ -1,0 +1,230 @@
+# CyberSend MPS device patch for yolox 0.3.0 (PyPI, Megvii, Apache-2.0).
+#
+# Generated 2026-10-20 against the pristine yolox 0.3.0 sdist; applies to
+# the installed package under .venv-yolox/lib/python3.12/site-packages/yolox/.
+# Seven training-path files change; every change branches on
+# torch.cuda.is_available() or replaces a legacy .type(str) cast with the
+# source tensor's own dtype/device, so CUDA behavior stays identical:
+#
+#   core/trainer.py         device selection (cuda:N -> mps) and guarded set_device
+#   data/data_prefetcher.py no CUDA side stream on non-CUDA hosts; batches go to mps
+#   exp/yolox_base.py       random_resize CPU tensor instead of torch.LongTensor(2).cuda()
+#   evaluators/coco_evaluator.py  imgs/statistics on the model device, not CUDA types
+#   models/yolo_head.py     grid casts via output dtype/device (legacy .type(str)
+#                           raises ValueError on MPS type strings); affects both
+#                           the training grid and eval decode_outputs
+#   models/losses.py        IOUloss mask cast via tl.dtype (runs every iteration)
+#   utils/boxes.py          bboxes_iou mask cast via tl.dtype (SimOTA matching
+#                           every iteration plus eval)
+#
+# Verified on torch 2.14.1/macOS arm64 (MPS): Trainer construction, prefetcher,
+# random_resize, eval forward, and train forward+backward through SimOTA.
+#
+# Out of scope (untouched, never on this run path): the torch2trt branch
+# (trt_file is always None here) and distributed/NCCL paths (single process).
+#
+# Apply from site-packages after install:
+#   patch -p1 < tools/train/patches/yolox-0.3.0-mps.patch
+
+--- a/yolox/core/trainer.py
++++ b/yolox/core/trainer.py
+@@ -47,7 +47,12 @@
+         self.is_distributed = get_world_size() > 1
+         self.rank = get_rank()
+         self.local_rank = get_local_rank()
+-        self.device = "cuda:{}".format(self.local_rank)
++        if torch.cuda.is_available():
++            self.device = "cuda:{}".format(self.local_rank)
++        else:
++            # CyberSend MPS patch: no CUDA on Apple Silicon; use MPS when built,
++            # otherwise CPU. See tools/train/patches/yolox-0.3.0-mps.patch.
++            self.device = "mps" if torch.backends.mps.is_available() else "cpu"
+         self.use_model_ema = exp.ema
+         self.save_history_ckpt = exp.save_history_ckpt
+ 
+@@ -131,7 +136,8 @@
+         logger.info("exp value:\n{}".format(self.exp))
+ 
+         # model related init
+-        torch.cuda.set_device(self.local_rank)
++        if torch.cuda.is_available():
++            torch.cuda.set_device(self.local_rank)
+         model = self.exp.get_model()
+         logger.info(
+             "Model Summary: {}".format(get_model_info(model, self.exp.test_size))
+--- a/yolox/data/data_prefetcher.py
++++ b/yolox/data/data_prefetcher.py
+@@ -15,9 +15,16 @@
+ 
+     def __init__(self, loader):
+         self.loader = iter(loader)
+-        self.stream = torch.cuda.Stream()
+-        self.input_cuda = self._input_cuda_for_image
+-        self.record_stream = DataPrefetcher._record_stream_for_image
++        # CyberSend MPS patch: original code unconditionally created a CUDA side
++        # stream and moved batches with .cuda(). Branch on CUDA availability and
++        # move batches directly to MPS (or keep them on CPU) otherwise.
++        # See tools/train/patches/yolox-0.3.0-mps.patch.
++        if torch.cuda.is_available():
++            self.stream = torch.cuda.Stream()
++            self.input_cuda = self._input_cuda_for_image
++            self.record_stream = DataPrefetcher._record_stream_for_image
++        else:
++            self.device = "mps" if torch.backends.mps.is_available() else "cpu"
+         self.preload()
+ 
+     def preload(self):
+@@ -28,18 +35,26 @@
+             self.next_target = None
+             return
+ 
+-        with torch.cuda.stream(self.stream):
+-            self.input_cuda()
+-            self.next_target = self.next_target.cuda(non_blocking=True)
++        if torch.cuda.is_available():
++            with torch.cuda.stream(self.stream):
++                self.input_cuda()
++                self.next_target = self.next_target.cuda(non_blocking=True)
++        else:
++            self.next_input = self.next_input.to(self.device)
++            self.next_target = self.next_target.to(self.device)
+ 
+     def next(self):
+-        torch.cuda.current_stream().wait_stream(self.stream)
+-        input = self.next_input
+-        target = self.next_target
+-        if input is not None:
+-            self.record_stream(input)
+-        if target is not None:
+-            target.record_stream(torch.cuda.current_stream())
++        if torch.cuda.is_available():
++            torch.cuda.current_stream().wait_stream(self.stream)
++            input = self.next_input
++            target = self.next_target
++            if input is not None:
++                self.record_stream(input)
++            if target is not None:
++                target.record_stream(torch.cuda.current_stream())
++        else:
++            input = self.next_input
++            target = self.next_target
+         self.preload()
+         return input, target
+ 
+--- a/yolox/exp/yolox_base.py
++++ b/yolox/exp/yolox_base.py
+@@ -195,7 +195,13 @@
+         return train_loader
+ 
+     def random_resize(self, data_loader, epoch, rank, is_distributed):
+-        tensor = torch.LongTensor(2).cuda()
++        if torch.cuda.is_available():
++            tensor = torch.LongTensor(2).cuda()
++        else:
++            # CyberSend MPS patch: CPU tensor instead of torch.LongTensor(2).cuda().
++            # Only the distributed broadcast below needs a device tensor, and that
++            # path requires CUDA anyway. See tools/train/patches/yolox-0.3.0-mps.patch.
++            tensor = torch.zeros(2, dtype=torch.long)
+ 
+         if rank == 0:
+             size_factor = self.input_size[1] * 1.0 / self.input_size[0]
+--- a/yolox/evaluators/coco_evaluator.py
++++ b/yolox/evaluators/coco_evaluator.py
+@@ -136,7 +136,10 @@
+             summary (sr): summary info of evaluation.
+         """
+         # TODO half to amp_test
+-        tensor_type = torch.cuda.HalfTensor if half else torch.cuda.FloatTensor
++        # CyberSend MPS patch: derive the target device from the model instead of
++        # assuming CUDA; imgs move there explicitly in the loop below.
++        # See tools/train/patches/yolox-0.3.0-mps.patch.
++        device = next(model.parameters()).device
+         model = model.eval()
+         if half:
+             model = model.half()
+@@ -162,7 +165,9 @@
+             progress_bar(self.dataloader)
+         ):
+             with torch.no_grad():
+-                imgs = imgs.type(tensor_type)
++                # CyberSend MPS patch: move imgs to the model's device explicitly
++                # (was imgs.type(tensor_type) with a CUDA tensor type).
++                imgs = imgs.to(device=device, dtype=torch.float16 if half else torch.float32)
+ 
+                 # skip the last iters since batchsize might be not enough for batch inference
+                 is_time_record = cur_iter < len(self.dataloader) - 1
+@@ -186,7 +191,13 @@
+ 
+             data_list.extend(self.convert_to_coco_format(outputs, info_imgs, ids))
+ 
+-        statistics = torch.cuda.FloatTensor([inference_time, nms_time, n_samples])
++        # CyberSend MPS patch: plain CPU statistics tensor; only the distributed
++        # NCCL reduce below needs CUDA, and that path is guarded.
++        statistics = (
++            torch.cuda.FloatTensor([inference_time, nms_time, n_samples])
++            if distributed and torch.cuda.is_available()
++            else torch.tensor([inference_time, nms_time, n_samples])
++        )
+         if distributed:
+             data_list = gather(data_list, dst=0)
+             data_list = list(itertools.chain(*data_list))
+--- a/yolox/models/yolo_head.py
++++ b/yolox/models/yolo_head.py
+@@ -221,7 +221,12 @@
+         hsize, wsize = output.shape[-2:]
+         if grid.shape[2:4] != output.shape[2:4]:
+             yv, xv = meshgrid([torch.arange(hsize), torch.arange(wsize)])
+-            grid = torch.stack((xv, yv), 2).view(1, 1, hsize, wsize, 2).type(dtype)
++            # CyberSend MPS patch: legacy .type(str) rejects MPS type strings;
++            # output's own dtype/device is equivalent on CUDA. See
++            # tools/train/patches/yolox-0.3.0-mps.patch.
++            grid = torch.stack((xv, yv), 2).view(1, 1, hsize, wsize, 2).to(
++                dtype=output.dtype, device=output.device
++            )
+             self.grids[k] = grid
+ 
+         output = output.view(batch_size, self.n_anchors, n_ch, hsize, wsize)
+@@ -243,8 +248,13 @@
+             shape = grid.shape[:2]
+             strides.append(torch.full((*shape, 1), stride))
+ 
+-        grids = torch.cat(grids, dim=1).type(dtype)
+-        strides = torch.cat(strides, dim=1).type(dtype)
++        # CyberSend MPS patch: legacy .type(str) rejects MPS type strings;
++        # outputs' own dtype/device is equivalent on CUDA. See
++        # tools/train/patches/yolox-0.3.0-mps.patch.
++        grids = torch.cat(grids, dim=1).to(dtype=outputs.dtype, device=outputs.device)
++        strides = torch.cat(strides, dim=1).to(
++            dtype=outputs.dtype, device=outputs.device
++        )
+ 
+         outputs[..., :2] = (outputs[..., :2] + grids) * strides
+         outputs[..., 2:4] = torch.exp(outputs[..., 2:4]) * strides
+--- a/yolox/models/losses.py
++++ b/yolox/models/losses.py
+@@ -27,7 +27,10 @@
+         area_p = torch.prod(pred[:, 2:], 1)
+         area_g = torch.prod(target[:, 2:], 1)
+ 
+-        en = (tl < br).type(tl.type()).prod(dim=1)
++        # CyberSend MPS patch: .type(tl.type()) rejects MPS type strings;
++        # tl.dtype is equivalent on CUDA (mask cast, same device). See
++        # tools/train/patches/yolox-0.3.0-mps.patch.
++        en = (tl < br).to(dtype=tl.dtype).prod(dim=1)
+         area_i = torch.prod(br - tl, 1) * en
+         area_u = area_p + area_g - area_i
+         iou = (area_i) / (area_u + 1e-16)
+--- a/yolox/utils/boxes.py
++++ b/yolox/utils/boxes.py
+@@ -97,7 +97,10 @@
+ 
+         area_a = torch.prod(bboxes_a[:, 2:], 1)
+         area_b = torch.prod(bboxes_b[:, 2:], 1)
+-    en = (tl < br).type(tl.type()).prod(dim=2)
++    # CyberSend MPS patch: .type(tl.type()) rejects MPS type strings; tl.dtype
++    # is equivalent on CUDA (mask cast, same device). See
++    # tools/train/patches/yolox-0.3.0-mps.patch.
++    en = (tl < br).to(dtype=tl.dtype).prod(dim=2)
+     area_i = torch.prod(br - tl, 2) * en  # * ((tl < br).all())
+     return area_i / (area_a[:, None] + area_b - area_i)
+ 
