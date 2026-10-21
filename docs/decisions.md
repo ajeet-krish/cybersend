@@ -229,3 +229,33 @@ Entry format: "## [Date], Phase [N]: [Title]" with Context, Decision, Rationale,
 **Decision:** Defer US-26.1 to M4 (historical stats). M2 stores only the current grade per climb (level id), matching the frozen schema. Scope of the deferral: no grade history table, no effective date column, no history UI, and exports carry only the current grade; a re-grade overwrites the stored level in place. US-26.2 (archive is the default reset workflow) and US-26.3 (deleting a climb with attempts stays blocked, archive only) are unaffected in M2.
 
 **Revisit trigger:** M4 start, when historical stats need the timeline. The history table lands then as a schema migration with a payload migration step (currentVersion bump plus payloadMigrations), so older exports still import; US-26.1 acceptance (each re-grade queryable with the date it stopped being current) carries over unchanged.
+
+## 2026-10-20, Phase 2 (M3): photo capture is PhotosPicker plus UIImagePickerController behind a seam
+
+**Context:** M3 needs camera capture and library import on the iOS 16 floor, no third-party deps, testable code despite the simulator having no camera.
+
+**Decision:** Library import uses PhotosUI PhotosPicker (out of process, no photo library permission, limited access becomes moot). Camera capture uses UIImagePickerController(sourceType: .camera) wrapped by a CameraCapturing protocol seam. Ingest bakes EXIF orientation to pixels up via ImageIO thumbnails (2048 px working copy, 256 px thumb, JPEG); originals are written per retention and discarded at tagging save when set to discard. Info.plist gains NSCameraUsageDescription only. A DEVELOPMENT-only synthetic capture feeds the identical ingest pipeline for XCUITest.
+
+**Rationale:** PhotosPicker removes the permission surface and is fully exercisable in the simulator; UIImagePickerController is the smallest stills-only camera surface for an app that downscales immediately, and the seam contains any later swap to AVCaptureSession (for example at M6).
+
+**Trade-offs:** The camera UI is system branded and device-tested only, and the camera original re-encode is the app's largest memory spike (about 250 MB at 48 MP; mitigated by the retention-aware path, autoreleasepool, and off-main ingest). NSPhotoLibraryUsageDescription and NSPhotoLibraryAddUsageDescription stay out until any PHPhotoLibrary use lands.
+
+## 2026-10-20, Phase 2 (M3): canvas is UIScrollView plus CAShapeLayer, geometry pure in Domain
+
+**Context:** US-18 requires at least 55 fps pan/zoom with 100 holds on a 2048 px image and at most 3 px tap placement error at 1x on iPhone 11 class hardware. The frozen spec has no src/ui/canvas/coords.ts (the directory is a one-line stub), so the helpers are authored fresh.
+
+**Decision:** TaggingCanvasView is a UIViewRepresentable hosting UIScrollView plus UIImageView plus a CAShapeLayer holds overlay, with UIKit gesture recognizers arbitrated by a delegate (single tap place or select, double tap zoom reset, hold drag wins over scroll when the touch lands on a hold). Coordinate helpers (fitContentBox, normToScreen, screenToScreen inverse, hitTest) are pure functions in CyberSendDomain (ios/Sources/Domain/Canvas/CanvasGeometry.swift) with golden vector tests. Roles render by shape and color plus letter (square orange, circle sky blue, triangle bluish green); a VoiceOver holds list gives full editing.
+
+**Rationale:** UIScrollView zoom and pan are GPU composited and keep gesture deltas out of ObservableObject state, while CAShapeLayer composites hundreds of vector shapes cheaply; SwiftUI Canvas plus SwiftUI gestures would re-render per frame through main-actor store updates. Pure geometry is unit tested on macOS and pins the normalized contract that M5 detector output maps through (letterboxToSourceBox then divide by source width and height).
+
+**Trade-offs:** UIKit hosting costs a representable sync layer and explicit gesture arbitration code. Metal was rejected as overkill for vector overlays. Tap accuracy is guaranteed by exact inverse math plus round-trip tests asserting sub-pixel error instead of by SwiftUI hit testing.
+
+## 2026-10-20, Phase 2 (M3): climb_holds join table via Migration 002, export payload version 2
+
+**Context:** US-20 requires holds shareable across climbs with optional beta sequence and unlinking that preserves holds and attempts, while docs/schema.sql keys holds by climb_id and the .cybersend payload is a frozen interface with pinned golden fixtures.
+
+**Decision:** Migration 002 adds climb_holds (climb_id, hold_id, sequence, primary key over both, foreign keys CASCADE both ways, index on hold_id) backfilled from holds.climb_id with sequence = ordinal, and adds photos.original_uri. holds.climb_id stays as the origin climb (photo and lifecycle association), a documented deviation from the requirements section 2 photo_id anchor. The export payload becomes schema_version 2 (climb_holds table, photos.original_uri column) with a registered PayloadMigration from 1 that synthesizes climb_holds rows; legacy TypeScript shape imports synthesize them as well. Unlinking deletes join rows only; fall_on_hold validation becomes climb_holds membership; climb delete is blocked when owned holds are shared or attempt-referenced.
+
+**Rationale:** Requirements win where contested (the M0 schema reconciliation precedent), and only a join table satisfies US-20.3 and US-20.4 (with holds.climb_id alone, unlinking is a hold delete that nulls attempts.fall_on_hold_id). Additive tables plus backward-compatible import is the designed evolution path of the versioned payload, so the change needs no separate byte-compat project: v1 payloads stay byte identical and data_native_golden.json becomes a pinned v1 import fixture.
+
+**Trade-offs:** New exports no longer match the frozen TypeScript payload shape (the TS tree is a behavioral spec, not a shipping consumer; iOS only forever), and every round trip carries one more table. holds.climb_id and climb_holds can drift if writes bypass the repository, so all membership writes go through HoldRepository link and unlink APIs only.

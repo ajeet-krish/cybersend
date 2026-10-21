@@ -73,8 +73,8 @@ Native migration milestones (the app track since 2026-10-19):
 |-----------|-------------|--------|
 | M0 | Decision lock, Xcode project, GRDB migrations, test harness | Complete (Xcode project itself pending user Xcode install) |
 | M1 | Domain, data, backup port (byte-compatible .cybersend) | Complete (158 tests green; legacy import compat proven) |
-| M2 | SwiftUI logbook (quick-log, sessions, settings) | In Progress |
-| M3 | Photo capture and tagging MVP (Phase 2 gate unchanged) | Not Started |
+| M2 | SwiftUI logbook (quick-log, sessions, settings) | Complete (190 package + 16 app + 5 UI tests green; 4-tap quick log and restore gate proven) |
+| M3 | Photo capture and tagging MVP (Phase 2 gate unchanged) | Complete (258 package + 23 app + 11 UI tests green; capture, tagging canvas, real fall holds, stats; device dogfood gate items pending) |
 | M4 | Grade normalization port | Not Started |
 | M5 | Hold detection (Core ML, parity gate, eval gates) | Not Started |
 | M6 | BoulderVision video analysis (experimental flag) | Not Started |

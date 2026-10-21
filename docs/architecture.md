@@ -1,137 +1,123 @@
 # CyberSend Architecture
 
-Last updated: 2026-10-20 (M2 plan, SwiftUI logbook)
+Last updated: 2026-10-20 (M3 plan, photo capture and hold tagging)
 
-Snapshot of the current design. Full DDL lives in docs/schema.sql. The TypeScript tree (src/ and app/) is frozen and serves as the behavioral port spec for the Swift port; it is never built into the app.
+Snapshot of the current design. Full DDL lives in docs/schema.sql (v1) plus the M3 Migration 002 delta below. The TypeScript tree (src/ and app/) is frozen and serves as the behavioral port spec; it is never built into the app.
 
 ## Overview
 
-Local first bouldering tracker, native iOS only, written in Swift. SwiftUI screens with UIKit gesture recognizers on the tagging canvas, GRDB over SQLite for storage, Core ML for on-device inference, AVFoundation for video. Zero accounts, hard offline. The approved schema, requirements (US numbers and budgets), ML training track, licenses, and the normalized-coordinate contract carry over unchanged from the React Native plan. Device floor is iOS 16 on iPhone 11 and newer, with the AI capability gate unchanged.
-
-The app is a committed Xcode project (ios/CyberSend.xcodeproj) whose target consumes the local Swift package ios/CyberSendCore (products CyberSendDomain, CyberSendData, CyberSendFeatures). App sources live in ios/App. The deployment target is 16.0, so iOS 17 plus APIs are compile-time excluded; state uses ObservableObject and @Published because @Observable is iOS 17 only.
+Local first bouldering tracker, native iOS only, Swift. SwiftUI screens with UIKit gesture recognizers on the tagging canvas, GRDB over SQLite, Core ML for on-device inference, AVFoundation for video. Zero accounts, hard offline. Device floor is iOS 16 on iPhone 11 and newer. The app is ios/CyberSend.xcodeproj (targets CyberSend, CyberSendAppTests, CyberSendUITests) consuming the local package ios/CyberSendCore (products CyberSendDomain, CyberSendData, CyberSendFeatures). Deployment target 16.0, so state is ObservableObject plus @Published and iOS 17 plus APIs are compile-time excluded.
 
 ## Component Breakdown
 
 | Component | Responsibility | Location |
 |-----------|---------------|----------|
-| Domain | Entities, grade normalization (rasch_lite), attempt rules, stats, import validation. Pure Swift, no GRDB or UIKit imports. | ios/Sources/Domain |
-| Data | GRDB database, migrations, repositories, row records and mappers, backup serialization. The only SQL surface. | ios/Sources/Data |
-| Features | Per-feature ObservableObject stores (logbook, sessions, gyms, grades, settings), backup and import services, feature flags, dormant board seam. | ios/Sources/Features |
-| App | CyberSend app target: composition root, navigation, SwiftUI screens, theme, shared components, launch and migration-failure states. | ios/App |
-| Tests | swift-testing suites for Domain, Data, Features (including stores). DataTests and store tests run against in-memory GRDB. | ios/Tests |
-| App tests | XCTest unit smoke (CyberSendAppTests) and XCUITest smoke (CyberSendUITests) built by the Xcode project. | ios/CyberSendAppTests, ios/CyberSendUITests |
+| Domain | Entities, grade normalization, attempt rules, stats, import validation, canvas coordinate geometry (M3). Pure Swift, no GRDB or UIKit. | ios/Sources/Domain |
+| Data | GRDB database, migrations (001, 002), repositories, records and mappers, backup serialization. The only SQL surface. | ios/Sources/Data |
+| Features | Per-feature ObservableObject stores, photo ingest and media storage (M3), tagging store, backup and import services, flags. | ios/Sources/Features |
+| App | Composition root, navigation, SwiftUI screens, theme, UIKit canvas and camera representables (M3), launch states. | ios/App |
+| Tests | swift-testing suites (Domain, Data, Features). DataTests and store tests run on in-memory GRDB. | ios/Tests |
+| App tests | XCTest smoke (CyberSendAppTests) and XCUITest smoke (CyberSendUITests). | ios/CyberSendAppTests, ios/CyberSendUITests |
 | ML tooling | Dataset build, training, ONNX export, eval harness. Stack independent, unchanged. | tools/train, tools/eval |
-| Port spec | Frozen TypeScript implementation. Behavioral reference and source of golden fixtures. | src/, app/ |
-| Model assets | Canonical ONNX plus Core ML deployment copies with manifest.json. | assets/models/ |
+| Port spec | Frozen TypeScript implementation, behavioral reference and golden fixture source. | src/, app/ |
 
-Dependency rule: Features depend on Domain and Data; the App target renders domain values and calls Features stores. Domain imports nothing from Data, Features, or UI. Repositories return domain models. Views never touch GRDB directly. Stores call repositories synchronously on the main actor and expose @Published state.
+Dependency rule: Features depend on Domain and Data; the App target renders domain values and calls Features stores. Domain imports nothing from Data, Features, or UI. Repositories return domain models. Views never touch GRDB and never call repositories directly (stores only). Stores call repositories synchronously on the main actor and expose @Published state.
 
 ## Data Flow
 
 ```
-training:  tools/train (PyTorch MPS on the M5) -> frozen splits -> holds_detector_d1.onnx (CANONICAL)
-convert:   ONNX -> coremltools -> holds_detector.mlmodel (deployment copy, never canonical)
-parity:    same frozen-split images through ONNX and .mlmodel
-           box delta <= 1 px, logit delta recorded -> parity gate -> bundle in app
-hold ML:   photo -> CGImage -> VNCoreMLRequest (.cpuAndNeuralEngine) -> nms -> holds (source=detection)
-pose:      AVFoundation frames (AVCaptureSession, AVAssetReader) -> Vision pose or TFLite/MoveNet
-           (Phase 0 pose spike chooses) -> pose_keypoints rows -> fall analysis (Domain)
-tagging:   photo -> canvas (SwiftUI + UIKit gestures) -> holds rows (normalized, source=manual)
-runtime:   SwiftUI view -> feature store (Features) -> repository (Data) -> GRDB -> SQLite
-           files: photos/ videos/ backups/ exports/ under Application Support/CyberSend/
-launch:    CyberSendApp -> AppBootstrap -> CyberSendDatabase.openDeviceDatabase (migrate)
-           -> success: stores + TabView | failure: migration-failure screen (US-7)
-quick-log: session screen tap -> SessionDetailStore.logAttempt -> AttemptRepository.logAttempt
-           (one transaction: next attempt_no, domain rules, insert)
-backup:    session close / scenePhase background -> BackupService.maybeWriteAutomaticBackup /
-           runScheduledBackup (hourly throttle) -> .cybersend zip in backups/ (keep 10)
-restore:   settings -> confirmation dialog -> fileImporter -> BackupService.restoreBackup
-           (staging rehearsal, one transaction, media reconcile)
+capture:   CameraCaptureView (UIImagePickerController camera) or PhotoImportSheet (PhotosPicker)
+           -> PhotoIngest (ImageIO: 2048 px working copy, 256 px thumb, optional original, pixels up)
+           -> MediaStorage files under Application Support/CyberSend/photos/
+           -> MediaRepository.createPhoto -> photos row (uri = working copy, original_uri per retention)
+tagging:   TaggingView -> TaggingCanvasView (UIScrollView + UIImageView + CAShapeLayer)
+           -> UIKit gestures -> TaggingStore (bounded undo) -> HoldRepository
+           -> holds rows (normalized, source=manual) + climb_holds rows (membership, beta sequence)
+quick-log: session screen -> Fail/Project tap -> FallHoldSheet (real holds, optional photo canvas)
+           -> hold row tap or Skip -> SessionDetailStore.logAttempt -> AttemptRepository
+           (fall hold membership validated against climb_holds, one transaction)
+fall map:  attempt data -> hold positions -> heatmap overlay on the climb photo (stats screen, US-23)
+launch:    CyberSendApp -> AppBootstrap -> migrate (001, 002) -> MediaSweep (orphan rows and files,
+           async after first frame) -> stores + TabView
+backup:    export payload v2 (climb_holds table, photos.original_uri) + media/ in the .cybersend zip
+restore:   import v1 or v2 or legacy -> payload migration -> staged transaction -> media reconcile
 ```
 
 ## File Structure
 
 | Path | Purpose |
 |------|---------|
-| ios/CyberSend.xcodeproj | Committed Xcode project (objectVersion 77, file-system synchronized groups). Targets: CyberSend app, CyberSendAppTests, CyberSendUITests. Configurations: Development, Internal, Release via ios/Config/*.xcconfig. |
+| ios/CyberSend.xcodeproj | Committed Xcode project (objectVersion 77, synchronized groups). Configurations Development, Internal, Release via ios/Config. |
 | ios/Package.swift | CyberSendCore package: CyberSendDomain, CyberSendData, CyberSendFeatures, CyberSendCoreTests. |
-| ios/Sources/Domain/ | Models, grade, attempts, stats, validation. Port of src/domain with identical behavior. |
-| ios/Sources/Data/ | GRDB setup, migrations, repositories, records and mappers. The only SQL surface. |
-| ios/Sources/Features/ | Logbook stores (ObservableObject), backup, import, flags. |
-| ios/App/ | App entry (CyberSendApp), composition root (AppEnvironment, AppBootstrap), navigation, screens per feature, theme, shared components, migration-failure screen, Info.plist. |
-| ios/Resources/ | Assets.xcassets (app icon placeholder, accent color). |
-| ios/Config/ | Base, Development, Internal, Release xcconfig files. |
-| ios/CyberSendAppTests/ | XCTest smoke for the composition root. |
-| ios/CyberSendUITests/ | XCUITest smoke: quick-log, history, settings and restore confirmation. |
-| ios/Tests/ | swift-testing suites mirroring the Jest suites plus store tests; in-memory GRDB. |
+| ios/Sources/Domain/ | Models, grade, attempts, stats, validation, Canvas/CanvasGeometry (M3 coordinate contract). |
+| ios/Sources/Data/ | GRDB setup, Migrations 001 and 002, repositories, records and mappers. |
+| ios/Sources/Features/ | Logbook stores, Photos (MediaStorage, PhotoIngest, MediaSweep, PhotoStore), Tagging (TaggingStore), Backup, Flags. |
+| ios/App/ | App entry, composition root, navigation, screens, theme, UI/Canvas and UI/Camera representables, Info.plist. |
+| ios/Tests/ | swift-testing suites plus golden fixtures (data_native_v1 pinned, data_native_golden_v2 current). |
+| ios/CyberSendAppTests, ios/CyberSendUITests | Composition root smoke and XCUITest smoke (quick-log, history, settings/restore, tagging, fall hold). |
 | src/, app/ | Frozen TypeScript port spec. Never built into the app. |
 | tools/eval, tools/train | ML tooling, unchanged. |
-| assets/models/ | holds_detector.onnx (canonical), holds_detector.mlmodel (deployment copy), manifest.json. |
 | docs/ | architecture, decisions, schema.sql, requirements, tests, research, reviews. |
 
 ## Data Layer
 
-- Driver: GRDB 7 over the system SQLite. Device database: DatabasePool at Application Support/CyberSend/db/cybersend.sqlite.
-- Storage root: Application Support/CyberSend/ with db/, photos/ (plus thumbs/), videos/, backups/, exports/. All stored uris are relative to this root. Backups leave the device through the share sheet only.
-- Migrations: GRDB DatabaseMigrator runs named forward migrations (001_initial and so on), one transaction per migration, tracked in grdb_migrations plus a schema_migrations audit row per migration (US-7). No down migrations; restore is the rollback path.
-- Pragmas at open: foreign_keys ON, journal_mode WAL, busy_timeout 5000.
-- Entities: gyms, walls, boards, board_problems (dormant), climbs, holds, photos, videos, pose_keypoints, sessions, attempts, grade_norm_params, settings. DDL unchanged in docs/schema.sql. M2 adds no tables and no export tables (byte compatibility with the frozen spec).
-- Grade storage: (grade_system_id, grade_level_id) references to grade_systems and grade_levels (US-9), built-ins seeded rows.
-- Transactions: withTransaction helper on the writer; multi table writes (log attempt, import, restore, media sweep) are single transactions.
+- Driver: GRDB 7 over system SQLite. Device database: DatabasePool at Application Support/CyberSend/db/cybersend.sqlite. Pragmas: foreign_keys ON, WAL, busy_timeout 5000.
+- Storage root: Application Support/CyberSend/ with db/, photos/ (working/, thumbs/, originals/), videos/, backups/, exports/. Stored uris are relative to this root. Backups leave the device only through the share sheet.
+- Migrations: forward only, one transaction each, schema_migrations audit row plus PRAGMA user_version per migration (US-7). No down migrations; restore is the rollback path.
+- Migration 002 (M3): creates climb_holds (climb_id, hold_id, sequence, PK both, FK CASCADE both, index on hold_id) backfilled from holds.climb_id (sequence = ordinal), and adds photos.original_uri TEXT. holds.climb_id stays as the origin climb (photo and lifecycle association); membership and beta order live in climb_holds (US-20).
+- Photo files: uri = 2048 px pixels-up JPEG working copy (the coordinate source image), thumb_uri = 256 px thumb, original_uri = preserved original when retention is keep originals. photos.width/height describe the working copy.
+- Entities: unchanged set from docs/schema.sql plus climb_holds. Videos untouched in M3.
+- Transactions: multi table writes (log attempt, tagging save, import, restore, media sweep) are single transactions.
 
-## App Layer (M2)
+## App Layer (M3)
 
-- Composition root: AppBootstrap opens the database and runs migrations at launch. Success builds AppEnvironment (document root, writer, Repositories, flag values, stores) and the three tab NavigationStacks. MigrationError.databaseNewerThanApp shows a guidance-only screen (no writes, US-7). Any other migration failure shows a screen with retry and restore-from-backup (the rollback left the prior schema intact).
-- State: per-feature ObservableObject stores with @Published state, synchronous repository calls on the main actor, refresh on appear and after each write. No third-party dependencies. iOS 16 floor rules out @Observable.
-- Navigation: TabView (Logbook, Sessions, Settings), each a NavigationStack with a typed route enum. Sheets: fall-hold picker, close-session (RPE), confirmations (delete attempt, delete session, restore). Restore is gated behind a destructive confirmation dialog (US-15.3, M2 review obligation).
-- Quick-log: the open session screen is the quick-log surface (port spec app/session/[id].tsx). Choose climb, tap outcome (the tap saves), project and fail prompt for the fall hold with a skip. Budget: at most 4 taps and 5 s per attempt; one open session rule enforced by SessionRepository.create and surfaced on the Logbook screen.
-- Settings: default gym, default grade scheme, appearance (system, light, dark, persisted), photo retention preference (keep originals default, enforced from M3), video retention label, feature flag toggles on non-release builds, export and backup entry points wired to Features/Backup.
-- Backup hooks: session close and scenePhase background trigger the M1 BackupService entry points (hourly throttle, keep 10).
-- Dark mode: theme colors for both appearances from day one, appearance override via preferredColorScheme, persisted in settings.
+- Photo stack: PhotosUI PhotosPicker for library import (out of process, no photo library permission), UIImagePickerController camera behind a CameraCapturing seam, Debug only synthetic capture feeding the identical ingest pipeline for XCUITest. Info.plist gains NSCameraUsageDescription only. Camera denial degrades to a settings deep link; the library path needs no permission (US-17).
+- Ingest: ImageIO thumbnail decode (CGImageSourceCreateThumbnailAtIndex with orientation transform) bakes EXIF into pixels; working copy at 2048 px long edge, thumb at 256 px, JPEG. Retention (settingsKeyPhotoRetention) is enforced at tagging save: discard originals deletes the stored original and leaves original_uri nil.
+- Canvas: TaggingCanvasView (UIViewRepresentable) with UIScrollView zoom/pan, UIImageView photo, CAShapeLayer holds overlay. Gestures: scroll pan, pinch, single tap (place or select), double tap (reset zoom), hold drag (delegate arbiter). Roles render by shape and color plus letter (colorblind safe); a VoiceOver holds list provides full editing. Bounded undo stack in TaggingStore.
+- Coordinates: normalized 0..1 over the pixels-up working copy; radius_norm over width; pixels only in UI. Pure helpers in Domain/Canvas/CanvasGeometry.swift (fitContentBox, normToScreen, screenToNorm, hitTest) with golden vector tests. Letterbox math is M5 only (tools/eval letterboxToSourceBox, then divide by source width and height).
+- Navigation: LogbookRoute gains the tagging screen; ClimbEditor gains photo and holds sections (add, replace, delete photo with confirmation; link and unlink holds across climbs). FallHoldSheet lists real holds and can show the climb photo canvas; hold row tap or Skip stays one tap, so the quick-log budget of 4 taps survives.
+- Launch: MediaSweep removes photo rows whose working copy is missing and files with no row, async after first frame so the 2.5 s cold start budget is untouched.
 
 ## Migration Plan (M0 to M6)
 
 | Milestone | Scope | US mapping | Status |
 |-----------|-------|-----------|--------|
-| M0 | Decision lock, TypeScript tree frozen, GRDB migrations, test harness. | US-6, US-7 (setup) | Complete |
-| M1 | Domain, data, backup port. Byte-compatible .cybersend archives. | US-7, US-13 to US-16 | Complete (158 tests green) |
-| M2 | App target plus SwiftUI logbook: gyms, grades, climbs, sessions, attempts, quick-log, history, settings, restore confirmation. | US-8 to US-12, US-22, US-24 to US-26 | In progress (plan of record) |
-| M3 | Photo capture and tagging MVP. Phase 2 gate unchanged. | US-17 to US-26 | Not started |
-| M4 | Grade normalization port: rasch_lite, translator, data-sufficiency gate. | US-27 to US-30 | Not started |
+| M0 | Decision lock, TypeScript frozen, migrations, test harness. | US-6, US-7 (setup) | Complete |
+| M1 | Domain, data, backup port. Byte compatible .cybersend. | US-7, US-13 to US-16 | Complete (158 tests) |
+| M2 | SwiftUI logbook: gyms, grades, climbs, sessions, attempts, quick-log, history, settings, restore gate. | US-8 to US-12, US-22, US-24 to US-26 | Complete (190 package tests) |
+| M3 | Photo capture and hold tagging MVP. Phase 2 gate unchanged. | US-17 to US-26 (US-23 open question) | In progress (plan of record) |
+| M4 | Grade normalization port: rasch_lite, translator, data-sufficiency gate, US-26.1 grade history. | US-27 to US-30 | Not started |
 | M5 | Hold detection: coremltools pipeline, parity gate, eval gates. | US-31 to US-35 | Not started |
 | M6 | BoulderVision video analysis behind the experimental flag. | US-36 to US-40 | Not started |
 
-All US numbers and numeric budgets from docs/requirements.md carry over unchanged. Gate for M2: quick-log at most 4 taps and at most 5 s, cold start at most 2.5 s (measured in dogfood).
+Gates: M2 quick-log at most 4 taps and at most 5 s, cold start at most 2.5 s (dogfood). M3 Phase 2 gate: canvas at least 55 fps at 100 holds on 2048 px, tap placement error at most 3 px at 1x, three dogfooded gym sessions with zero data loss, airplane mode and proxy verified zero network, 2048 px policy, dark mode.
 
 ## ML Pipeline
 
-Unchanged from the migration decision: ONNX canonical, .mlmodel deployment copy behind a parity gate (box delta <= 1 px, logit delta recorded), VNCoreMLRequest with .cpuAndNeuralEngine plus the Xcode Core ML performance report, NMS in Swift, YOLOX-Nano bias via the ML-D1 comparison, pose via the Phase 0 spike (Vision versus TFLite/MoveNet). Capability gate and eval harness (tools/eval) unchanged; see docs/requirements.md section 6 for budgets.
-
-## Canvas and Coordinates
-
-Unchanged: domain coordinates normalized 0..1 (x_norm, y_norm, radius_norm over image width); pixels only in the UI layer; UIKit gestures on the SwiftUI canvas (M3); preprocess golden vectors shared with tools/eval.
+Unchanged: ONNX canonical, .mlmodel deployment copy behind a parity gate, VNCoreMLRequest with .cpuAndNeuralEngine, NMS in Swift, pose via the Phase 0 spike. Capability gate and eval harness unchanged. M3 prepares the coordinate contract the detector output will map through (letterboxToSourceBox then normalized).
 
 ## Feature Flags
 
-Build configurations Development, Internal, Release with xcconfig compile-time defaults merged with settings overrides (settingsKeyFlagOverrides) in Features/Flags. BoulderVision is hard gated in release; ai_hold_detection and ai_pose_analysis ship off and toggle on via the flags screen on non-release builds.
+Development, Internal, Release xcconfig defaults merged with settings overrides (settingsKeyFlagOverrides). BoulderVision hard gated in release; ai_hold_detection and ai_pose_analysis ship off. M3 adds no flags; the Debug only synthetic capture and seeding paths are compiled by DEVELOPMENT and unreachable in Internal and Release.
 
 ## Backup and Export
 
-Unchanged format: .cybersend zip (manifest.json, data.json, media/), byte compatible with the frozen TypeScript spec, CSV export (RFC 4180), staging import with rehearsal, foreign key check, pre-import snapshot, media reconcile with sha256. Rotation keeps the last 10. M2 housekeeping: foreign_key_check lives in DumpRepository, atomic file writes, export-side safe-relative-path guard, zip entry and size caps, tolerant throttle timestamp parsing.
+Format unchanged (.cybersend zip: manifest.json, data.json, media/), but the payload is schema_version 2 from M3: the tables list gains climb_holds and photos gains original_uri. Import accepts legacy TS shape, native v1, and v2; a registered PayloadMigration from 1 synthesizes climb_holds from holds.climb_id and leaves original_uri nil, so every older export and fixture imports losslessly. v1 payloads stay byte identical (data_native_v1.json is pinned as an import fixture); v2 export bytes are pinned by data_native_golden_v2.json, cross-checked against Node JSON.stringify formatting. Media in backups covers working copy, thumb, and retained original. Rotation keeps 10.
 
 ## Test Strategy
 
-- swift-testing for package code (Domain, Data, Features including stores). DataTests and store tests run on in-memory GRDB via makeTestRepositories.
-- Import and export round-trip tests use golden .cybersend fixtures shared with the frozen TypeScript spec (M1, unchanged).
-- XCUITest is the e2e tool (decided at M2; Maestro does not carry over). Smoke set only: quick-log with tap accounting, session history, settings with restore confirmation. Deterministic via Debug-only launch-argument seeding.
-- App-level XCTest smoke covers the composition root and launch states.
-- ML regression stays in tools/eval (unchanged).
+- swift-testing for package code; in-memory GRDB via makeTestRepositories; synthetic CGImages for ingest tests (EXIF orientations 1, 3, 6, 8; 8000x6000 memory path).
+- Golden fixtures: v1 export bytes pinned as import fixture, v2 export bytes pinned current; legacy translation tests unchanged.
+- XCUITest smoke set grows to five: quick-log tap accounting (including a hold row as the 4th tap), session history, settings and restore, synthetic capture plus tagging three holds with roles, fall-on-hold from real holds. System pickers (camera, PhotosPicker) are never driven by tests; Debug seams feed the identical pipeline.
+- Canvas performance: DEVELOPMENT FPS HUD (CADisplayLink) plus a seeded 100 hold fixture; measure in dogfood on device, simulator is a documented proxy. Tap placement accuracy is proven by round-trip unit tests plus a deterministic XCUITest coordinate check.
+- ML regression stays in tools/eval.
 
 ## Risks and Mitigations
 
-- iOS 16 floor versus newer SwiftUI APIs. Mitigation: deployment target 16.0 makes iOS 17 plus API use a compile error; store tests cover logic on macOS; dogfood on device for runtime behavior.
-- Swift 6 strict concurrency with GRDB in views. Mitigation: stores are @MainActor with synchronous repository calls (measured fast at personal scale); only Sendable values (Repositories, URLs, Data) cross into detached tasks for backups.
-- Hand-authored project.pbxproj drift. Mitigation: minimal objectVersion 77 file with synchronized groups, validated by xcodebuild -list and plutil -lint on every change.
-- Self-referencing local package (project inside the package directory). Mitigation: if Xcode refuses, relocate the package to ios/CyberSendCore and update commands and docs (recorded in decisions.md).
-- Cold start budget (2.5 s). Mitigation: migration runs once at launch and is small; measure in dogfood; move bootstrap off the main actor if needed.
-- XCUITest flakiness. Mitigation: three smoke tests maximum, launch-argument seeding, accessibility identifiers instead of layout queries.
+- 48 MP camera original re-encode is the largest memory spike (about 250 MB peak). Mitigation: retention aware (discard originals never decodes full resolution), off main actor, autoreleasepool, one ingest at a time, graceful failure on memory pressure.
+- EXIF rotation corrupting coordinates. Mitigation: orientation baked into pixels at ingest; only the pixels-up working copy defines the coordinate space; synthetic orientation tests.
+- Gesture conflicts on the canvas. Mitigation: delegate arbitration with shouldBegin hit tests and require(toFail:) for single versus double tap; XCUITest and dogfood coverage.
+- Export compatibility break at payload v2. Mitigation: additive tables only, PayloadMigration 1 to 2, v1 fixtures pinned forever, frozen TS tree untouched.
+- Simulator has no camera. Mitigation: PhotosPicker plus synthetic capture share the ingest pipeline; camera verified in dogfood only; documented in docs/tests.md.
+- Canvas fps misses budget on iPhone 11. Mitigation: CAShapeLayer and UIImageView redraw discipline, FPS HUD with 100 hold seed, simplify selection handles at high zoom if needed.
+- Quick-log budget regression from the richer fall hold sheet. Mitigation: single tap row save preserved; tap-accounting UI test fails at a fifth tap.

@@ -27,3 +27,6 @@ ios/.swiftpm/
 
 # OS
 .DS_Store
+
+# ML training outputs (checkpoints, ONNX, run logs, metrics; see tools/train/README.md)
+tools/train/artifacts/
