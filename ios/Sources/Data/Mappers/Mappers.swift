@@ -127,7 +127,8 @@ func rowToAttempt(_ row: Row) throws -> Attempt {
         fallOnHoldId: row["fall_on_hold_id"],
         videoId: row["video_id"],
         notes: row["notes"],
-        attemptedAt: row["attempted_at"]
+        attemptedAt: row["attempted_at"],
+        rpe: row["rpe"]
     )
 }
 

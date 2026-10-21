@@ -68,7 +68,7 @@ struct SessionDetailStoreTests {
         let fixture = try makeSessionFixture()
         let store = SessionDetailStore(repos: fixture.test.repos, sessionId: fixture.session.id)
         store.selectClimb(fixture.climb)
-        _ = try store.logAttempt(outcome: .project)
+        _ = try store.logAttempt(outcome: .fail)
 
         let error = #expect(throws: DomainValidationError.self) {
             try store.logAttempt(outcome: .flash)
@@ -128,13 +128,13 @@ struct SessionDetailStoreTests {
         let hold = try seedHold(fixture.test.repos, climbId: fixture.climb.id)
         let store = SessionDetailStore(repos: fixture.test.repos, sessionId: fixture.session.id)
         store.selectClimb(fixture.climb)
-        _ = try store.logAttempt(outcome: .project)
+        _ = try store.logAttempt(outcome: .fail)
         let attemptId = store.groups[0].attempts[0].id
 
         // .set replaces one field (TypeScript defined); the rest stay unchanged.
         let withNotes = try store.updateAttempt(id: attemptId, notes: .set("second go"))
         #expect(withNotes.notes == "second go")
-        #expect(withNotes.outcome == .project)
+        #expect(withNotes.outcome == .fail)
 
         // Outcome and fall hold set together, validated against the climb's holds.
         let failed = try store.updateAttempt(
@@ -146,8 +146,8 @@ struct SessionDetailStoreTests {
         #expect(failed.fallOnHoldId == hold.id)
 
         // .unchanged keeps the stored fall hold (TypeScript undefined).
-        let kept = try store.updateAttempt(id: attemptId, outcome: .set(.project))
-        #expect(kept.outcome == .project)
+        let kept = try store.updateAttempt(id: attemptId, outcome: .set(.fail))
+        #expect(kept.outcome == .fail)
         #expect(kept.fallOnHoldId == hold.id)
 
         // .set(nil) clears both fields (TypeScript null) and refresh reflects it.
@@ -167,7 +167,7 @@ struct SessionDetailStoreTests {
         let fixture = try makeSessionFixture()
         let store = SessionDetailStore(repos: fixture.test.repos, sessionId: fixture.session.id)
         store.selectClimb(fixture.climb)
-        _ = try store.logAttempt(outcome: .project)
+        _ = try store.logAttempt(outcome: .fail)
         let attemptId = store.groups[0].attempts[0].id
 
         try store.deleteAttempt(id: attemptId)

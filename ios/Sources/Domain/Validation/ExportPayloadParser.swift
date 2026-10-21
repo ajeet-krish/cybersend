@@ -124,7 +124,19 @@ public func parseExportPayload(_ json: String) throws -> ParsedImportPayload {
     let nativeNames = Set(ExportTable.allCases.map(\.rawValue))
     let providedNames = Set(tables.keys)
     if providedNames == nativeNames {
-        let parsed = try parseTables(tables, lookup: { ExportTable(rawValue: $0)?.spec })
+        // Native version 3 is the current column shape. A version 2 file carries the same
+        // tables but predates attempts.rpe, so it is retried against the version 2 attempt
+        // spec and the registered payload migration from 2 then stamps rpe null and
+        // rewrites retired project outcomes to fail. Trying the current shape first (rather
+        // than switching on schema_version) also tolerates a version 3 column set that was
+        // stamped with an older version number, which the migration chain treats as
+        // idempotent rather than rejecting as a bad column.
+        let parsed: [ExportTable: [ExportRow]]
+        do {
+            parsed = try parseTables(tables, lookup: { ExportTable(rawValue: $0)?.spec })
+        } catch {
+            parsed = try parseTables(tables, lookup: nativeV2TableSpec(for:))
+        }
         var nativeWarnings: [String] = []
         let guarded = renamingCollisionsInNativeGradeTables(parsed, warnings: &nativeWarnings)
         return ParsedImportPayload(
@@ -331,6 +343,36 @@ public func migrateV1PayloadToV2(_ payload: ParsedImportPayload) -> ParsedImport
                 "created_at": hold["created_at"] ?? .null,
             ]
         }
+    }
+    return ParsedImportPayload(
+        schemaVersion: payload.schemaVersion,
+        exportedAt: payload.exportedAt,
+        legacyShape: payload.legacyShape,
+        tables: tables,
+        warnings: payload.warnings
+    )
+}
+
+// MARK: - Payload migration from 2 to 3
+
+/// Version 2 to 3 of the payload (M4 UI overhaul): stamps attempts.rpe null because
+/// version 2 never stored per attempt effort, and rewrites the retired project outcome to
+/// fail. Rewriting here rather than at insert time is what keeps every import path honest:
+/// the version 3 table spec and the database CHECK both accept only flash, send, and fail,
+/// so a version 2 file carrying project attempts must be translated before validation.
+/// Idempotent by construction: rows that already carry rpe or a version 3 outcome pass
+/// through unchanged.
+public func migrateV2PayloadToV3(_ payload: ParsedImportPayload) -> ParsedImportPayload {
+    var tables = payload.tables
+    tables[.attempts] = (tables[.attempts] ?? []).map { row in
+        var copy = row
+        if copy["rpe"] == nil {
+            copy["rpe"] = .null
+        }
+        if case .text(let outcome) = copy["outcome"], outcome == "project" {
+            copy["outcome"] = .text("fail")
+        }
+        return copy
     }
     return ParsedImportPayload(
         schemaVersion: payload.schemaVersion,

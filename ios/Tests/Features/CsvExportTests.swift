@@ -58,8 +58,8 @@ struct CsvExportTests {
         )
         let csv = attemptsToCsv([attempt])
         let lines = csv.components(separatedBy: "\r\n")
-        #expect(lines[0] == "id,session_id,climb_id,attempt_no,outcome,fell_on_hold_id,notes,created_at")
-        #expect(lines[1] == "attempt-1,session-1,climb-1,2,flash,hold-9,,2026-01-01T10:00:00.000Z")
+        #expect(lines[0] == "id,session_id,climb_id,attempt_no,outcome,fell_on_hold_id,notes,created_at,rpe")
+        #expect(lines[1] == "attempt-1,session-1,climb-1,2,flash,hold-9,,2026-01-01T10:00:00.000Z,")
     }
 
     @Test("climbs CSV renders flags as 1 and 0 and the scheme id as grade_system")

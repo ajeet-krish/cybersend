@@ -1,15 +1,16 @@
 import Foundation
 
-/// Attempt outcome enum (port of src/domain/models/attempt.ts). Outcome is a single enum
-/// column, never a status flag (requirements section 2).
+/// Attempt outcome enum (port of src/domain/models/attempt.ts, deviating by product
+/// decision: docs/decisions.md "2026-10-21, M4: attempt RPE and the retirement of the
+/// project outcome"). Project was removed, so the only non send outcome is fail.
+/// Outcome is a single enum column, never a status flag (requirements section 2).
 public enum AttemptOutcome: String, Codable, CaseIterable, Sendable {
     case flash
     case send
-    case project
     case fail
 }
 
-public let attemptOutcomes: [AttemptOutcome] = [.flash, .send, .project, .fail]
+public let attemptOutcomes: [AttemptOutcome] = [.flash, .send, .fail]
 
 public func isAttemptOutcome(_ value: String) -> Bool {
     AttemptOutcome(rawValue: value) != nil
@@ -17,7 +18,9 @@ public func isAttemptOutcome(_ value: String) -> Bool {
 
 /// Attempt entity. attemptedAt is the moment the attempt happened (requirements section 2;
 /// the old schema.sql stored it in created_at). fallOnHoldId is the requirements name for the
-/// old fellOnHoldId column (schema reconciliation, 2026-10-19).
+/// old fellOnHoldId column (schema reconciliation, 2026-10-19). rpe is the per climb effort
+/// rating (1 to 10), nullable so older attempts stay valid; it complements the session RPE
+/// set at close time rather than replacing it.
 public struct Attempt: Codable, Equatable, Sendable, Identifiable {
     public let id: String
     public let sessionId: String
@@ -28,6 +31,7 @@ public struct Attempt: Codable, Equatable, Sendable, Identifiable {
     public var videoId: String?
     public var notes: String?
     public var attemptedAt: String
+    public var rpe: Int?
 
     public init(
         id: String,
@@ -38,7 +42,8 @@ public struct Attempt: Codable, Equatable, Sendable, Identifiable {
         fallOnHoldId: String? = nil,
         videoId: String? = nil,
         notes: String? = nil,
-        attemptedAt: String
+        attemptedAt: String,
+        rpe: Int? = nil
     ) {
         self.id = id
         self.sessionId = sessionId
@@ -49,5 +54,6 @@ public struct Attempt: Codable, Equatable, Sendable, Identifiable {
         self.videoId = videoId
         self.notes = notes
         self.attemptedAt = attemptedAt
+        self.rpe = rpe
     }
 }

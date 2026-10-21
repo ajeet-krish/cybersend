@@ -277,7 +277,7 @@ struct BackupServiceTests {
                 "session_id": .text("session-\(index / 5)"),
                 "climb_id": .text("climb-\(index % 50)"),
                 "attempt_no": .integer(1),
-                "outcome": .text("project"),
+                "outcome": .text("fail"),
                 "attempted_at": .text(fixtureSeedTime),
             ]))
         }

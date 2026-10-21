@@ -49,11 +49,11 @@ struct StatsStoreTests {
         )
         let session = try test.repos.sessions.create(CreateSessionInput(gymId: gym.id))
 
-        // V3: flash, send, project. V4: two fails.
+        // V3: flash, send, fail. V4: two fails.
         for (climbId, outcome) in [
             (v3.id, AttemptOutcome.flash),
             (v3.id, AttemptOutcome.send),
-            (v3.id, AttemptOutcome.project),
+            (v3.id, AttemptOutcome.fail),
             (v4.id, AttemptOutcome.fail),
             (v4.id, AttemptOutcome.fail),
         ] {
@@ -68,8 +68,7 @@ struct StatsStoreTests {
         #expect(store.summary.flashes == 1)
         #expect(store.summary.sends == 1)
         #expect(store.summary.totalSends == 2)
-        #expect(store.summary.projects == 1)
-        #expect(store.summary.fails == 2)
+        #expect(store.summary.fails == 3)
         #expect(abs(store.summary.flashRate - 1.0 / 5.0) < 1e-9)
         #expect(abs(store.summary.sendRate - 2.0 / 5.0) < 1e-9)
 
@@ -77,7 +76,7 @@ struct StatsStoreTests {
         #expect(v3Row.attempts == 3)
         #expect(v3Row.flashes == 1)
         #expect(v3Row.sends == 1)
-        #expect(v3Row.projects == 1)
+        #expect(v3Row.fails == 1)
         #expect(v3Row.totalSends == 2)
         #expect(abs(v3Row.flashRate - 1.0 / 3.0) < 1e-9)
         #expect(abs(v3Row.sendRate - 2.0 / 3.0) < 1e-9)
@@ -151,10 +150,10 @@ struct StatsStoreTests {
         // Two falls on the start hold, one on intermediate, one on top, one on a hold
         // without a role, and one fail that skipped the hold picker.
         for (holdId, outcome) in [
-            (start.id, AttemptOutcome.project),
+            (start.id, AttemptOutcome.fail),
             (start.id, AttemptOutcome.fail),
             (intermediate.id, AttemptOutcome.fail),
-            (top.id, AttemptOutcome.project),
+            (top.id, AttemptOutcome.fail),
             (unassigned.id, AttemptOutcome.fail),
             (nil, AttemptOutcome.fail),
         ] {
@@ -291,7 +290,7 @@ struct StatsStoreTests {
         for (holdId, outcome) in [
             (start.id, AttemptOutcome.fail),
             (start.id, AttemptOutcome.fail),
-            (start.id, AttemptOutcome.project),
+            (start.id, AttemptOutcome.fail),
             (top.id, AttemptOutcome.fail),
         ] {
             _ = try test.repos.attempts.logAttempt(
@@ -465,9 +464,9 @@ struct StatsStoreTests {
                 var fallHold: String?
                 if climbIndex == 0 {
                     switch phase {
-                    case 0: outcome = "project"; fallHold = holdIds[(index / 4) % holdIds.count]
+                    case 0: outcome = "fail"; fallHold = holdIds[(index / 4) % holdIds.count]
                     case 1: outcome = "fail"; fallHold = holdIds[(index / 4) % holdIds.count]
-                    case 2: outcome = "project"; fallHold = holdIds[(index / 4) % holdIds.count]
+                    case 2: outcome = "fail"; fallHold = holdIds[(index / 4) % holdIds.count]
                     default: outcome = "flash"
                     }
                 } else {
@@ -506,16 +505,14 @@ struct StatsStoreTests {
         let elapsed = best
 
         // Climb index 0 always lands on index % 40 == 0 with phase = (index/40) % 4, so
-        // its 250 attempts split 125 projects, 63 fails... concretely: 63 project, 63
-        // fail, 62 project, 62 flash across the four phases (all with fall holds except
-        // the flashes). The other 39 climbs alternate flash and send by phase parity:
-        // 125 flashes and 125 sends each. Totals: 4937 flashes, 4875 sends, 125
-        // projects, 63 fails.
+        // its 250 attempts split across the four phases as 63 fail, 63 fail, 62 fail,
+        // 62 flash (all with fall holds except the flashes). The other 39 climbs
+        // alternate flash and send by phase parity: 125 flashes and 125 sends each.
+        // Totals: 4937 flashes, 4875 sends, 188 fails.
         #expect(store.summary.attempts == 10_000)
         #expect(store.summary.flashes == 4_937)
         #expect(store.summary.sends == 4_875)
-        #expect(store.summary.projects == 125)
-        #expect(store.summary.fails == 63)
+        #expect(store.summary.fails == 188)
         #expect(store.gradeRows.contains { $0.levelId == "v3" && $0.attempts == 5_000 })
         #expect(store.weeklyVolume.map(\.attempts).reduce(0, +) == 10_000)
         #expect(store.heatmap?.markers.isEmpty == false, "the fall climb carries membership backed markers")

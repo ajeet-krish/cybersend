@@ -116,7 +116,7 @@ struct ClimbRepositoryTests {
         let (gymId, climbId) = try seedGymAndClimb(test.repos)
         let session = try test.repos.sessions.create(CreateSessionInput(gymId: gymId))
         _ = try test.repos.attempts.logAttempt(
-            LogAttemptInput(sessionId: session.id, climbId: climbId, outcome: .project)
+            LogAttemptInput(sessionId: session.id, climbId: climbId, outcome: .fail)
         )
 
         let error = #expect(throws: DomainValidationError.self) {

@@ -31,7 +31,7 @@ final class HistorySmokeTests: XCTestCase {
         app.buttons["history.row.1"].tap()
 
         // US-22.2: attempts grouped by climb with outcomes. Seeded order: Climb One first
-        // (send, project), Climb Two second (fail, send).
+        // (send, fail), Climb Two second (fail, send).
         XCTAssertTrue(app.staticTexts["session.group.0"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["session.group.0"].label.contains("Climb One"), "group 0 is Climb One with its grade")
         XCTAssertTrue(app.staticTexts["session.group.0"].label.contains("V3"), "the group title carries the grade label")
@@ -39,7 +39,7 @@ final class HistorySmokeTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["session.rpe"].label.contains("RPE 7"), "the detail header shows the session RPE")
 
         XCTAssertTrue(app.buttons["session.attempt.0.0.edit"].label.contains("Send"), "Climb One attempt 1 is a send")
-        XCTAssertTrue(app.buttons["session.attempt.0.1.edit"].label.contains("Project"), "Climb One attempt 2 is a project")
+        XCTAssertTrue(app.buttons["session.attempt.0.1.edit"].label.contains("Fail"), "Climb One attempt 2 is a fail")
         XCTAssertTrue(app.buttons["session.attempt.1.0.edit"].label.contains("Fail"), "Climb Two attempt 1 is a fail")
         XCTAssertTrue(app.buttons["session.attempt.1.1.edit"].label.contains("Send"), "Climb Two attempt 2 is a send")
 

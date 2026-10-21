@@ -59,7 +59,7 @@ enum UITestSeed {
             CreateClimbInput(gymId: gym.id, name: "Climb Two", gradeSystemId: defaultGradeSystemID, gradeLevelId: "v4")
         )
 
-        // Closed history session: Climb One send then project, Climb Two fail then send.
+        // Closed history session: Climb One send then fail, Climb Two fail then send.
         let closed = try repos.sessions.create(
             CreateSessionInput(gymId: gym.id, startedAt: "2026-10-19T10:00:00.000Z", notes: "Seeded session")
         )
@@ -67,7 +67,7 @@ enum UITestSeed {
             LogAttemptInput(sessionId: closed.id, climbId: climbOne.id, outcome: .send, attemptedAt: "2026-10-19T10:02:00.000Z")
         )
         _ = try repos.attempts.logAttempt(
-            LogAttemptInput(sessionId: closed.id, climbId: climbOne.id, outcome: .project, attemptedAt: "2026-10-19T10:05:00.000Z")
+            LogAttemptInput(sessionId: closed.id, climbId: climbOne.id, outcome: .fail, attemptedAt: "2026-10-19T10:05:00.000Z")
         )
         _ = try repos.attempts.logAttempt(
             LogAttemptInput(sessionId: closed.id, climbId: climbTwo.id, outcome: .fail, attemptedAt: "2026-10-19T10:08:00.000Z")
@@ -95,12 +95,12 @@ enum UITestSeed {
             CreateSessionInput(gymId: gym.id, startedAt: "2026-10-18T10:00:00.000Z", notes: "Seeded stats session")
         )
         let statsAttempts: [(climbId: String, outcome: AttemptOutcome, holdId: String?, at: String)] = [
-            (climbTwo.id, .project, "seed.hold.intermediate", "2026-10-18T10:03:00.000Z"),
+            (climbTwo.id, .fail, "seed.hold.intermediate", "2026-10-18T10:03:00.000Z"),
             (climbTwo.id, .fail, "seed.hold.start", "2026-10-18T10:07:00.000Z"),
             (climbTwo.id, .fail, "seed.hold.top", "2026-10-18T10:11:00.000Z"),
             (climbTwo.id, .send, nil, "2026-10-18T10:16:00.000Z"),
             (climbOne.id, .flash, nil, "2026-10-18T10:20:00.000Z"),
-            (climbOne.id, .project, nil, "2026-10-18T10:24:00.000Z"),
+            (climbOne.id, .fail, nil, "2026-10-18T10:24:00.000Z"),
         ]
         for attempt in statsAttempts {
             _ = try repos.attempts.logAttempt(LogAttemptInput(

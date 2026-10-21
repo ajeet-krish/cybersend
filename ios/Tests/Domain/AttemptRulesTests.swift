@@ -6,10 +6,10 @@ import Testing
 
 @Suite("Attempt rules")
 struct AttemptRulesTests {
-    @Test("accepts a project outcome with a fall hold on the climb")
-    func projectWithFallHoldIsAccepted() throws {
+    @Test("accepts a fail outcome with a fall hold on the climb")
+    func failWithFallHoldIsAccepted() throws {
         let validation = try validateAttempt(
-            input: AttemptInput(outcome: .project, fallOnHoldId: "hold-1"),
+            input: AttemptInput(outcome: .fail, fallOnHoldId: "hold-1"),
             context: AttemptRuleContext(attemptNo: 3, climbHoldIds: ["hold-1", "hold-2"])
         )
         #expect(validation.fallOnHoldId == "hold-1")
@@ -47,18 +47,18 @@ struct AttemptRulesTests {
         #expect(error?.code == "fall_hold_not_on_climb")
     }
 
-    @Test("a nil fall hold is valid for project and fail")
-    func nilFallHoldIsValidForProjectAndFail() throws {
-        let project = try validateAttempt(
-            input: AttemptInput(outcome: .project),
+    @Test("a nil fall hold is valid for a fail")
+    func nilFallHoldIsValidForFail() throws {
+        let fail = try validateAttempt(
+            input: AttemptInput(outcome: .fail),
             context: AttemptRuleContext(attemptNo: 2, climbHoldIds: ["hold-1"])
         )
-        #expect(project.fallOnHoldId == nil)
-        let fail = try validateAttempt(
+        #expect(fail.fallOnHoldId == nil)
+        let laterFail = try validateAttempt(
             input: AttemptInput(outcome: .fail),
             context: AttemptRuleContext(attemptNo: 4, climbHoldIds: ["hold-1"])
         )
-        #expect(fail.fallOnHoldId == nil)
+        #expect(laterFail.fallOnHoldId == nil)
     }
 
     @Test("flash and send record no fall hold and warn instead of dropping it silently")
@@ -91,7 +91,7 @@ struct AttemptRulesTests {
 
     @Test("outcome raw values match the schema CHECK constraint")
     func outcomeRawValues() {
-        #expect(AttemptOutcome.allCases.map(\.rawValue) == ["flash", "send", "project", "fail"])
+        #expect(AttemptOutcome.allCases.map(\.rawValue) == ["flash", "send", "fail"])
         #expect(isAttemptOutcome("flash"))
         #expect(!isAttemptOutcome("sent"))
     }

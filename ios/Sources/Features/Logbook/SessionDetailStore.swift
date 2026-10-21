@@ -96,7 +96,7 @@ public final class SessionDetailStore: ObservableObject {
     /// Domain rules run inside the repository transaction: flash only on attempt 1, the fall
     /// hold must belong to the climb.
     @discardableResult
-    public func logAttempt(outcome: AttemptOutcome, fallOnHoldId: String? = nil) throws -> [String] {
+    public func logAttempt(outcome: AttemptOutcome, fallOnHoldId: String? = nil, rpe: Int? = nil) throws -> [String] {
         guard let climbId = selectedClimbId else {
             throw DomainValidationError("no_climb_selected", "Pick a climb first.")
         }
@@ -105,7 +105,8 @@ public final class SessionDetailStore: ObservableObject {
                 sessionId: sessionId,
                 climbId: climbId,
                 outcome: outcome,
-                fallOnHoldId: fallOnHoldId
+                fallOnHoldId: fallOnHoldId,
+                rpe: rpe
             )
         )
         refresh()
@@ -136,11 +137,12 @@ public final class SessionDetailStore: ObservableObject {
         id: String,
         outcome: PatchValue<AttemptOutcome> = .unchanged,
         fallOnHoldId: PatchValue<String?> = .unchanged,
-        notes: PatchValue<String?> = .unchanged
+        notes: PatchValue<String?> = .unchanged,
+        rpe: PatchValue<Int?> = .unchanged
     ) throws -> Attempt {
         let updated = try repos.attempts.updateAttempt(
             id: id,
-            patch: UpdateAttemptPatch(outcome: outcome, fallOnHoldId: fallOnHoldId, notes: notes)
+            patch: UpdateAttemptPatch(outcome: outcome, fallOnHoldId: fallOnHoldId, notes: notes, rpe: rpe)
         )
         refresh()
         return updated

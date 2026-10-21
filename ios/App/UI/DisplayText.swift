@@ -6,7 +6,7 @@ import Foundation
 // them the same way and UI tests can assert on stable text.
 
 enum DisplayText {
-    /// "Flash", "Send", "Project", "Fail" for outcome buttons and attempt rows.
+    /// "Flash", "Send", "Fail" for outcome buttons and attempt rows.
     static func outcomeTitle(_ outcome: AttemptOutcome) -> String {
         outcome.rawValue.capitalized
     }

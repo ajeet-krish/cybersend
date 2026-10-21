@@ -34,25 +34,25 @@ final class StatsSmokeTests: XCTestCase {
         XCTAssertNil(store.lastErrorMessage, "the seeded dashboard aggregates without errors")
 
         // Summary over the two seeded closed sessions (history 4 attempts plus stats
-        // 6 attempts): 10 attempts, 3 sends plus 1 flash, 6 falls (US-23.1).
+        // 6 attempts): 10 attempts, 3 sends plus 1 flash, 6 fails (US-23.1). The project
+        // outcome retired in M4, so the seeded non send attempts are all fails.
         XCTAssertEqual(store.summary.attempts, 10)
         XCTAssertEqual(store.summary.totalSends, 4)
         XCTAssertEqual(store.summary.flashes, 1)
-        XCTAssertEqual(store.summary.projects, 3)
-        XCTAssertEqual(store.summary.fails, 3)
+        XCTAssertEqual(store.summary.fails, 6)
         XCTAssertEqual(store.summary.flashRate, 0.1, accuracy: 1e-9)
         XCTAssertEqual(store.summary.sendRate, 0.4, accuracy: 1e-9)
 
         // By grade rows exist for both seeded grades with guarded rates.
         let v3 = try XCTUnwrap(store.gradeRows.first { $0.levelId == "v3" })
-        XCTAssertEqual(v3.attempts, 4, "Climb One (V3): send, project, flash, project")
+        XCTAssertEqual(v3.attempts, 4, "Climb One (V3): send, fail, flash, fail")
         XCTAssertEqual(v3.totalSends, 2)
         let v4 = try XCTUnwrap(store.gradeRows.first { $0.levelId == "v4" })
-        XCTAssertEqual(v4.attempts, 6, "Climb Two (V4): fail, send, project, fail, fail, send")
+        XCTAssertEqual(v4.attempts, 6, "Climb Two (V4): fail, send, fail, fail, fail, send")
         XCTAssertEqual(v4.totalSends, 2)
 
         // Falls by role: 1 intermediate, 1 start, 1 top, 3 unassigned (the seeded
-        // project and fail attempts without a hold).
+        // fall attempts without a hold).
         let roleFalls = Dictionary(uniqueKeysWithValues: store.roleDistribution.map { ($0.bucket, $0.falls) })
         XCTAssertEqual(roleFalls[.start], 1)
         XCTAssertEqual(roleFalls[.intermediate], 1)

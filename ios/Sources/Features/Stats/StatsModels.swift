@@ -10,7 +10,6 @@ public struct StatsSummary: Equatable, Sendable {
     public let attempts: Int
     public let flashes: Int
     public let sends: Int
-    public let projects: Int
     public let fails: Int
     /// flashes + sends: every attempt that topped out, flash included.
     public let totalSends: Int
@@ -23,7 +22,6 @@ public struct StatsSummary: Equatable, Sendable {
         attempts: Int,
         flashes: Int,
         sends: Int,
-        projects: Int,
         fails: Int,
         flashRate: Double,
         sendRate: Double
@@ -31,7 +29,6 @@ public struct StatsSummary: Equatable, Sendable {
         self.attempts = attempts
         self.flashes = flashes
         self.sends = sends
-        self.projects = projects
         self.fails = fails
         self.totalSends = flashes + sends
         self.flashRate = flashRate
@@ -55,7 +52,6 @@ public struct GradeStatsRow: Equatable, Sendable, Identifiable {
     public let attempts: Int
     public let flashes: Int
     public let sends: Int
-    public let projects: Int
     public let fails: Int
     /// flashes / attempts; 0 when attempts is 0.
     public let flashRate: Double
@@ -69,7 +65,7 @@ public struct GradeStatsRow: Equatable, Sendable, Identifiable {
 }
 
 /// Fall distribution buckets by hold role (US-23.3). A fall is an attempt with outcome
-/// project or fail; unassigned covers skipped fall holds and holds without a role.
+/// fail; unassigned covers skipped fall holds and holds without a role.
 public enum FallRoleBucket: String, CaseIterable, Sendable {
     case start
     case intermediate
@@ -270,7 +266,7 @@ public struct ClimbFallSummary: Equatable, Sendable, Identifiable {
     public let climbName: String?
     public let gradeLabel: String?
     public let attempts: Int
-    /// Attempts with outcome project or fail.
+    /// Attempts with outcome fail.
     public let falls: Int
 
     public var id: String {

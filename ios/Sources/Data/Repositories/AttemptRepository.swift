@@ -16,6 +16,8 @@ public struct LogAttemptInput: Equatable, Sendable {
     public var videoId: String?
     /// nil means "now" (the attempt moment defaults to the current instant).
     public var attemptedAt: String?
+    /// Per climb effort rating 1 to 10, nil when the climber did not record one.
+    public var rpe: Int?
 
     public init(
         sessionId: String,
@@ -24,7 +26,8 @@ public struct LogAttemptInput: Equatable, Sendable {
         fallOnHoldId: String? = nil,
         notes: String? = nil,
         videoId: String? = nil,
-        attemptedAt: String? = nil
+        attemptedAt: String? = nil,
+        rpe: Int? = nil
     ) {
         self.sessionId = sessionId
         self.climbId = climbId
@@ -33,6 +36,7 @@ public struct LogAttemptInput: Equatable, Sendable {
         self.notes = notes
         self.videoId = videoId
         self.attemptedAt = attemptedAt
+        self.rpe = rpe
     }
 }
 
@@ -50,15 +54,18 @@ public struct UpdateAttemptPatch: Equatable, Sendable {
     public var outcome: PatchValue<AttemptOutcome>
     public var fallOnHoldId: PatchValue<String?>
     public var notes: PatchValue<String?>
+    public var rpe: PatchValue<Int?>
 
     public init(
         outcome: PatchValue<AttemptOutcome> = .unchanged,
         fallOnHoldId: PatchValue<String?> = .unchanged,
-        notes: PatchValue<String?> = .unchanged
+        notes: PatchValue<String?> = .unchanged,
+        rpe: PatchValue<Int?> = .unchanged
     ) {
         self.outcome = outcome
         self.fallOnHoldId = fallOnHoldId
         self.notes = notes
+        self.rpe = rpe
     }
 }
 
@@ -105,16 +112,19 @@ public struct GRDBAttemptRepository: AttemptRepository {
                     fallOnHoldId: validation.fallOnHoldId,
                     videoId: input.videoId,
                     notes: input.notes,
-                    attemptedAt: input.attemptedAt ?? nowISO8601()
+                    attemptedAt: input.attemptedAt ?? nowISO8601(),
+                    // Same 1 to 10 domain as the session RPE: rejected here so the UI
+                    // surfaces a validation message instead of a CHECK constraint error.
+                    rpe: try validateRPE(input.rpe)
                 )
                 try tx.execute(
                     sql: """
                     INSERT INTO attempts (id, session_id, climb_id, attempt_no, outcome, fall_on_hold_id,
-                        video_id, notes, attempted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        video_id, notes, attempted_at, rpe) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     arguments: [
                         attempt.id, attempt.sessionId, attempt.climbId, attempt.attemptNo, attempt.outcome.rawValue,
-                        attempt.fallOnHoldId, attempt.videoId, attempt.notes, attempt.attemptedAt,
+                        attempt.fallOnHoldId, attempt.videoId, attempt.notes, attempt.attemptedAt, attempt.rpe,
                     ]
                 )
                 return LogAttemptResult(attempt: attempt, warnings: validation.warnings)
@@ -129,14 +139,15 @@ public struct GRDBAttemptRepository: AttemptRepository {
                 let outcome = patch.outcome.resolve(or: existing.outcome)
                 let fallOnHoldId = patch.fallOnHoldId.resolve(or: existing.fallOnHoldId)
                 let notes = patch.notes.resolve(or: existing.notes)
+                let rpe = try validateRPE(patch.rpe.resolve(or: existing.rpe))
                 let climbHoldIds = try climbHoldIDs(tx: tx, climbId: existing.climbId)
                 let validation = try validateAttempt(
                     input: AttemptInput(outcome: outcome, fallOnHoldId: fallOnHoldId, notes: notes, videoId: existing.videoId),
                     context: AttemptRuleContext(attemptNo: existing.attemptNo, climbHoldIds: climbHoldIds)
                 )
                 try tx.execute(
-                    sql: "UPDATE attempts SET outcome = ?, fall_on_hold_id = ?, notes = ? WHERE id = ?",
-                    arguments: [outcome.rawValue, validation.fallOnHoldId, notes, id]
+                    sql: "UPDATE attempts SET outcome = ?, fall_on_hold_id = ?, notes = ?, rpe = ? WHERE id = ?",
+                    arguments: [outcome.rawValue, validation.fallOnHoldId, notes, rpe, id]
                 )
                 return Attempt(
                     id: existing.id,
@@ -147,7 +158,8 @@ public struct GRDBAttemptRepository: AttemptRepository {
                     fallOnHoldId: validation.fallOnHoldId,
                     videoId: existing.videoId,
                     notes: notes,
-                    attemptedAt: existing.attemptedAt
+                    attemptedAt: existing.attemptedAt,
+                    rpe: rpe
                 )
             }
         }

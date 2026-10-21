@@ -30,7 +30,7 @@ struct ClimbHoldRepositoryTests {
         let hold = try test.repos.holds.create(CreateHoldInput(climbId: climbA, xNorm: 0.4, yNorm: 0.4))
         let session = try test.repos.sessions.create(CreateSessionInput(gymId: gymId))
         let result = try test.repos.attempts.logAttempt(
-            LogAttemptInput(sessionId: session.id, climbId: climbA, outcome: .project, fallOnHoldId: hold.id)
+            LogAttemptInput(sessionId: session.id, climbId: climbA, outcome: .fail, fallOnHoldId: hold.id)
         )
         let attempt = result.attempt
 

@@ -15,7 +15,7 @@ import Foundation
 // ever tightens (reported to the orchestrator rather than modifying Sources/Data here).
 //
 // Design choices (documented per the task scope):
-//  * A fall is an attempt with outcome project or fail. The role distribution buckets
+//  * A fall is an attempt with outcome fail. The role distribution buckets
 //    every fall: a recorded fall hold maps to its role, and skipped fall holds or holds
 //    without a role land in unassigned.
 //  * The position third distribution only counts falls whose hold belongs to an origin
@@ -62,9 +62,9 @@ struct StatsSnapshot {
         /// day is handled by re-checking the cached interval (StatsSnapshot.buildStats).
         var dayKey: Int
 
-        /// Project and fail are the fall outcomes; flash and send top out the climb.
+        /// Fail is the only fall outcome; flash and send top out the climb.
         var isFall: Bool {
-            outcome == .project || outcome == .fail
+            outcome == .fail
         }
     }
 
@@ -249,7 +249,6 @@ struct StatsSnapshot {
         var attempts = 0
         var flashes = 0
         var sends = 0
-        var projects = 0
         var fails = 0
 
         mutating func add(_ outcome: AttemptOutcome) {
@@ -257,7 +256,6 @@ struct StatsSnapshot {
             switch outcome {
             case .flash: flashes += 1
             case .send: sends += 1
-            case .project: projects += 1
             case .fail: fails += 1
             }
         }
@@ -377,7 +375,6 @@ struct StatsSnapshot {
             attempts: totals.attempts,
             flashes: totals.flashes,
             sends: totals.sends,
-            projects: totals.projects,
             fails: totals.fails,
             flashRate: rate(totals.flashes, totals.attempts),
             sendRate: rate(totals.flashes + totals.sends, totals.attempts)
@@ -438,7 +435,6 @@ struct StatsSnapshot {
             attempts: counts.attempts,
             flashes: counts.flashes,
             sends: counts.sends,
-            projects: counts.projects,
             fails: counts.fails,
             flashRate: rate(counts.flashes, counts.attempts),
             sendRate: rate(counts.flashes + counts.sends, counts.attempts)
@@ -528,7 +524,7 @@ struct StatsSnapshot {
                 climbName: climb.name,
                 gradeLabel: gradeLabel(systemId: climb.systemId, levelId: climb.levelId),
                 attempts: counts.attempts,
-                falls: counts.projects + counts.fails
+                falls: counts.fails
             ))
         }
         rows.sort {
@@ -605,7 +601,7 @@ private extension ExportRow {
 @MainActor
 public final class StatsStore: ObservableObject {
     @Published public private(set) var summary = StatsSummary(
-        attempts: 0, flashes: 0, sends: 0, projects: 0, fails: 0, flashRate: 0, sendRate: 0
+        attempts: 0, flashes: 0, sends: 0, fails: 0, flashRate: 0, sendRate: 0
     )
     @Published public private(set) var gradeRows: [GradeStatsRow] = []
     @Published public private(set) var roleDistribution: [FallRoleStat] = []

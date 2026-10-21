@@ -29,9 +29,11 @@ public struct PayloadMigration: Sendable {
 /// The payload migrations this build registers. Version 1 to 2 (M3, US-20) synthesizes
 /// the climb_holds membership rows from each hold's origin climb and stamps
 /// photos.original_uri as null; legacy TypeScript payloads translate to version 1
-/// column shape during parsing and pass through the same step.
+/// column shape during parsing and pass through the same step. Version 2 to 3 (M4) stamps
+/// attempts.rpe null and rewrites the retired project outcome to fail.
 public let defaultPayloadMigrations: [PayloadMigration] = [
-    PayloadMigration(from: 1, migrate: migrateV1PayloadToV2)
+    PayloadMigration(from: 1, migrate: migrateV1PayloadToV2),
+    PayloadMigration(from: 2, migrate: migrateV2PayloadToV3),
 ]
 
 public struct ImportOptions: Sendable {

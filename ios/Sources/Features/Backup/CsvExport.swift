@@ -75,6 +75,9 @@ public let attemptCsvHeaders: [String] = [
     "fell_on_hold_id",
     "notes",
     "created_at",
+    // Version 3 addition (M4): per attempt RPE. Appended so the earlier columns keep
+    // their positions for anything that reads this file by index.
+    "rpe",
 ]
 
 public func attemptsToCsv(_ attempts: [Attempt]) -> String {
@@ -90,6 +93,7 @@ public func attemptsToCsv(_ attempts: [Attempt]) -> String {
                 attempt.fallOnHoldId,
                 attempt.notes,
                 attempt.attemptedAt,
+                attempt.rpe.map(String.init),
             ]
         }
     )

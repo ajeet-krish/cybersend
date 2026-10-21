@@ -286,7 +286,7 @@ struct StatsView: View {
                     EmptyState(
                         systemImage: "flame",
                         title: "No falls to map",
-                        message: "Log fails and projects with a fall hold on a tagged climb to build its heatmap."
+                        message: "Log fails with a fall hold on a tagged climb to build its heatmap."
                     )
                     .accessibilityIdentifier("stats.heatmap.empty")
                 } else {

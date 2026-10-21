@@ -156,7 +156,7 @@ struct ImportTests {
             "session_id": .text("session-1"),
             "climb_id": .text("climb-1"),
             "attempt_no": .integer(2),
-            "outcome": .text("bogus"),  // not in the flash/send/project/fail CHECK
+            "outcome": .text("bogus"),  // not in the flash/send/fail CHECK
             "attempted_at": .text(fixtureSeedTime),
         ])
         let payload = buildExportPayload(
@@ -460,14 +460,14 @@ struct ImportTests {
         #expect(try rowCount(test.writer, table: .climbHolds) == 1)
     }
 
-    @Test("the golden native v2 fixture imports without migration and round trips (M3 payload v2)")
+    @Test("the golden native v2 fixture imports through the 2 to 3 migration and round trips")
     func nativeV2FixtureImportsAndRoundTrips() throws {
         let test = try makeTestDatabase()
         let v2 = try fixtureString("data_native_golden_v2")
         let report = try importPayloadJSON(v2, on: test.writer)
 
         #expect(report.schemaVersion == currentSchemaVersion)
-        #expect(report.migratedFrom == nil, "a v2 file needs no payload migration")
+        #expect(report.migratedFrom == 2, "a v2 file upgrades through the 2 to 3 payload migration")
         #expect(report.warnings.isEmpty)
 
         let dump = try test.repos.dump.dumpAll()
@@ -480,10 +480,10 @@ struct ImportTests {
         let exported = try buildExportJSON(repos: test.repos, now: fixtureExportTime)
         let third = try makeTestDatabase()
         let secondReport = try importPayloadJSON(exported, on: third.writer)
-        #expect(secondReport.migratedFrom == nil)
+        #expect(secondReport.migratedFrom == nil, "our own export is already version 3")
         let thirdDump = try third.repos.dump.dumpAll()
         for table in ExportTable.allCases {
-            #expect(dump[table] == thirdDump[table], "table \(table.rawValue) must survive a v2 round trip")
+            #expect(dump[table] == thirdDump[table], "table \(table.rawValue) must survive a round trip")
         }
     }
 

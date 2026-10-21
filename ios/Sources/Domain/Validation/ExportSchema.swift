@@ -247,6 +247,9 @@ public enum ExportTable: String, CaseIterable, Sendable {
                 column("video_id", .text, nullable: true),
                 column("notes", .text, nullable: true),
                 column("attempted_at", .text),
+                // Version 3 addition (M4): per attempt RPE. Nullable, so a version 3
+                // file may carry attempts the climber never rated.
+                column("rpe", .integer, nullable: true),
             ])
         case .gradeNormParams:
             return ExportTableSpec(columns: [
@@ -442,6 +445,25 @@ public func nativeV1TableSpec(for name: String) -> ExportTableSpec? {
     if table == .photos {
         return ExportTableSpec(
             columns: table.spec.columns.filter { $0.name != "original_uri" },
+            conflictColumns: table.spec.conflictColumns
+        )
+    }
+    // Attempts also lost the version 3 rpe column in version 1, so the version 2 spec
+    // (which is the current spec minus rpe) is the right base here.
+    if table == .attempts {
+        return nativeV2TableSpec(for: name)
+    }
+    return table.spec
+}
+
+/// The version 2 spec for one native table: identical to the current spec except attempts,
+/// which predates the rpe column. Version 2 files were written by the M3 build and are the
+/// most likely backups in the field, so their shape is pinned here rather than inferred.
+public func nativeV2TableSpec(for name: String) -> ExportTableSpec? {
+    guard let table = ExportTable(rawValue: name) else { return nil }
+    if table == .attempts {
+        return ExportTableSpec(
+            columns: table.spec.columns.filter { $0.name != "rpe" },
             conflictColumns: table.spec.conflictColumns
         )
     }

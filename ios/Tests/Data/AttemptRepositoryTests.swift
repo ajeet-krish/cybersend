@@ -32,7 +32,7 @@ struct AttemptRepositoryTests {
         let fixture = try makeFixture(test)
 
         let first = try test.repos.attempts.logAttempt(
-            LogAttemptInput(sessionId: fixture.sessionId, climbId: fixture.climbId, outcome: .project)
+            LogAttemptInput(sessionId: fixture.sessionId, climbId: fixture.climbId, outcome: .fail)
         )
         #expect(first.attempt.attemptNo == 1)
         #expect(first.warnings.isEmpty)
@@ -45,7 +45,7 @@ struct AttemptRepositoryTests {
         // Another climb in the same session restarts at 1.
         let secondClimb = try test.repos.climbs.create(CreateClimbInput(gymId: fixture.gymId, name: "Other climb"))
         let otherClimbAttempt = try test.repos.attempts.logAttempt(
-            LogAttemptInput(sessionId: fixture.sessionId, climbId: secondClimb.id, outcome: .project)
+            LogAttemptInput(sessionId: fixture.sessionId, climbId: secondClimb.id, outcome: .fail)
         )
         #expect(otherClimbAttempt.attempt.attemptNo == 1)
     }
@@ -55,7 +55,7 @@ struct AttemptRepositoryTests {
         let test = try makeTestDatabase()
         let fixture = try makeFixture(test)
         _ = try test.repos.attempts.logAttempt(
-            LogAttemptInput(sessionId: fixture.sessionId, climbId: fixture.climbId, outcome: .project)
+            LogAttemptInput(sessionId: fixture.sessionId, climbId: fixture.climbId, outcome: .fail)
         )
 
         let error = #expect(throws: DomainValidationError.self) {
@@ -107,8 +107,8 @@ struct AttemptRepositoryTests {
         #expect(result.warnings == [warningOutcomeRecordsNoFallHold])
     }
 
-    @Test("project and fail keep the fall hold")
-    func projectKeepsFallHold() throws {
+    @Test("a fail keeps the fall hold")
+    func failKeepsFallHold() throws {
         let test = try makeTestDatabase()
         let fixture = try makeFixture(test)
 
@@ -116,7 +116,7 @@ struct AttemptRepositoryTests {
             LogAttemptInput(
                 sessionId: fixture.sessionId,
                 climbId: fixture.climbId,
-                outcome: .project,
+                outcome: .fail,
                 fallOnHoldId: fixture.holds[1]
             )
         )
@@ -196,7 +196,7 @@ struct AttemptRepositoryTests {
         let test = try makeTestDatabase()
         let fixture = try makeFixture(test)
         _ = try test.repos.attempts.logAttempt(
-            LogAttemptInput(sessionId: fixture.sessionId, climbId: fixture.climbId, outcome: .project, attemptedAt: "2026-10-19T10:00:00Z")
+            LogAttemptInput(sessionId: fixture.sessionId, climbId: fixture.climbId, outcome: .fail, attemptedAt: "2026-10-19T10:00:00Z")
         )
         _ = try test.repos.attempts.logAttempt(
             LogAttemptInput(sessionId: fixture.sessionId, climbId: fixture.climbId, outcome: .fail, attemptedAt: "2026-10-19T11:00:00Z")
@@ -218,10 +218,47 @@ struct AttemptRepositoryTests {
         let fixture = try makeFixture(test)
         let before = nowISO8601()
         let result = try test.repos.attempts.logAttempt(
-            LogAttemptInput(sessionId: fixture.sessionId, climbId: fixture.climbId, outcome: .project)
+            LogAttemptInput(sessionId: fixture.sessionId, climbId: fixture.climbId, outcome: .fail)
         )
         #expect(result.attempt.attemptedAt >= before)
         let stored = try test.repos.attempts.get(id: result.attempt.id)
         #expect(stored?.attemptedAt == result.attempt.attemptedAt)
+    }
+
+    @Test("rpe is stored per attempt, patched, cleared, and range checked")
+    func rpeRoundTripAndValidation() throws {
+        let test = try makeTestDatabase()
+        let fixture = try makeFixture(test)
+
+        let logged = try test.repos.attempts.logAttempt(
+            LogAttemptInput(
+                sessionId: fixture.sessionId,
+                climbId: fixture.climbId,
+                outcome: .fail,
+                rpe: 8
+            )
+        )
+        #expect(logged.attempt.rpe == 8)
+        #expect(try test.repos.attempts.get(id: logged.attempt.id)?.rpe == 8)
+
+        // Unchanged keeps the value, set replaces it, set(nil) clears it.
+        let kept = try test.repos.attempts.updateAttempt(id: logged.attempt.id, patch: UpdateAttemptPatch(notes: .set("crux")))
+        #expect(kept.rpe == 8)
+        let replaced = try test.repos.attempts.updateAttempt(id: logged.attempt.id, patch: UpdateAttemptPatch(rpe: .set(6)))
+        #expect(replaced.rpe == 6)
+        let cleared = try test.repos.attempts.updateAttempt(id: logged.attempt.id, patch: UpdateAttemptPatch(rpe: .set(nil)))
+        #expect(cleared.rpe == nil)
+
+        // Same 1 to 10 domain as the session RPE, on both write paths.
+        let logError = #expect(throws: DomainValidationError.self) {
+            try test.repos.attempts.logAttempt(
+                LogAttemptInput(sessionId: fixture.sessionId, climbId: fixture.climbId, outcome: .fail, rpe: 11)
+            )
+        }
+        #expect(logError?.code == "rpe_out_of_range")
+        let patchError = #expect(throws: DomainValidationError.self) {
+            try test.repos.attempts.updateAttempt(id: logged.attempt.id, patch: UpdateAttemptPatch(rpe: .set(0)))
+        }
+        #expect(patchError?.code == "rpe_out_of_range")
     }
 }

@@ -98,7 +98,7 @@ struct SessionRepositoryTests {
         _ = try test.repos.sessions.close(id: morning.id)
         let evening = try test.repos.sessions.create(CreateSessionInput(gymId: gymId, startedAt: "2026-10-19T18:00:00Z"))
 
-        _ = try test.repos.attempts.logAttempt(LogAttemptInput(sessionId: morning.id, climbId: climbId, outcome: .project))
+        _ = try test.repos.attempts.logAttempt(LogAttemptInput(sessionId: morning.id, climbId: climbId, outcome: .fail))
         _ = try test.repos.attempts.logAttempt(LogAttemptInput(sessionId: morning.id, climbId: climbId, outcome: .send))
         _ = try test.repos.attempts.logAttempt(LogAttemptInput(sessionId: evening.id, climbId: climbId, outcome: .fail))
 

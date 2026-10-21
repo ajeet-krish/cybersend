@@ -206,15 +206,10 @@ struct SessionDetailView: View {
 
         SectionTitle("Log attempt")
         Card {
-            VStack(spacing: 10) {
-                HStack(spacing: 10) {
-                    outcomeButton(.flash)
-                    outcomeButton(.send)
-                }
-                HStack(spacing: 10) {
-                    outcomeButton(.project)
-                    outcomeButton(.fail)
-                }
+            HStack(spacing: 10) {
+                outcomeButton(.flash)
+                outcomeButton(.send)
+                outcomeButton(.fail)
             }
         }
         .accessibilityElement(children: .contain)
@@ -423,7 +418,7 @@ struct SessionDetailView: View {
         switch outcome {
         case .flash, .send:
             logAttempt(outcome, fallOnHoldId: nil)
-        case .project, .fail:
+        case .fail:
             // The fall hold prompt: the climb's real holds from climb_holds (M3), with
             // the photo canvas when the climb has a photo; skip saves nil
             // (docs/decisions.md quick log decision).

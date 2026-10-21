@@ -18,7 +18,7 @@ struct Migration002Tests {
         #expect(!before.contains("climb_holds"))
 
         let result = try runPendingMigrations(on: db)
-        #expect(result.applied == [2])
+        #expect(result.applied == [2, 3])
 
         let tables = try db.read { try tableNames($0) }
         #expect(tables.contains("climb_holds"))
@@ -67,7 +67,7 @@ struct Migration002Tests {
         }
 
         let result = try runPendingMigrations(on: db)
-        #expect(result.applied == [2])
+        #expect(result.applied == [2, 3])
 
         let rows = try db.read { db in
             try Row.fetchAll(db, sql: "SELECT * FROM climb_holds ORDER BY hold_id")
@@ -103,7 +103,7 @@ struct Migration002Tests {
     @Test("the audit row and user_version land for version 2")
     func auditAndUserVersion() throws {
         let db = try DatabaseQueue()
-        _ = try runPendingMigrations(on: db)
+        _ = try runPendingMigrations(on: db, migrations: [initialMigration, climbHoldsMigration])
 
         let version = try db.read { try readSchemaVersion(on: $0) }
         #expect(version == 2)
