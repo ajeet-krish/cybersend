@@ -31,11 +31,13 @@ public struct PayloadMigration: Sendable {
 /// photos.original_uri as null; legacy TypeScript payloads translate to version 1
 /// column shape during parsing and pass through the same step. Version 2 to 3 (M4) stamps
 /// attempts.rpe null and rewrites the retired project outcome to fail. Version 3 to 4 (Problems
-/// catalog) stamps climbs.notes null.
+/// catalog) stamps climbs.notes null. Version 4 to 5 (UI overhaul) stamps climbs.categories
+/// null.
 public let defaultPayloadMigrations: [PayloadMigration] = [
     PayloadMigration(from: 1, migrate: migrateV1PayloadToV2),
     PayloadMigration(from: 2, migrate: migrateV2PayloadToV3),
     PayloadMigration(from: 3, migrate: migrateV3PayloadToV4),
+    PayloadMigration(from: 4, migrate: migrateV4PayloadToV5),
 ]
 
 public struct ImportOptions: Sendable {

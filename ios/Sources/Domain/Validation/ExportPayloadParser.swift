@@ -138,6 +138,7 @@ public func parseExportPayload(_ json: String) throws -> ParsedImportPayload {
         // version number because the migration chain is idempotent.
         let lookups: [(String) -> ExportTableSpec?] = [
             { ExportTable(rawValue: $0)?.spec },
+            nativeV4TableSpec(for:),
             nativeV3TableSpec(for:),
             nativeV2TableSpec(for:),
         ]
@@ -388,6 +389,29 @@ public func migrateV2PayloadToV3(_ payload: ParsedImportPayload) -> ParsedImport
         }
         if case .text(let outcome) = copy["outcome"], outcome == "project" {
             copy["outcome"] = .text("fail")
+        }
+        return copy
+    }
+    return ParsedImportPayload(
+        schemaVersion: payload.schemaVersion,
+        exportedAt: payload.exportedAt,
+        legacyShape: payload.legacyShape,
+        tables: tables,
+        warnings: payload.warnings
+    )
+}
+
+// MARK: - Payload migration from 4 to 5
+
+/// Version 4 to 5 of the payload (UI overhaul): stamps climbs.categories null because
+/// version 4 never stored category tags. Idempotent: rows that already carry categories pass
+/// through unchanged.
+public func migrateV4PayloadToV5(_ payload: ParsedImportPayload) -> ParsedImportPayload {
+    var tables = payload.tables
+    tables[.climbs] = (tables[.climbs] ?? []).map { row in
+        var copy = row
+        if copy["categories"] == nil {
+            copy["categories"] = .null
         }
         return copy
     }

@@ -508,6 +508,33 @@ struct ImportTests {
         #expect(dump[.photos][0]["original_uri"] == .text("originals/photo-1.jpg"))
     }
 
+    @Test("the golden native v4 fixture imports through the 4 to 5 migration with categories null")
+    func nativeV4FixtureImports() throws {
+        let test = try makeTestDatabase()
+
+        // The pinned v4 fixture predates climbs.categories. Importing it proves the version 4
+        // shape (notes present, categories absent) still parses and that the 4 to 5 migration
+        // only stamps the new column.
+        let v4 = try fixtureString("data_native_golden_v4")
+            .replacingOccurrences(of: "\"rpe\": null", with: "\"rpe\": 8", options: [], range: nil)
+        let report = try importPayloadJSON(v4, on: test.writer)
+
+        #expect(report.schemaVersion == currentSchemaVersion)
+        #expect(report.migratedFrom == 4, "a v4 file upgrades through the 4 to 5 payload migration")
+        #expect(report.warnings.isEmpty)
+
+        let dump = try test.repos.dump.dumpAll()
+        #expect(dump[.climbs].first?["categories"] == .null, "the 4 to 5 migration stamps categories null")
+        #expect(dump[.attempts].first?["rpe"] == .integer(8), "effort written by version 4 survives")
+
+        // Re-exporting upgrades the bytes: the backup this build writes carries the column.
+        let exported = try buildExportJSON(repos: test.repos, now: fixtureExportTime)
+        let object = try #require(JSONSerialization.jsonObject(with: Data(exported.utf8)) as? [String: Any])
+        #expect(object["schema_version"] as? Int == 5)
+        let climbs = try #require((object["tables"] as? [String: Any])?["climbs"] as? [[String: Any]])
+        #expect(climbs.first?.keys.contains("categories") == true)
+    }
+
     @Test("a v2 file claiming schema version 1 keeps its climb_holds rows (idempotent migration)")
     func hybridV2ShapeClaimingV1DoesNotDuplicate() throws {
         let test = try makeTestDatabase()

@@ -21,7 +21,12 @@ struct Migration004Tests {
     func emptyUpgrade() throws {
         let db = try version3Database()
 
-        let result = try runPendingMigrations(on: db)
+        // Scoped to versions 1 through 4 so this suite keeps testing migration 004 itself
+        // rather than every later migration the build ships.
+        let result = try runPendingMigrations(
+            on: db,
+            migrations: [initialMigration, climbHoldsMigration, attemptRpeMigration, climbNotesMigration]
+        )
         #expect(result.applied == [4])
 
         let columns = try db.read { db in

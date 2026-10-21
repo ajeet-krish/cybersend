@@ -163,6 +163,8 @@ public enum ExportTable: String, CaseIterable, Sendable {
                 column("angle_deg", .real, nullable: true),
                 // Version 4 addition (Problems catalog): free text problem details.
                 column("notes", .text, nullable: true),
+                // Version 5 addition (UI overhaul): descriptive category tags.
+                column("categories", .text, nullable: true),
                 column("is_active", .integer),
                 column("is_archived", .integer),
                 column("created_at", .text),
@@ -455,18 +457,31 @@ public func nativeV1TableSpec(for name: String) -> ExportTableSpec? {
     return nativeV2TableSpec(for: name)
 }
 
-/// The version 3 spec for one native table: identical to the current spec except climbs,
-/// which predates the notes column. Version 3 files were written before the Problems
-/// catalog added problem details.
-public func nativeV3TableSpec(for name: String) -> ExportTableSpec? {
+/// The version 4 spec for one native table: identical to the current spec except climbs,
+/// which predates the categories column. Version 4 files were written before the UI overhaul
+/// added climb categories.
+public func nativeV4TableSpec(for name: String) -> ExportTableSpec? {
     guard let table = ExportTable(rawValue: name) else { return nil }
     if table == .climbs {
         return ExportTableSpec(
-            columns: table.spec.columns.filter { $0.name != "notes" },
+            columns: table.spec.columns.filter { $0.name != "categories" },
             conflictColumns: table.spec.conflictColumns
         )
     }
     return table.spec
+}
+
+/// The version 3 spec for one native table: the version 4 spec minus climbs.notes, because
+/// version 3 files were written before the Problems catalog added problem details.
+public func nativeV3TableSpec(for name: String) -> ExportTableSpec? {
+    guard let table = ExportTable(rawValue: name) else { return nil }
+    if table == .climbs {
+        return ExportTableSpec(
+            columns: table.spec.columns.filter { $0.name != "notes" && $0.name != "categories" },
+            conflictColumns: table.spec.conflictColumns
+        )
+    }
+    return nativeV4TableSpec(for: name)
 }
 
 /// The version 2 spec for one native table: the version 3 spec minus attempts.rpe, because

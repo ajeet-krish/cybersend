@@ -17,6 +17,7 @@ public struct CreateClimbInput: Equatable, Sendable {
     public var colorCircuit: String?
     public var angleDeg: Double?
     public var notes: String?
+    public var categories: [ClimbCategory]
 
     public init(
         gymId: String,
@@ -26,7 +27,8 @@ public struct CreateClimbInput: Equatable, Sendable {
         gradeLevelId: String? = nil,
         colorCircuit: String? = nil,
         angleDeg: Double? = nil,
-        notes: String? = nil
+        notes: String? = nil,
+        categories: [ClimbCategory] = []
     ) {
         self.gymId = gymId
         self.wallId = wallId
@@ -36,10 +38,14 @@ public struct CreateClimbInput: Equatable, Sendable {
         self.colorCircuit = colorCircuit
         self.angleDeg = angleDeg
         self.notes = notes
+        self.categories = categories
     }
 }
 
 public struct UpdateClimbPatch: Equatable, Sendable {
+    /// Moving a problem to another gym (the editor carries a gym picker). The gym must
+    /// exist; the foreign key says so and assertGymExists reports it in plain language.
+    public var gymId: PatchValue<String>
     public var wallId: PatchValue<String?>
     public var name: PatchValue<String>
     public var gradeSystemId: PatchValue<String>
@@ -47,16 +53,20 @@ public struct UpdateClimbPatch: Equatable, Sendable {
     public var colorCircuit: PatchValue<String?>
     public var angleDeg: PatchValue<Double?>
     public var notes: PatchValue<String?>
+    public var categories: PatchValue<[ClimbCategory]>
 
     public init(
+        gymId: PatchValue<String> = .unchanged,
         wallId: PatchValue<String?> = .unchanged,
         name: PatchValue<String> = .unchanged,
         gradeSystemId: PatchValue<String> = .unchanged,
         gradeLevelId: PatchValue<String?> = .unchanged,
         colorCircuit: PatchValue<String?> = .unchanged,
         angleDeg: PatchValue<Double?> = .unchanged,
-        notes: PatchValue<String?> = .unchanged
+        notes: PatchValue<String?> = .unchanged,
+        categories: PatchValue<[ClimbCategory]> = .unchanged
     ) {
+        self.gymId = gymId
         self.wallId = wallId
         self.name = name
         self.gradeSystemId = gradeSystemId
@@ -64,6 +74,7 @@ public struct UpdateClimbPatch: Equatable, Sendable {
         self.colorCircuit = colorCircuit
         self.angleDeg = angleDeg
         self.notes = notes
+        self.categories = categories
     }
 }
 
@@ -124,6 +135,7 @@ public struct GRDBClimbRepository: ClimbRepository {
             colorCircuit: input.colorCircuit,
             angleDeg: input.angleDeg,
             notes: (trimmedNotes?.isEmpty ?? true) ? nil : trimmedNotes,
+            categories: orderedClimbCategories(input.categories),
             isActive: true,
             isArchived: false,
             createdAt: timestamp,
@@ -133,13 +145,14 @@ public struct GRDBClimbRepository: ClimbRepository {
             try db.execute(
                 sql: """
                 INSERT INTO climbs (id, gym_id, wall_id, board_id, board_problem_id, name, grade_system_id,
-                    grade_level_id, grade_norm, color_circuit, angle_deg, notes, is_active, is_archived,
-                    created_at, updated_at)
-                VALUES (?, ?, ?, NULL, NULL, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?)
+                    grade_level_id, grade_norm, color_circuit, angle_deg, notes, categories, is_active,
+                    is_archived, created_at, updated_at)
+                VALUES (?, ?, ?, NULL, NULL, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 arguments: [
                     climb.id, climb.gymId, climb.wallId, climb.name, climb.gradeSystemId, climb.gradeLevelId,
-                    climb.colorCircuit, climb.angleDeg, climb.notes, climb.isActive, climb.isArchived,
+                    climb.colorCircuit, climb.angleDeg, climb.notes,
+                    encodeClimbCategories(climb.categories), climb.isActive, climb.isArchived,
                     climb.createdAt, climb.updatedAt,
                 ]
             )
@@ -186,6 +199,10 @@ public struct GRDBClimbRepository: ClimbRepository {
         let gradeSystemId = patch.gradeSystemId.resolve(or: updated.gradeSystemId)
         let gradeLevelId = patch.gradeLevelId.resolve(or: updated.gradeLevelId)
         try grades.assertValidGrade(systemId: gradeSystemId, levelId: gradeLevelId)
+        if case .set(let gymId) = patch.gymId {
+            try assertGymExists(gymId: gymId)
+            updated.gymId = gymId
+        }
 
         updated.wallId = patch.wallId.resolve(or: updated.wallId)
         let trimmedName = patch.name.resolve(or: "").trimmingCharacters(in: .whitespaces)
@@ -200,6 +217,9 @@ public struct GRDBClimbRepository: ClimbRepository {
             let trimmedNotes = (patch.notes.resolve(or: nil) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             updated.notes = trimmedNotes.isEmpty ? nil : trimmedNotes
         }
+        if case .set = patch.categories {
+            updated.categories = orderedClimbCategories(patch.categories.resolve(or: []))
+        }
         updated.updatedAt = nowISO8601()
 
         try writer.write { db in
@@ -207,12 +227,13 @@ public struct GRDBClimbRepository: ClimbRepository {
                 sql: """
                 UPDATE climbs SET gym_id = ?, wall_id = ?, board_id = ?, board_problem_id = ?, name = ?,
                     grade_system_id = ?, grade_level_id = ?, grade_norm = ?, color_circuit = ?, angle_deg = ?,
-                    notes = ?, is_active = ?, is_archived = ?, updated_at = ? WHERE id = ?
+                    notes = ?, categories = ?, is_active = ?, is_archived = ?, updated_at = ? WHERE id = ?
                 """,
                 arguments: [
                     updated.gymId, updated.wallId, updated.boardId, updated.boardProblemId, updated.name,
                     updated.gradeSystemId, updated.gradeLevelId, updated.gradeNorm, updated.colorCircuit,
-                    updated.angleDeg, updated.notes, updated.isActive, updated.isArchived, updated.updatedAt, id,
+                    updated.angleDeg, updated.notes, encodeClimbCategories(updated.categories),
+                    updated.isActive, updated.isArchived, updated.updatedAt, id,
                 ]
             )
         }

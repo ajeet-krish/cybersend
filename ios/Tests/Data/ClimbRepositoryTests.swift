@@ -218,4 +218,53 @@ struct ClimbRepositoryTests {
         )
         #expect(blank.notes == nil)
     }
+
+    @Test("categories round trip in declaration order and clear through the patch")
+    func categoriesRoundTrip() throws {
+        let test = try makeTestDatabase()
+        let gym = try test.repos.gyms.create(CreateGymInput(name: "Gym"))
+
+        // Pick order is not storage order: declaration order keeps the column deterministic.
+        let climb = try test.repos.climbs.create(
+            CreateClimbInput(gymId: gym.id, name: "Blue", categories: [.crimpy, .slab, .dyno])
+        )
+        #expect(climb.categories == [.slab, .crimpy, .dyno])
+        #expect(try test.repos.climbs.get(id: climb.id)?.categories == [.slab, .crimpy, .dyno])
+
+        // Unchanged keeps the tags, set replaces them, set([]) clears them to null.
+        let renamed = try test.repos.climbs.update(id: climb.id, patch: UpdateClimbPatch(name: .set("Blue 2")))
+        #expect(renamed.categories == [.slab, .crimpy, .dyno])
+        let replaced = try test.repos.climbs.update(
+            id: climb.id,
+            patch: UpdateClimbPatch(categories: .set([.comp, .overhang]))
+        )
+        #expect(replaced.categories == [.overhang, .comp])
+        let cleared = try test.repos.climbs.update(id: climb.id, patch: UpdateClimbPatch(categories: .set([])))
+        #expect(cleared.categories.isEmpty)
+
+        let stored = try test.writer.read { db in
+            try String.fetchOne(db, sql: "SELECT categories FROM climbs WHERE id = ?", arguments: [climb.id])
+        }
+        #expect(stored == nil, "no categories reads as no value, not an empty string")
+    }
+
+    @Test("a climb moves between gyms and an unknown gym is rejected")
+    func movesBetweenGyms() throws {
+        let test = try makeTestDatabase()
+        let first = try test.repos.gyms.create(CreateGymInput(name: "First"))
+        let second = try test.repos.gyms.create(CreateGymInput(name: "Second"))
+        let climb = try test.repos.climbs.create(CreateClimbInput(gymId: first.id, name: "Blue"))
+
+        let moved = try test.repos.climbs.update(id: climb.id, patch: UpdateClimbPatch(gymId: .set(second.id)))
+        #expect(moved.gymId == second.id)
+        #expect(try test.repos.climbs.get(id: climb.id)?.gymId == second.id)
+        #expect(try test.repos.climbs.list(options: ListClimbsOptions(gymId: first.id)).isEmpty)
+        #expect(try test.repos.climbs.list(options: ListClimbsOptions(gymId: second.id)).count == 1)
+
+        let error = #expect(throws: DomainValidationError.self) {
+            try test.repos.climbs.update(id: climb.id, patch: UpdateClimbPatch(gymId: .set("missing")))
+        }
+        #expect(error?.code == "gym_not_found")
+        #expect(try test.repos.climbs.get(id: climb.id)?.gymId == second.id, "the failed move leaves the climb where it was")
+    }
 }

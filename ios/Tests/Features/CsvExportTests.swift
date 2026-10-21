@@ -73,6 +73,7 @@ struct CsvExportTests {
             colorCircuit: "blue",
             angleDeg: 30,
             notes: "beta from the left crimp",
+            categories: [.slab, .crimpy],
             isActive: true,
             isArchived: false,
             createdAt: "2026-01-01T09:00:00.000Z",
@@ -89,9 +90,11 @@ struct CsvExportTests {
         )
         let csv = climbsToCsv([climb, archived])
         let lines = csv.components(separatedBy: "\r\n")
-        #expect(lines[0] == "id,gym_id,wall_id,name,grade_system,grade_level_id,color_circuit,angle_deg,is_active,is_archived,created_at,updated_at,notes")
-        #expect(lines[1] == "climb-1,gym-1,,Blue V4,v_scale,v4,blue,30,1,0,2026-01-01T09:00:00.000Z,2026-01-01T09:00:00.000Z,beta from the left crimp")
-        #expect(lines[2] == "climb-2,gym-1,,,v_scale,,,,0,1,2026-01-01T09:00:00.000Z,2026-01-01T09:00:00.000Z,")
+        #expect(lines[0] == "id,gym_id,wall_id,name,grade_system,grade_level_id,color_circuit,angle_deg,is_active,is_archived,created_at,updated_at,notes,categories")
+        // Categories are comma separated tokens in declaration order, so the field itself
+        // needs RFC 4180 quoting.
+        #expect(lines[1] == "climb-1,gym-1,,Blue V4,v_scale,v4,blue,30,1,0,2026-01-01T09:00:00.000Z,2026-01-01T09:00:00.000Z,beta from the left crimp,\"slab,crimpy\"")
+        #expect(lines[2] == "climb-2,gym-1,,,v_scale,,,,0,1,2026-01-01T09:00:00.000Z,2026-01-01T09:00:00.000Z,,")
     }
 
     @Test("buildExportCSV reads through the repositories")

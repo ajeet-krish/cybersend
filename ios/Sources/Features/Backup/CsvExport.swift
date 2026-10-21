@@ -115,6 +115,8 @@ public let climbCsvHeaders: [String] = [
     // Version 4 addition (Problems catalog): problem details, appended so earlier
     // columns keep their positions.
     "notes",
+    // Version 5 addition (UI overhaul): comma separated category tokens, same rule.
+    "categories",
 ]
 
 public func climbsToCsv(_ climbs: [Climb]) -> String {
@@ -135,6 +137,7 @@ public func climbsToCsv(_ climbs: [Climb]) -> String {
                 climb.createdAt,
                 climb.updatedAt,
                 climb.notes,
+                encodeClimbCategories(climb.categories),
             ]
         }
     )

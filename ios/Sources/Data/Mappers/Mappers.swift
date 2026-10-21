@@ -88,6 +88,7 @@ func rowToClimb(_ row: Row) -> Climb {
         colorCircuit: row["color_circuit"],
         angleDeg: row["angle_deg"],
         notes: row["notes"],
+        categories: parseClimbCategories(row["categories"]),
         isActive: row["is_active"],
         isArchived: row["is_archived"],
         createdAt: row["created_at"],

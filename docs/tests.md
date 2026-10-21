@@ -90,3 +90,20 @@ tagging, capture, and the problems catalog.
 
 Known gap: old sessions cannot yet attach a photo or video after the fact. Tracked in
 docs/decisions.md and AGENTS.md.
+
+## Climb categories (2026-10-21)
+
+Package suite: 278 swift-testing cases in 49 suites, green. The category layer is covered at the
+domain, migration, repository, CSV, and export boundaries:
+
+| Item | Covered by | Status |
+|------|-----------|--------|
+| Fixed category list, declaration order, encode nil when empty | ClimbCategoryTests | PASS |
+| Parse ignores unknown tokens, blanks, case, duplicates | ClimbCategoryTests.parsingIsTolerant | PASS |
+| Migration 005 appends nullable climbs.categories, existing rows keep data | Migration005Tests (two cases) | PASS |
+| Categories round trip in declaration order, clear to null | ClimbRepositoryTests.categoriesRoundTrip | PASS |
+| Climb moves between gyms, unknown gym rejected | ClimbRepositoryTests.movesBetweenGyms | PASS |
+| CSV climbs gains a quoted categories column | CsvExportTests.climbsCsv, buildCsvFromRepositories | PASS |
+| Golden v5 export bytes, only schema_version and climbs.categories differ from v4 | ExportSerializeTests.goldenBytesMatch | PASS |
+| v4 file imports through the 4 to 5 migration with categories null | ImportTests.nativeV4FixtureImports | PASS |
+| v1, v2, v3 fixtures still import after the spec split | ImportTests, ExportSerializeTests | PASS |
