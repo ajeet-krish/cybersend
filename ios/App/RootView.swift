@@ -51,9 +51,9 @@ struct RootView: View {
     }
 }
 
-/// The four tab shells (Logbook, Stats, Sessions, Settings per docs/architecture.md M3;
-/// the frozen TypeScript spec app/(tabs)/_layout.tsx carried the Stats tab and US-23
-/// lands it with M3). Appearance override applies at the root so every screen follows
+/// The five tab shells (Logbook, Problems, Stats, Sessions, Settings; the Problems tab is
+/// the UI overhaul catalog, docs/decisions.md). The frozen TypeScript spec
+/// app/(tabs)/_layout.tsx carried four and the catalog is the one addition. Appearance override applies at the root so every screen follows
 /// US-24; SettingsStore persists it under settingsKeyAppearance ("ui.appearance").
 struct MainTabView: View {
     @EnvironmentObject private var settings: SettingsStore
@@ -64,6 +64,9 @@ struct MainTabView: View {
             LogbookTabView()
                 .tabItem { Label("Logbook", systemImage: "list.bullet") }
                 .tag(AppTab.logbook)
+            ProblemsTabView()
+                .tabItem { Label("Problems", systemImage: "square.grid.2x2") }
+                .tag(AppTab.problems)
             StatsTabView()
                 .tabItem { Label("Stats", systemImage: "chart.bar.xaxis") }
                 .tag(AppTab.stats)

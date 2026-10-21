@@ -16,6 +16,9 @@ struct ClimbEditorView: View {
     /// The composition services (photo storage for thumbnails, repositories through the
     /// stores). Captured at init because the environment copy is optional in previews.
     let services: AppServices
+    /// "climb" from the Logbook stack, "problem" from the Problems catalog. The row is the
+    /// same entity; only the wording the climber reads changes.
+    var noun: String = "climb"
 
     @EnvironmentObject private var logbook: LogbookStore
     @Environment(\.dismiss) private var dismiss
@@ -31,9 +34,10 @@ struct ClimbEditorView: View {
     @State private var confirmPhotoDelete = false
     @State private var photoIngestError: String?
 
-    init(climbId: String, services: AppServices) {
+    init(climbId: String, services: AppServices, noun: String = "climb") {
         self.climbId = climbId
         self.services = services
+        self.noun = noun
         // "new" is the LogbookRoute creation id (port of the TypeScript climb screen).
         _store = StateObject(wrappedValue: ClimbEditorStore(
             repos: services.repos,
@@ -61,50 +65,51 @@ struct ClimbEditorView: View {
                     .accessibilityIdentifier("climb.name")
             }
 
-            SectionTitle("Grade scheme")
+            // Grade is a menu rather than a chip strip: the scheme list and the V scale
+            // level range are long enough that a horizontal strip pushed the level the
+            // climber wanted off screen, and a menu is one tap either way.
+            SectionTitle("Grade")
             Card {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(store.gradeSystems) { system in
-                            Button {
-                                store.schemeId = system.id
-                                store.levelId = nil
-                            } label: {
-                                Chip(system.name, emphasized: system.id == store.schemeId)
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityIdentifier("climb.scheme.\(system.id)")
-                            .accessibilityLabel(system.name)
-                        }
-                    }
-                }
-            }
-            .accessibilityElement(children: .contain)
-
-            SectionTitle("Level")
-            Card {
-                if let levels = store.selectedLevels {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(levels) { level in
-                                Button {
-                                    store.levelId = store.levelId == level.id ? nil : level.id
-                                } label: {
-                                    Chip(level.label, emphasized: store.levelId == level.id)
-                                }
-                                .buttonStyle(.plain)
-                                .accessibilityIdentifier("climb.level.\(level.id)")
-                                .accessibilityLabel(level.label)
-                            }
-                        }
-                    }
-                } else {
-                    Text("Scheme not found.")
+                HStack {
+                    Text("Scheme")
                         .foregroundStyle(Theme.secondaryText)
-                        .accessibilityIdentifier("climb.level.missing")
+                    Spacer(minLength: 12)
+                    Picker("Scheme", selection: Binding(
+                        get: { store.schemeId },
+                        set: { store.selectScheme($0) }
+                    )) {
+                        ForEach(store.gradeSystems) { system in
+                            Text(system.name).tag(system.id)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .tint(Theme.accentSolid)
+                    .accessibilityIdentifier("climb.scheme")
+                }
+                Divider()
+                    .overlay(Theme.separator)
+                HStack {
+                    Text("Level")
+                        .foregroundStyle(Theme.secondaryText)
+                    Spacer(minLength: 12)
+                    if let levels = store.selectedLevels {
+                        Picker("Level", selection: $store.levelId) {
+                            Text("None").tag(String?.none)
+                            ForEach(levels) { level in
+                                Text(level.label).tag(String?.some(level.id))
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .tint(Theme.accentSolid)
+                        .accessibilityIdentifier("climb.level")
+                    } else {
+                        Text("Scheme not found.")
+                            .font(.subheadline)
+                            .foregroundStyle(Theme.secondaryText)
+                            .accessibilityIdentifier("climb.level.missing")
+                    }
                 }
             }
-            .accessibilityElement(children: .contain)
 
             SectionTitle("Details")
             Card {
@@ -116,9 +121,17 @@ struct ClimbEditorView: View {
                     .textFieldStyle(.roundedBorder)
                     .autocapitalization(.words)
                     .accessibilityIdentifier("climb.color")
+                TextField(
+                    "Problem details (optional): beta, style, what to remember",
+                    text: $store.notes,
+                    axis: .vertical
+                )
+                .lineLimit(3...8)
+                .textFieldStyle(.roundedBorder)
+                .accessibilityIdentifier("climb.notes")
             }
 
-            PrimaryButton(store.isNew ? "Add climb" : "Save changes") {
+            PrimaryButton(store.isNew ? "Add \(noun)" : "Save changes") {
                 save()
             }
             .accessibilityIdentifier("climb.save")
@@ -132,11 +145,11 @@ struct ClimbEditorView: View {
                         .font(.subheadline)
                         .foregroundStyle(Theme.secondaryText)
                         .accessibilityIdentifier("climb.attempts")
-                    SecondaryButton(store.climb?.isArchived == true ? "Unarchive climb" : "Archive climb") {
+                    SecondaryButton(store.climb?.isArchived == true ? "Unarchive \(noun)" : "Archive \(noun)") {
                         toggleArchive()
                     }
                     .accessibilityIdentifier("climb.archive")
-                    Button("Delete climb", role: .destructive) {
+                    Button("Delete \(noun)", role: .destructive) {
                         confirmDelete = true
                     }
                     .frame(maxWidth: .infinity)
@@ -145,7 +158,7 @@ struct ClimbEditorView: View {
             }
         }
         .accessibilityIdentifier("climb.screen")
-        .navigationTitle(store.isNew ? "New climb" : "Climb")
+        .navigationTitle(store.isNew ? "New \(noun)" : noun.capitalized)
         .onAppear {
             if !store.isNew {
                 photoStore.load(climbId: climbId)
@@ -153,16 +166,16 @@ struct ClimbEditorView: View {
             }
         }
         .confirmationDialog(
-            "Delete this climb?",
+            "Delete this \(noun)?",
             isPresented: $confirmDelete
         ) {
-            Button("Delete climb", role: .destructive) {
+            Button("Delete \(noun)", role: .destructive) {
                 deleteClimb()
             }
             .accessibilityIdentifier("climb.delete.confirm")
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This only works when the climb has no attempts. Otherwise archive it.")
+            Text("This only works when it has no attempts. Otherwise archive it.")
         }
         .confirmationDialog(
             photoStore.photo == nil ? "Add wall photo" : "Replace wall photo",

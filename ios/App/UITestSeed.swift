@@ -53,10 +53,22 @@ enum UITestSeed {
     static func seed(repos: Repositories, documentDirectory: URL) throws {
         let gym = try repos.gyms.create(CreateGymInput(name: "Boulder Lab"))
         let climbOne = try repos.climbs.create(
-            CreateClimbInput(gymId: gym.id, name: "Climb One", gradeSystemId: defaultGradeSystemID, gradeLevelId: "v3")
+            CreateClimbInput(
+                gymId: gym.id,
+                name: "Climb One",
+                gradeSystemId: defaultGradeSystemID,
+                gradeLevelId: "v3",
+                notes: "Match the left crimp, then stand up on the right gaston."
+            )
         )
         let climbTwo = try repos.climbs.create(
-            CreateClimbInput(gymId: gym.id, name: "Climb Two", gradeSystemId: defaultGradeSystemID, gradeLevelId: "v4")
+            CreateClimbInput(
+                gymId: gym.id,
+                name: "Climb Two",
+                gradeSystemId: defaultGradeSystemID,
+                gradeLevelId: "v4",
+                notes: "Keep the hips close on the top out."
+            )
         )
 
         // Closed history session: Climb One send then fail, Climb Two fail then send.
@@ -64,10 +76,23 @@ enum UITestSeed {
             CreateSessionInput(gymId: gym.id, startedAt: "2026-10-19T10:00:00.000Z", notes: "Seeded session")
         )
         _ = try repos.attempts.logAttempt(
-            LogAttemptInput(sessionId: closed.id, climbId: climbOne.id, outcome: .send, attemptedAt: "2026-10-19T10:02:00.000Z")
+            LogAttemptInput(
+                sessionId: closed.id,
+                climbId: climbOne.id,
+                outcome: .send,
+                attemptedAt: "2026-10-19T10:02:00.000Z",
+                rpe: 8
+            )
         )
         _ = try repos.attempts.logAttempt(
-            LogAttemptInput(sessionId: closed.id, climbId: climbOne.id, outcome: .fail, attemptedAt: "2026-10-19T10:05:00.000Z")
+            LogAttemptInput(
+                sessionId: closed.id,
+                climbId: climbOne.id,
+                outcome: .fail,
+                notes: "Slid off the crimp",
+                attemptedAt: "2026-10-19T10:05:00.000Z",
+                rpe: 9
+            )
         )
         _ = try repos.attempts.logAttempt(
             LogAttemptInput(sessionId: closed.id, climbId: climbTwo.id, outcome: .fail, attemptedAt: "2026-10-19T10:08:00.000Z")

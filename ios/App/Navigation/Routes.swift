@@ -9,6 +9,7 @@ import Foundation
 /// The tab identifiers.
 enum AppTab: Hashable, CaseIterable {
     case logbook
+    case problems
     case stats
     case sessions
     case settings
@@ -19,6 +20,16 @@ enum LogbookRoute: Hashable {
     case gymDetail(gymId: String)
     case climbDetail(climbId: String)
     /// Hold tagging canvas (M3). The climb editor photo and holds sections push it.
+    case tagging(climbId: String)
+}
+
+/// Routes under the Problems tab (UI overhaul). A problem is a climb, so create and edit
+/// reuse ClimbEditorView with the "problem" noun; the catalog itself adds the list and the
+/// per problem history screen.
+enum ProblemsRoute: Hashable {
+    case problemDetail(climbId: String)
+    case newProblem
+    case editProblem(climbId: String)
     case tagging(climbId: String)
 }
 

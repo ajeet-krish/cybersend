@@ -40,6 +40,11 @@ enum Theme {
     /// Filled surfaces that carry white text (primary buttons, emphasized chips).
     static let accentSolid = dynamic(light: 0x644AC9, dark: 0x7A5CD6)
 
+    /// Label color on top of accentSolid. White on 7A5CD6 is 4.9:1, while white on the
+    /// lighter accent (BD93F9) would be 2.4:1, which is why filled surfaces use the solid
+    /// variant (docs/decisions.md, UI overhaul theme record).
+    static let onAccent = Color.white
+
     // MARK: - Status
 
     static let success = dynamic(light: 0x14710A, dark: 0x50FA7B)

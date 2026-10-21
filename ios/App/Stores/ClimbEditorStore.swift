@@ -29,6 +29,9 @@ final class ClimbEditorStore: ObservableObject {
     @Published var levelId: String?
     @Published var angleText: String = ""
     @Published var colorCircuit: String = ""
+    /// Free text problem details (Migration 004, Problems catalog): beta, style, what to
+    /// remember. Empty is stored as nil so the column reads as "no details yet".
+    @Published var notes: String = ""
     @Published private(set) var lastErrorMessage: String?
 
     /// True when the screen creates a new climb instead of editing an existing one.
@@ -66,6 +69,7 @@ final class ClimbEditorStore: ObservableObject {
                 levelId = climb.gradeLevelId
                 angleText = climb.angleDeg.map { String(Int($0)) } ?? ""
                 colorCircuit = climb.colorCircuit ?? ""
+                notes = climb.notes ?? ""
                 attemptCount = try repos.climbs.countAttempts(id: climbId)
                 refreshHolds()
             } else {
@@ -82,6 +86,15 @@ final class ClimbEditorStore: ObservableObject {
         guard let climb else { return }
         holds = ((try? repos.holds.listByClimb(climbId: climb.id)) ?? [])
         holdCount = holds.count
+    }
+
+    /// Switches grade scheme and clears the level: a level id only means something inside
+    /// its scheme (US-9 keeps grade a (scheme, level) pair, never a free string), so
+    /// carrying a level across schemes would produce a pair the repository rejects.
+    func selectScheme(_ id: String) {
+        guard schemeId != id else { return }
+        schemeId = id
+        levelId = nil
     }
 
     /// The role breakdown for the holds card, for example "1 start, 1 intermediate,
@@ -109,6 +122,7 @@ final class ClimbEditorStore: ObservableObject {
         let angleDeg = try parseAngle(angleText)
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedColor = colorCircuit.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
         let stored: Climb
         if let climb {
             stored = try repos.climbs.update(id: climb.id, patch: UpdateClimbPatch(
@@ -116,7 +130,8 @@ final class ClimbEditorStore: ObservableObject {
                 gradeSystemId: .set(schemeId),
                 gradeLevelId: .set(levelId),
                 colorCircuit: .set(trimmedColor.isEmpty ? nil : trimmedColor),
-                angleDeg: .set(angleDeg)
+                angleDeg: .set(angleDeg),
+                notes: .set(trimmedNotes.isEmpty ? nil : trimmedNotes)
             ))
         } else {
             guard let gymId else {
@@ -131,7 +146,8 @@ final class ClimbEditorStore: ObservableObject {
                 gradeSystemId: schemeId,
                 gradeLevelId: levelId,
                 colorCircuit: trimmedColor.isEmpty ? nil : trimmedColor,
-                angleDeg: angleDeg
+                angleDeg: angleDeg,
+                notes: trimmedNotes.isEmpty ? nil : trimmedNotes
             ))
         }
         climb = stored

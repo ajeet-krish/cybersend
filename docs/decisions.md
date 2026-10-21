@@ -289,3 +289,13 @@ Entry format: "## [Date], Phase [N]: [Title]" with Context, Decision, Rationale,
 **Rationale:** A nullable append needs no table rebuild, so the migration is one statement and existing climbs keep their rows untouched. Compositional versioned specs keep the number of pinned shapes linear rather than combinatorial: each version is the current spec minus the columns introduced after it. The ordered parser fallback covers genuine old backups and newer column sets stamped with an older version, and it still rejects any table that matches none of the shapes.
 
 **Trade-offs:** The export payload version and its golden fixture move again, which means one more fixture in the tree (v2, v3, and v4 all remain as import inputs). Problem details are plain text only, with no rich text or per attempt notes linkage beyond the existing attempt notes.
+
+## 2026-10-21, UI overhaul: the Problems catalog is a fifth tab over climbs
+
+**Context:** The app needed a place to browse, add, and archive problems with their full per problem history. The domain entity already exists as `Climb` (the frozen TypeScript spec named it that), and the quick log needs the same rows listed compactly.
+
+**Decision:** Problems is a fifth tab (`AppTab.problems`, second position) rendering `ProblemsCatalogView` over the selected gym's climbs. A problem is never a second entity: the catalog, detail screen, create form, and edit form all read and write `climbs` rows through `ClimbRepository`. Creating and editing reuse `ClimbEditorView` with a `noun` parameter ("problem" from the catalog, "climb" from the Logbook stack), so there is one editor and one validation path. The detail screen adds what the catalog needs beyond the editor: photo hero, grade badge, angle and color, details text, and the complete attempt history newest first, plus archive and unarchive. Archiving is the only removal action on the detail screen; delete stays in the editor and remains blocked while attempts exist.
+
+**Rationale:** One entity keeps quick log, session editor, catalog, stats, and exports consistent: a problem added in the catalog is immediately quick loggable, and an attempt logged in a session shows up in the catalog history with no synchronization step. Reusing the editor avoids a second grade or photo code path. Newest first history matches how climbers read a project log.
+
+**Trade-offs:** The catalog and the quick log can show different sets (the catalog includes inactive rows and can include archived ones; the quick log excludes both), which is intentional but means the word "problem" and "climb" refer to the same row in different screens. The list computes one attempts query per problem, which is fine at personal scale and avoids a bespoke aggregate query.
