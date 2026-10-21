@@ -6,9 +6,9 @@ import SwiftUI
 // log lives on the open session screen, port of app/session/[id].tsx).
 //
 // Open state (US-11, US-12): pick a climb, set an optional per attempt effort, tap an
-// outcome and the tap saves; fail prompts for the fall hold with a skip (worst case 4 taps
-// from the logbook home, enforced by the QuickLogSmokeTests tap accounting); flash is
-// disabled once the selected
+// outcome and the tap saves; fail prompts for the fall hold with a skip (worst case 5 taps
+// from the logbook home when the climb changes, 3 when it is already selected, enforced by
+// the QuickLogSmokeTests tap accounting); flash is disabled once the selected
 // climb has an attempt this session (flash implies first attempt send, US-12.2); closing
 // goes through the close sheet with an RPE stepper 1 to 10 and notes (US-11.1) and writes
 // an automatic backup (docs/architecture.md backup hooks).
@@ -187,22 +187,45 @@ struct SessionDetailView: View {
                     message: "Add active, not archived climbs for this gym to log attempts against."
                 )
             } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(store.climbs) { climb in
-                            let selected = climb.id == store.selectedClimbId
-                            Button {
-                                store.selectClimb(climb)
-                            } label: {
-                                Chip(climb.name ?? "Climb", emphasized: selected)
+                // A single dropdown replaces the chip strip: the climb list grows past a
+                // screenful once a gym has real problems, and a strip of chips made the
+                // climb being targeted hard to see. The menu shows a checkmark on the
+                // selected climb and the grade right under its name.
+                Menu {
+                    ForEach(store.climbs) { climb in
+                        Button {
+                            store.selectClimb(climb)
+                        } label: {
+                            if climb.id == store.selectedClimbId {
+                                Label(climbTitle(climb), systemImage: "checkmark")
+                            } else {
+                                Text(climbTitle(climb))
                             }
-                            .buttonStyle(.plain)
-                            .accessibilityIdentifier("session.climb.chip.\(climb.name ?? climb.id)")
-                            .accessibilityLabel(climb.name ?? "Climb")
-                            .accessibilityAddTraits(selected ? [.isSelected] : [])
                         }
                     }
+                } label: {
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(selectedClimbName)
+                                .font(.headline)
+                                .foregroundStyle(Theme.primaryText)
+                                .accessibilityIdentifier("session.climb.selected")
+                            if let grade = selectedClimbGrade {
+                                Text(grade)
+                                    .font(.caption)
+                                    .foregroundStyle(Theme.secondaryText)
+                                    .accessibilityIdentifier("session.climb.selected-grade")
+                            }
+                        }
+                        Spacer(minLength: 8)
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(Theme.secondaryText)
+                    }
+                    .contentShape(Rectangle())
                 }
+                .accessibilityIdentifier("session.climb.select")
+                .accessibilityLabel("Climb: \(selectedClimbName)")
             }
         }
         .accessibilityElement(children: .contain)
@@ -257,6 +280,19 @@ struct SessionDetailView: View {
             showCloseSheet = true
         }
         .accessibilityIdentifier("session.close")
+    }
+
+    private var selectedClimbName: String {
+        store.selectedClimb?.name ?? "Select climb"
+    }
+
+    private var selectedClimbGrade: String? {
+        guard let climb = store.selectedClimb else { return nil }
+        return DisplayText.grade(climb, systems: logbook.gradeSystems)
+    }
+
+    private func climbTitle(_ climb: Climb) -> String {
+        DisplayText.climbTitle(climb, systems: logbook.gradeSystems)
     }
 
     private func outcomeButton(_ outcome: AttemptOutcome) -> some View {

@@ -29,9 +29,10 @@ final class FallHoldSmokeTests: XCTestCase {
             "the seeded open session renders its open action"
         )
         app.buttons["session.card.open"].tap()
-        let climbChip = app.buttons["session.climb.chip.Climb Two"]
-        XCTAssertTrue(climbChip.waitForExistence(timeout: 10), "the session screen lists quick log climb chips")
-        climbChip.tap()
+        app.buttons["session.climb.select"].tap()
+        let climbOption = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Climb Two'")).firstMatch
+        XCTAssertTrue(climbOption.waitForExistence(timeout: 10), "the dropdown lists the gym's climbs")
+        climbOption.tap()
     }
 
     func testFailListsRealHoldsAndARowTapSavesTheAttempt() throws {

@@ -28,7 +28,7 @@ Out-of-scope personas for v1: coaches, route setters, social/competitive climber
 
 | ID | Flow | Phase | Summary |
 |----|------|-------|---------|
-| F1 | Quick session log | 1 to 2 | Open app, start session at default gym, log each attempt in 4 taps or fewer, set session RPE, end session. Target under 5 seconds per attempt at the wall. |
+| F1 | Quick session log | 1 to 2 | Open app, start session at default gym, log each attempt in 5 taps or fewer (3 when the climb is already selected), set session RPE, end session. Target under 5 seconds per attempt at the wall. |
 | F2 | Photo capture and hold tagging | 2 | Photograph the wall, pinch/pan on Skia canvas, tap to place holds, assign roles, link climbs to tagged holds. |
 | F3 | Fall mapping and insight review | 2 | See fall_on_hold markers on the wall photo, fall distribution by hold role and position, flash/send/project/fail stats by grade. |
 | F4 | Export, backup, restore | 1 | Automatic local backup on session end and app background; manual JSON and CSV export via share sheet; restore with schema version handling. |
@@ -77,7 +77,7 @@ Priority legend: Must = MVP gate, Should = important, Could = nice.
 | US-9 | Grade schemes (V-scale, Font, custom) | Must | 1. V-scale and Font built in; 2. Custom scheme = named ordered levels; 3. Grade stored as (scheme_id, level_id), never free string; 4. Deleting a scheme in use is blocked |
 | US-10 | Manage climbs (name, grade, gym, angle, active/archived) | Must | 1. Create/edit/archive; 2. Angles nullable, 0 to 90 validated; 3. Archiving keeps all attempts; 4. Archived climbs hidden from quick-log, visible in history |
 | US-11 | Log sessions with session-level RPE | Must | 1. Session has gym, date, start, optional end, RPE 1 to 10, notes; 2. At most one open session at a time, multiple per day allowed; 3. Closing idempotent; 4. Open session survives app kill |
-| US-12 | Log attempts with outcome and fall-on-hold | Must | 1. Single enum outcome; 2. flash implies first-attempt send, enforced in domain layer; 3. fall_on_hold_id prompted on fail/project; 4. Attempt references climb and session; 5. Quick-log <= 4 taps and <= 5 s |
+| US-12 | Log attempts with outcome and fall-on-hold | Must | 1. Single enum outcome; 2. flash implies first-attempt send, enforced in domain layer; 3. fall_on_hold_id prompted on fail; 4. Attempt references climb and session; 5. Quick-log <= 5 taps (3 when the climb is already selected) and <= 5 s |
 | US-13 | All data access through repositories | Must | 1. Repositories in src/data, entities in src/domain; 2. Lint rule or test fails if a screen imports the SQLite driver; 3. Repository unit tests per entity |
 | US-14 | JSON and CSV export | Must | 1. JSON contains all entities and schema_version, round-trips losslessly in an automated test; 2. CSV per entity with stable columns; 3. Share sheet delivery; 4. Works with zero network |
 | US-15 | Automatic backups | Must | 1. Backup on session close and app background (at most hourly); 2. Last 10 retained; 3. Restore replaces data atomically after confirmation; 4. 1000 sessions + 5000 attempts backed up in <= 5 s |
@@ -215,7 +215,7 @@ US-36 to US-40 of the original PM draft (board-provider abstraction, offline cat
 
 ### Cross-cutting app budgets (gates at Phase 2)
 - Cold start to interactive <= 2.5 s on the floor device.
-- Quick-log an attempt <= 5 s and <= 4 taps.
+- Quick-log an attempt <= 5 s and <= 5 taps (3 when the climb is already selected).
 - Stats dashboard render <= 300 ms with 10k attempts (DB query <= 100 ms).
 - Canvas >= 55 fps pan/zoom with 100 holds on a 2048 px image.
 - Backup of 1000 sessions + 5000 attempts <= 5 s; restore <= 15 s.

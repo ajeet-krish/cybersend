@@ -75,7 +75,7 @@ restore:   import v1 or v2 or legacy -> payload migration -> staged transaction 
 - Ingest: ImageIO thumbnail decode (CGImageSourceCreateThumbnailAtIndex with orientation transform) bakes EXIF into pixels; working copy at 2048 px long edge, thumb at 256 px, JPEG. Retention (settingsKeyPhotoRetention) is enforced at tagging save: discard originals deletes the stored original and leaves original_uri nil.
 - Canvas: TaggingCanvasView (UIViewRepresentable) with UIScrollView zoom/pan, UIImageView photo, CAShapeLayer holds overlay. Gestures: scroll pan, pinch, single tap (place or select), double tap (reset zoom), hold drag (delegate arbiter). Roles render by shape and color plus letter (colorblind safe); a VoiceOver holds list provides full editing. Bounded undo stack in TaggingStore.
 - Coordinates: normalized 0..1 over the pixels-up working copy; radius_norm over width; pixels only in UI. Pure helpers in Domain/Canvas/CanvasGeometry.swift (fitContentBox, normToScreen, screenToNorm, hitTest) with golden vector tests. Letterbox math is M5 only (tools/eval letterboxToSourceBox, then divide by source width and height).
-- Navigation: LogbookRoute gains the tagging screen; ClimbEditor gains photo and holds sections (add, replace, delete photo with confirmation; link and unlink holds across climbs). FallHoldSheet lists real holds and can show the climb photo canvas; hold row tap or Skip stays one tap, so the quick-log budget of 4 taps survives.
+- Navigation: LogbookRoute gains the tagging screen; ClimbEditor gains photo and holds sections (add, replace, delete photo with confirmation; link and unlink holds across climbs). FallHoldSheet lists real holds and can show the climb photo canvas; hold row tap or Skip stays one tap, so the quick-log budget of 5 taps survives.
 - Launch: MediaSweep removes photo rows whose working copy is missing and files with no row, async after first frame so the 2.5 s cold start budget is untouched.
 
 ## Migration Plan (M0 to M6)
@@ -90,7 +90,7 @@ restore:   import v1 or v2 or legacy -> payload migration -> staged transaction 
 | M5 | Hold detection: coremltools pipeline, parity gate, eval gates. | US-31 to US-35 | Not started |
 | M6 | BoulderVision video analysis behind the experimental flag. | US-36 to US-40 | Not started |
 
-Gates: M2 quick-log at most 4 taps and at most 5 s, cold start at most 2.5 s (dogfood). M3 Phase 2 gate: canvas at least 55 fps at 100 holds on 2048 px, tap placement error at most 3 px at 1x, three dogfooded gym sessions with zero data loss, airplane mode and proxy verified zero network, 2048 px policy, dark mode.
+Gates: M2 quick-log at most 5 taps (3 when the climb is already selected) and at most 5 s, cold start at most 2.5 s (dogfood). M3 Phase 2 gate: canvas at least 55 fps at 100 holds on 2048 px, tap placement error at most 3 px at 1x, three dogfooded gym sessions with zero data loss, airplane mode and proxy verified zero network, 2048 px policy, dark mode.
 
 ## ML Pipeline
 

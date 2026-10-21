@@ -5,7 +5,7 @@ import UIKit
 
 // Fall hold prompt (US-12.3, US-21, M3 upgrade): lists the climb's REAL holds from
 // climb_holds with role and ordinal labels, one tap per row saves, and Skip stays the
-// no hold path, so the quick log budget of 4 taps survives (docs/architecture.md M3
+// no hold path, so the quick log budget of 5 taps survives (docs/architecture.md M3
 // navigation: "FallHoldSheet lists real holds and can show the climb photo canvas; hold
 // row tap or Skip stays one tap"). When the climb has a photo, "Show on photo" opens the
 // read-only tagging canvas in selection mode: tapping a hold saves fall_on_hold_id in
