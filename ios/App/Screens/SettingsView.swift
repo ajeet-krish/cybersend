@@ -59,6 +59,7 @@ struct SettingsView: View {
             #endif
             aboutSection
         }
+        .themedPageBackground()
         .accessibilityIdentifier("settings.screen")
         .navigationTitle("Settings")
         .onAppear {

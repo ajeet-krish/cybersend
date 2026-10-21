@@ -17,6 +17,8 @@ struct PrimaryButton: View {
                 .frame(maxWidth: .infinity)
         }
         .buttonStyle(.borderedProminent)
+        // The solid accent keeps the white label above 4.9:1 contrast.
+        .tint(Theme.accentSolid)
         .controlSize(.large)
     }
 }

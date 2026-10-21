@@ -22,5 +22,9 @@ struct ErrorNote: View {
         .padding(12)
         .background(Theme.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: Theme.cardCornerRadius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.cardCornerRadius, style: .continuous)
+                .strokeBorder(Theme.warning.opacity(0.5), lineWidth: 1)
+        )
     }
 }

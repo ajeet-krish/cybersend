@@ -17,5 +17,11 @@ struct Card<Content: View>: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Theme.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: Theme.cardCornerRadius, style: .continuous))
+        // Hairline edge: in the dark palette the card and the page are both dark, so the
+        // border is what defines the card boundary instead of a drop shadow.
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.cardCornerRadius, style: .continuous)
+                .strokeBorder(Theme.cardBorder.opacity(0.7), lineWidth: 1)
+        )
     }
 }

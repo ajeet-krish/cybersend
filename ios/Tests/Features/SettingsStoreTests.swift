@@ -17,7 +17,9 @@ struct SettingsStoreTests {
 
         #expect(store.defaultGymId == nil)
         #expect(store.defaultGradeSystemId == nil)
-        #expect(store.appearance == .system)
+        // Dark first: the cyberpunk palette makes dark the documented default appearance
+        // (M4 theme phase). An unset key resolves to dark, not to the system setting.
+        #expect(store.appearance == .dark)
         #expect(store.photoRetention == .keepOriginals)
         #expect(store.variant == .development)
         #expect(store.flagValues == defaultFlags(for: .development))

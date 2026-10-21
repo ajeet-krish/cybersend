@@ -31,6 +31,7 @@ struct SessionsHistoryView: View {
                 }
             }
         }
+        .themedPageBackground()
         .accessibilityIdentifier("history.screen")
         .navigationTitle("Sessions")
         .onAppear {

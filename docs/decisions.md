@@ -1,6 +1,6 @@
 # CyberSend Decision Records
 
-Last updated: 2026-10-20
+Last updated: 2026-10-21
 
 Entry format: "## [Date], Phase [N]: [Title]" with Context, Decision, Rationale, Trade-offs. Commas replace dash separators to honor the no-dash convention in AGENTS.md.
 
@@ -259,3 +259,13 @@ Entry format: "## [Date], Phase [N]: [Title]" with Context, Decision, Rationale,
 **Rationale:** Requirements win where contested (the M0 schema reconciliation precedent), and only a join table satisfies US-20.3 and US-20.4 (with holds.climb_id alone, unlinking is a hold delete that nulls attempts.fall_on_hold_id). Additive tables plus backward-compatible import is the designed evolution path of the versioned payload, so the change needs no separate byte-compat project: v1 payloads stay byte identical and data_native_golden.json becomes a pinned v1 import fixture.
 
 **Trade-offs:** New exports no longer match the frozen TypeScript payload shape (the TS tree is a behavioral spec, not a shipping consumer; iOS only forever), and every round trip carries one more table. holds.climb_id and climb_holds can drift if writes bypass the repository, so all membership writes go through HoldRepository link and unlink APIs only.
+
+## 2026-10-21, M4: theme is a dark first Dracula palette with measured tokens
+
+**Context:** The theme was 21 lines of pure system semantic colors (systemGroupedBackground, label, secondaryLabel) with light and dark both following the OS. The product direction is now a cyberpunk palette in the Dracula family with dark as the default, applied across 49 view files.
+
+**Decision:** Theme becomes an explicit token set resolved per appearance through a dynamic UIColor closure, so views keep reading Theme.x and follow preferredColorScheme with no environment plumbing. Dark surfaces are Dracula carried on a deeper base (page 1B1B26, card 282A36, hairline 44475A) so cards separate by edge rather than shadow. Alucard supplies the light palette rather than a neon-on-white remix. The accent splits into two tokens: accent (BD93F9) for icons and large glyphs, accentSolid (7A5CD6) for filled surfaces that carry a white label. SettingsStore resolves an unset ui.appearance to .dark. List based screens (Settings, Sessions history, Feature flags) hide the system grouped background through one themedPageBackground modifier.
+
+**Rationale:** A single dynamic closure per token keeps the change surface at seven tokens instead of rewriting every view, and it preserves the appearance override that already persists under ui.appearance. The accent split exists because white on BD93F9 measures 2.4:1, which fails WCAG AA, while white on 7A5CD6 measures 4.9:1. Secondary text uses 9AA5CE instead of Dracula's comment color 6272A4, which measures about 3.0:1 on 282A36 and was previously carrying a large share of caption text.
+
+**Trade-offs:** Six hex pairs must now be maintained by hand instead of inheriting OS colors, and the canvas overlays (hold roles, fall markers) keep their fixed content colors because they are drawn on photos, not on theme surfaces. Dark is a preference default, not a lock: users who already persisted .system or .light keep their choice, and the Settings picker still offers all three.

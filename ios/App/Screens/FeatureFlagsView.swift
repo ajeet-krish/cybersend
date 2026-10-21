@@ -40,6 +40,7 @@ struct FeatureFlagsView: View {
                     .accessibilityIdentifier("flags.help")
             }
         }
+        .themedPageBackground()
         .accessibilityIdentifier("flags.screen")
         .navigationTitle("Feature flags")
         .onAppear {

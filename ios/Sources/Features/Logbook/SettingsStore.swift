@@ -21,8 +21,10 @@ public final class SettingsStore: ObservableObject {
     /// The persisted default grade scheme (settings key settingsKeyDefaultGradeSystem);
     /// nil when unset. Display falls back to the built-in defaultGradeSystemID.
     @Published public private(set) var defaultGradeSystemId: String?
-    /// Appearance override (settings key settingsKeyAppearance), .system when unset.
-    @Published public private(set) var appearance: AppearancePreference = .system
+    /// Appearance override (settings key settingsKeyAppearance). Dark is the documented
+    /// default for this app (cyberpunk dark first); the override only changes it when the
+    /// user picks something else, and an unset key always resolves to dark.
+    @Published public private(set) var appearance: AppearancePreference = .dark
     /// Photo retention preference (settings key settingsKeyPhotoRetention); the default
     /// keeps captured originals (enforcement starts with M3).
     @Published public private(set) var photoRetention: PhotoRetentionPreference = .keepOriginals
@@ -53,7 +55,7 @@ public final class SettingsStore: ObservableObject {
            let preference = AppearancePreference(rawValue: raw) {
             appearance = preference
         } else {
-            appearance = .system
+            appearance = .dark
         }
         if let raw = try? repos.settings.getJSON(key: settingsKeyPhotoRetention, as: String.self),
            let preference = PhotoRetentionPreference(rawValue: raw) {

@@ -21,6 +21,7 @@ struct SettingsTabView: View {
                             .accessibilityIdentifier("settings.services.unavailable")
                     }
                 }
+                .themedPageBackground()
                 .accessibilityIdentifier("settings.screen")
                 .navigationTitle("Settings")
             }

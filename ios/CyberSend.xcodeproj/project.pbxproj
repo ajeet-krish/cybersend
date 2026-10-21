@@ -258,6 +258,7 @@
 			packageReferences = (
 				C5E200000000000000000080 /* XCLocalSwiftPackageReference "." */,
 			);
+			preferredProjectObjectVersion = 77;
 			productRefGroup = C5E200000000000000000003 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -571,7 +572,7 @@
 /* Begin XCLocalSwiftPackageReference section */
 		C5E200000000000000000080 /* XCLocalSwiftPackageReference "." */ = {
 			isa = XCLocalSwiftPackageReference;
-			relativePath = ".";
+			relativePath = .;
 		};
 /* End XCLocalSwiftPackageReference section */
 

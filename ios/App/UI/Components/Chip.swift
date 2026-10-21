@@ -16,7 +16,9 @@ struct Chip: View {
             .font(.caption.weight(.semibold))
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
-            .background(emphasized ? Theme.accent : Theme.separator.opacity(0.35))
+            // accentSolid, not accent: white on the bright accent measures 2.4:1, white on
+            // the solid accent measures about 4.9:1.
+            .background(emphasized ? Theme.accentSolid : Theme.separator.opacity(0.35))
             .foregroundStyle(emphasized ? Color.white : Theme.secondaryText)
             .clipShape(Capsule())
     }
