@@ -71,6 +71,15 @@ def run(config_path: Path) -> None:
     train_config["output_dir"] = str(output_dir)
     train_config["device"] = str(config["device"])  # forwarded to RFDETRNano.train()
     train_config["seed"] = int(config["seed"])  # forwarded to RFDETRNano.train()
+    if train_config.get("resume"):
+        # rfdetr forwards resume verbatim to Lightning, which resolves relative
+        # paths against the process CWD. Resolve against PROJECT_ROOT here so an
+        # interrupted run resumes from any working directory, matching how
+        # dataset_dir and output_dir are handled above.
+        resume_path = Path(str(train_config["resume"]))
+        if not resume_path.is_absolute():
+            resume_path = PROJECT_ROOT / resume_path
+        train_config["resume"] = str(resume_path)
 
     resolution = int(model_config.pop("resolution", 640))
     print(f"D1 baseline run: RF-DETR-Nano, resolution {resolution}")

@@ -1,0 +1,67 @@
+# CyberSend D1 baseline, resume after interruption: continues the low-memory run.
+#
+# WARNING: this is still a multi-hour training run with the same approval
+# requirements as every D1 run (see tools/train/README.md). Approved as part of
+# the full D1 run on 2026-10-20.
+#
+# Why this file exists: the rf_detr_d1_lowmem run started 2026-10-20 21:09 was
+# killed at 21:48 by an opencode server restart that terminated its parent
+# shell (epoch 3, batch 850/902, about 10 minutes short of the epoch 3
+# checkpoint). The last full trainer checkpoint, artifacts/train_rf_detr_d1/
+# last.ckpt (end of epoch 2, model + optimizer + LR scheduler + callback and
+# best-score state), survived on disk. This config is byte-identical to
+# configs/rf_detr_d1_lowmem.yaml except:
+#
+#   resume: artifacts/train_rf_detr_d1/last.ckpt   (TrainConfig field; rfdetr
+#     forwards it to Lightning's fit(ckpt_path=...). The checkpoint's parent
+#     directory equals output_dir, which rfdetr requires to restore best-score
+#     tracking. Our wrapper resolves the path against PROJECT_ROOT.)
+#
+# output_dir intentionally stays artifacts/train_rf_detr_d1 so the resumed run
+# writes into the same directory as the original (metrics.csv appends, best
+# checkpoints keep their history).
+#
+# Run with:
+#   uv run hold-train-d1 --config configs/rf_detr_d1_lowmem_resume.yaml 2>&1 | tee artifacts/train_rf_detr_d1_lowmem.log
+
+run_id: rf_detr_d1_lowmem_resume
+description: >-
+  D1 baseline low-memory resume: continues the interrupted 40-epoch
+  RF-DETR-Nano run from the end-of-epoch-2 full checkpoint after an opencode
+  server restart killed the original process at epoch 3, batch 850/902 on
+  2026-10-20. Same recipe, same output directory, no setting changed.
+
+dataset_dir: datasets/merged
+output_dir: artifacts/train_rf_detr_d1
+
+device: mps
+seed: 20261019
+
+model:
+  resolution: 640
+
+train:
+  epochs: 40
+  batch_size: 2
+  lr: 0.0001
+  lr_encoder: 0.0001
+  weight_decay: 0.0001
+  multi_scale: off
+  expanded_scales: false
+  num_workers: 0
+  prefetch_factor: null
+  persistent_workers: false
+  pin_memory: false
+  eval_batch_size: 1
+  eval_interval: 1
+  eval_ema_only: false
+  progress_bar: true
+  resume: artifacts/train_rf_detr_d1/last.ckpt
+  notes: >-
+    CyberSend D1 baseline LOWMEM RESUME from last.ckpt (end of epoch 2) after
+    the 2026-10-20 server restart killed the run mid epoch 3. Original recipe
+    unchanged: 40 epochs, batch 2, multi-scale off, single process loading on
+    datasets/merged (climbtag v29 + blackcreed v14 + pwals v18, pHash deduped,
+    cluster 60/20/20, seed 20261019, letterbox 640 baked, category id 1). Gate:
+    precision >= 0.85, recall >= 0.80, mAP50 >= 0.75 on the frozen test split
+    per docs/requirements.md section 6 (test split touched once, at the end).
