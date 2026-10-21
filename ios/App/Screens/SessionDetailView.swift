@@ -27,6 +27,9 @@ struct SessionDetailView: View {
     @StateObject private var transient = TransientNoticeModel()
 
     @State private var pendingFall: FallRequest?
+    /// Effort for the next quick logged attempt. Nil means unrated, and a successful
+    /// log clears it so each attempt starts blank rather than inheriting the last one.
+    @State private var attemptRPE: Int?
     @State private var showCloseSheet = false
     @State private var editingAttempt: Attempt?
     @State private var pendingAttemptDelete: Attempt?
@@ -85,7 +88,7 @@ struct SessionDetailView: View {
                 services: services
             ) { holdId in
                 pendingFall = nil
-                logAttempt(request.outcome, fallOnHoldId: holdId)
+                logAttempt(request.outcome, fallOnHoldId: holdId, rpe: request.rpe)
             }
         }
         .sheet(isPresented: $showCloseSheet) {
@@ -100,9 +103,9 @@ struct SessionDetailView: View {
                 climbId: attempt.climbId,
                 holds: holdsForClimb(attempt.climbId),
                 services: services
-            ) { outcome, notes, fallOnHoldId in
+            ) { outcome, notes, fallOnHoldId, rpe in
                 editingAttempt = nil
-                updateAttempt(attempt, outcome: outcome, notes: notes, fallOnHoldId: fallOnHoldId)
+                updateAttempt(attempt, outcome: outcome, notes: notes, fallOnHoldId: fallOnHoldId, rpe: rpe)
             }
         }
         .confirmationDialog(
@@ -210,6 +213,16 @@ struct SessionDetailView: View {
                 outcomeButton(.flash)
                 outcomeButton(.send)
                 outcomeButton(.fail)
+            }
+            Divider()
+                .overlay(Theme.separator)
+            HStack {
+                Text("Effort")
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.secondaryText)
+                Spacer()
+                EffortPicker(rpe: $attemptRPE)
+                    .accessibilityIdentifier("session.attempt-rpe")
             }
         }
         .accessibilityElement(children: .contain)
@@ -370,6 +383,9 @@ struct SessionDetailView: View {
         if let holdText = DisplayText.fallHoldTitle(fallOnHoldId: attempt.fallOnHoldId, holds: holdsForClimb(attempt.climbId)) {
             text += ", \(holdText)"
         }
+        if let rpeText = DisplayText.rpe(attempt.rpe) {
+            text += ", \(rpeText)"
+        }
         return text
     }
 
@@ -417,19 +433,20 @@ struct SessionDetailView: View {
     private func outcomeTapped(_ outcome: AttemptOutcome) {
         switch outcome {
         case .flash, .send:
-            logAttempt(outcome, fallOnHoldId: nil)
+            logAttempt(outcome, fallOnHoldId: nil, rpe: attemptRPE)
         case .fail:
             // The fall hold prompt: the climb's real holds from climb_holds (M3), with
             // the photo canvas when the climb has a photo; skip saves nil
             // (docs/decisions.md quick log decision).
-            pendingFall = FallRequest(outcome: outcome)
+            pendingFall = FallRequest(outcome: outcome, rpe: attemptRPE)
         }
     }
 
-    private func logAttempt(_ outcome: AttemptOutcome, fallOnHoldId: String?) {
+    private func logAttempt(_ outcome: AttemptOutcome, fallOnHoldId: String?, rpe: Int? = nil) {
         do {
-            let warnings = try store.logAttempt(outcome: outcome, fallOnHoldId: fallOnHoldId)
+            let warnings = try store.logAttempt(outcome: outcome, fallOnHoldId: fallOnHoldId, rpe: rpe)
             actionError = nil
+            attemptRPE = nil
             logbook.refresh()
             if let first = warnings.first {
                 transient.show(DisplayText.warningMessage(first))
@@ -467,13 +484,20 @@ struct SessionDetailView: View {
         }
     }
 
-    private func updateAttempt(_ attempt: Attempt, outcome: AttemptOutcome, notes: String?, fallOnHoldId: String?) {
+    private func updateAttempt(
+        _ attempt: Attempt,
+        outcome: AttemptOutcome,
+        notes: String?,
+        fallOnHoldId: String?,
+        rpe: Int?
+    ) {
         do {
             try store.updateAttempt(
                 id: attempt.id,
                 outcome: .set(outcome),
                 fallOnHoldId: .set(fallOnHoldId),
-                notes: .set(notes)
+                notes: .set(notes),
+                rpe: .set(rpe)
             )
             actionError = nil
             logbook.refresh()
@@ -531,6 +555,9 @@ final class TransientNoticeModel: ObservableObject {
 /// The project or fail tap that opened the fall hold sheet (item based presentation).
 private struct FallRequest: Identifiable {
     let outcome: AttemptOutcome
+    /// The effort dialled in before tapping Fail, carried through the fall hold sheet so
+    /// the attempt is saved with both.
+    let rpe: Int?
     var id: String { outcome.rawValue }
 }
 
@@ -612,17 +639,37 @@ struct CloseSessionSheet: View {
 /// domain rules exactly like a fresh log; notes edit with patch semantics (clearing the
 /// field clears the stored value). Sends never record a fall hold: the domain drops the
 /// value with a warning, and the sheet says so up front.
+/// Compact 1 to 10 effort picker shared by the quick log card and the edit sheet. A menu
+/// keeps ten values to one tap without a row of ten chips, and the None case stays
+/// explicit so an unrated attempt reads as a choice rather than a missing value.
+struct EffortPicker: View {
+    @Binding var rpe: Int?
+    var title = "Effort"
+
+    var body: some View {
+        Picker(title, selection: $rpe) {
+            Text("None").tag(Int?.none)
+            ForEach(1...10, id: \.self) { value in
+                Text("RPE \(value)").tag(Int?.some(value))
+            }
+        }
+        .pickerStyle(.menu)
+        .tint(Theme.accent)
+    }
+}
+
 struct EditAttemptSheet: View {
     let attempt: Attempt
     let climbId: String
     let holds: [Hold]
     let services: AppServices
-    let onSave: (AttemptOutcome, String?, String?) -> Void
+    let onSave: (AttemptOutcome, String?, String?, Int?) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var outcome: AttemptOutcome
     @State private var notes: String
     @State private var fallOnHoldId: String?
+    @State private var rpe: Int?
     @State private var showFallSheet = false
 
     init(
@@ -630,7 +677,7 @@ struct EditAttemptSheet: View {
         climbId: String,
         holds: [Hold],
         services: AppServices,
-        onSave: @escaping (AttemptOutcome, String?, String?) -> Void
+        onSave: @escaping (AttemptOutcome, String?, String?, Int?) -> Void
     ) {
         self.attempt = attempt
         self.climbId = climbId
@@ -640,6 +687,7 @@ struct EditAttemptSheet: View {
         _outcome = State(initialValue: attempt.outcome)
         _notes = State(initialValue: attempt.notes ?? "")
         _fallOnHoldId = State(initialValue: attempt.fallOnHoldId)
+        _rpe = State(initialValue: attempt.rpe)
     }
 
     var body: some View {
@@ -654,6 +702,18 @@ struct EditAttemptSheet: View {
                     }
                     .pickerStyle(.segmented)
                     .accessibilityIdentifier("attempt.edit.outcome")
+                }
+
+                SectionTitle("Effort")
+                Card {
+                    HStack {
+                        Text("Per climb RPE")
+                            .font(.subheadline)
+                            .foregroundStyle(Theme.secondaryText)
+                        Spacer()
+                        EffortPicker(rpe: $rpe)
+                            .accessibilityIdentifier("attempt.edit.rpe")
+                    }
                 }
 
                 SectionTitle("Fall hold")
@@ -707,7 +767,7 @@ struct EditAttemptSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        onSave(outcome, notes.isEmpty ? nil : notes, fallOnHoldId)
+                        onSave(outcome, notes.isEmpty ? nil : notes, fallOnHoldId, rpe)
                     }
                     .accessibilityIdentifier("attempt.edit.save")
                 }

@@ -45,7 +45,7 @@ final class QuickLogSmokeTests: XCTestCase {
         // 3: tap Fail, which opens the fall hold sheet (US-12.3). The wait is polling,
         // not a tap, so the budget accounting below stays exact.
         let failButton = app.buttons["outcome.fail"]
-        XCTAssertTrue(failButton.waitForExistence(timeout: 10), "the open session screen shows the four outcome buttons")
+        XCTAssertTrue(failButton.waitForExistence(timeout: 10), "the open session screen shows the three outcome buttons")
         XCTAssertTrue(failButton.isEnabled, "outcome buttons are enabled for a fresh climb")
         tap(failButton)
 
@@ -89,7 +89,7 @@ final class QuickLogSmokeTests: XCTestCase {
 
         // 3: tap Fail, which opens the fall hold sheet with the climb's real holds.
         let failButton = app.buttons["outcome.fail"]
-        XCTAssertTrue(failButton.waitForExistence(timeout: 10), "the open session screen shows the four outcome buttons")
+        XCTAssertTrue(failButton.waitForExistence(timeout: 10), "the open session screen shows the three outcome buttons")
         tap(failButton)
 
         // 4: a real hold row is the 4th tap and saves the attempt with the fall hold.
