@@ -64,7 +64,7 @@ ML phases (requirements numbering), unchanged:
 | 1 | Core foundation | Not Started |
 | 2 | Photo capture and tagging MVP | Not Started |
 | 3 | Grade normalization | Not Started |
-| 4 | AI hold detection (Apache-2.0 self-trained) | Not Started |
+| 4 | AI hold detection (Apache-2.0 self-trained) | In Progress (RF-DETR baseline trained 2026-10-21; YOLOX comparison staged) |
 | 5 | BoulderVision video analysis (experimental) | Not Started |
 
 Native migration milestones (the app track since 2026-10-19):
