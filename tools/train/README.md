@@ -245,12 +245,12 @@ rm last.ckpt                           # reclaim ~500 MB once export succeeded
 ```bash
 cd tools/train
 uv run hold-export \
-  --checkpoint artifacts/train_rf_detr_d1/checkpoint_best_ema.pth \
+  --checkpoint artifacts/train_rf_detr_d1/checkpoint_best_total.pth \
   --output artifacts/holds_detector_d1.onnx \
-  --manifest artifacts/manifest_d1.json \
+  --manifest artifacts/manifest.json \
   --dataset-dir datasets/merged \
   --id holds_detector_d1 \
-  --version 0.1.0 \
+  --version 1.0.0 \
   --purpose "D1 baseline: RF-DETR-Nano on the merged hold dataset"
 
 cd ../eval
@@ -258,9 +258,18 @@ npm install
 npm run verify -- ../train/artifacts/holds_detector_d1.onnx
 ```
 
+`checkpoint_best_total.pth` is what was exported, and its state dict is
+identical to `checkpoint_best_ema.pth`: same 466 tensors, same content hash
+(`c0cc4377b9061ae9`), and `best_total_source` is `ema` at epoch 39. Either file
+exports the same graph, and the total checkpoint is the canonical one because
+it names its source.
+
 `--id`, `--version`, and `--purpose` are recorded in the export manifest;
 dataset provenance points at `datasets/merged/manifest.json` (built by
-`hold-build`, updated by `hold-bake`), including its SHA256.
+`hold-build`, updated by `hold-bake`), including its SHA256. Pass an absolute
+path or a path relative to the repo root for `--dataset-dir`; the manifest step
+resolves the path before making it repo relative (a relative path used to crash
+before that fix).
 
 ## D1 runbook
 
@@ -431,6 +440,82 @@ Two traps to avoid:
 Comparison protocol: export both models to ONNX, evaluate both on the same
 frozen test split with the same harness, and record precision, recall, mAP@0.5,
 latency, and export size in docs/research.md before picking the Phase 4 model.
+
+## ONNX export and torch parity (D1, 2026-10-21)
+
+Both D1 models export to ONNX opset 17 and run in `onnxruntime-node`. Numbers
+below are from the completed exports, recorded in docs/research.md.
+
+| Model | File | Bytes | Input | Outputs |
+|---|---|---|---|---|
+| RF-DETR-Nano | artifacts/holds_detector_d1.onnx | 109,222,362 | `input` [1,3,640,640] | `dets` [1,300,4], `labels` [1,300,2] |
+| YOLOX-Nano | artifacts/holds_detector_yolox_d1.onnx | 4,587,150 | `images` [1,3,640,640] | `output` [1,8400,6] |
+
+RF-DETR exports through the packaged path, YOLOX through the committed script
+(the Megvii export script calls `torch.onnx._export`, removed in torch 2.14):
+
+```bash
+cd tools/train
+# RF-DETR (also see the export block above)
+uv run hold-export --checkpoint artifacts/train_rf_detr_d1/checkpoint_best_total.pth \
+  --output artifacts/holds_detector_d1.onnx --manifest artifacts/manifest.json \
+  --dataset-dir datasets/merged --id holds_detector_d1 --version 1.0.0
+
+# YOLOX, run from tools/train
+PYTHONPATH=src .venv-yolox/bin/python -m hold_train.export_yolox_onnx
+```
+
+`export_yolox_onnx.py` uses the legacy tracer (`dynamo=False`), keeps decode in
+the graph, simplifies with onnxsim, and writes artifacts/manifest_yolox_d1.json.
+It needs `onnx`, `onnxruntime`, and `onnxsim` in the YOLOX environment:
+
+```bash
+uv pip install --python .venv-yolox/bin/python onnx onnxruntime onnxsim
+```
+
+### Parity gate
+
+`parity_check.py` runs the torch model and the ONNX graph on the same K val
+images (val only, never the frozen test split) and gates on the decision space
+the harness consumes, not on raw max-abs across all queries:
+
+```bash
+cd tools/train
+PYTHONPATH=src .venv/bin/python -m hold_train.parity_check --model rfdetr \
+  --checkpoint artifacts/train_rf_detr_d1/checkpoint_best_total.pth \
+  --onnx artifacts/holds_detector_d1.onnx
+
+PYTHONPATH=src .venv-yolox/bin/python -m hold_train.parity_check --model yolox \
+  --checkpoint artifacts/train_yolox_d1/yolox_d1/best_ckpt.pth \
+  --onnx artifacts/holds_detector_yolox_d1.onnx --exp-file configs/yolox_d1.py
+```
+
+The gate is max hold-score difference and max box difference over active
+queries (score above `--score-threshold`, default 0.5), both against
+`--tolerance` (default 1e-3). Boxes are converted to the normalized 0..1 frame
+before comparison (RF-DETR emits normalized already, YOLOX emits pixels of the
+640 frame), so one absolute tolerance means the same thing for both models.
+Raw max-abs stays in the report as a diagnostic only: near-zero background
+queries in RF-DETR are numerically ill-conditioned and swing by 0.16 on `dets`
+without affecting a single detection.
+
+Measured (5 val images each):
+
+- RF-DETR: max hold-score diff 8.31e-4, max active-query box diff 7.15e-7. PASS.
+- YOLOX: max score diff 1.06e-5, max active box diff 2.19e-6 normalized. PASS.
+
+Reports land in artifacts/parity_rfdetr_d1.json and
+artifacts/parity_yolox_d1.json (git ignored; summary in docs/research.md).
+
+### Preprocess contract difference
+
+The harness preprocess (`tools/eval/src/preprocess.ts`) applies ImageNet
+normalization, which matches the RF-DETR export. The YOLOX export expects raw
+0..255 RGB with no normalization, and it carries no NMS. YOLOX therefore cannot
+run through `eval_hold.ts` until the harness gains a per-model preprocess mode
+plus YOLOX decode and NMS. Parity for YOLOX above was measured by feeding both
+runtimes the same tensor, so it proves export fidelity and says nothing about
+harness compatibility.
 
 ## Preprocess parity with the app
 

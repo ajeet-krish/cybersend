@@ -1,6 +1,6 @@
 # CyberSend Research Log
 
-Last updated: 2026-10-19 (Phase 0)
+Last updated: 2026-10-21 (D1 ONNX export and torch parity)
 
 Findings and open questions from spikes and literature checks. Spike checklist for Phase 0; fill results as spikes complete.
 
@@ -135,3 +135,97 @@ Citations:
 18. Expo, Understanding app size. https://docs.expo.dev/distribution/app-size/
 19. Expo, How to measure mobile app performance. https://expo.dev/articles/app-performance-and-reliability/measure-mobile-app-performance
 20. Shopify, React Native Skia issue 1745, package size. https://github.com/Shopify/react-native-skia/issues/1745
+
+## 2026-10-21 - D1 ONNX export and torch parity
+
+Both D1 models now export to ONNX opset 17 and were checked against their
+PyTorch sources on val data. Nothing here touches the frozen test split.
+
+### Export artifacts
+
+| Item | RF-DETR-Nano | YOLOX-Nano |
+|------|--------------|------------|
+| Source checkpoint | artifacts/train_rf_detr_d1/checkpoint_best_total.pth (`best_total_source` is ema, epoch 39; state dict identical to checkpoint_best_ema.pth, 466 tensors, hash c0cc4377b9061ae9) | artifacts/train_yolox_d1/yolox_d1/best_ckpt.pth (epoch 40, best mAP) |
+| ONNX file | artifacts/holds_detector_d1.onnx | artifacts/holds_detector_yolox_d1.onnx |
+| Size | 109,222,362 bytes (109.2 MB) | 4,587,150 bytes (4.59 MB) |
+| Input | `input` float32 [1,3,640,640] | `images` float32 [1,3,640,640] |
+| Outputs | `dets` [1,300,4] normalized cxcywh, `labels` [1,300,2] class logits | `output` [1,8400,6] x1,y1,x2,y2 in pixels, objectness, class score |
+| Manifest | artifacts/manifest.json (version 1.0.0) | artifacts/manifest_yolox_d1.json |
+| Postprocess location | decode in graph, NMS in the harness | decode in graph, NMS outside the graph |
+| CPU latency (onnxruntime-node, 1 image) | 153 ms | 13 ms |
+
+The RF-DETR names and shapes match the contract `tools/eval/src/decode.ts`
+already consumes: `dets` are normalized cxcywh per query, and `labels` channel 0
+is the hold logit (independent sigmoid, no softmax; the trailing channel is
+no-object). Output order is not score sorted, and the harness thresholds and
+sorts downstream. A TopK node does exist inside the transformer (two-stage
+query selection), but it does not order the graph outputs. The YOLOX output is
+the raw 8400 anchor decode with no clipping and no NMS; boxes routinely exceed
+the frame (measured max 5512 px before clipping).
+
+Graph size: RF-DETR 1424 nodes, YOLOX 378 nodes after simplification.
+
+### Export tooling findings
+
+- torch 2.14 removed `torch.onnx._export`. The Megvii YOLOX export script calls
+  it and dies. The replacement export must use the legacy tracer explicitly
+  (`torch.onnx.export(..., dynamo=False)`); the dynamo exporter was not used
+  here, so its behavior on this model is unverified.
+- `rfdetr.from_checkpoint()` returns a `ModelContext` wrapper; the nn module
+  is `rf.model.model`, and its `export()` swaps every submodule forward to its
+  export variant in place. Repeated calls on one instance were exercised by the
+  parity tool without error.
+- `export_onnx.py` crashed on a relative `--dataset-dir` because the manifest
+  step called `.relative_to(PROJECT_ROOT)` on an unresolved path. Fixed with
+  `resolve()`. A relative dataset path is now accepted.
+- onnxsim simplifies the YOLOX graph to 378 nodes and is used so a Core ML
+  conversion attempt starts from a canonical graph (dynamic shapes off); the
+  RF-DETR graph is left as exported.
+
+### Parity protocol and results
+
+Parity is scored on the decision space the harness consumes: hold score
+agreement plus box agreement over queries whose score clears 0.5. Raw max-abs
+over all 300 queries is recorded but is not a gate, because near-zero
+background queries have ill-conditioned box regressions.
+
+| Model | Max score diff | Max active-query box diff (normalized) | Gate (1e-3) |
+|-------|----------------|----------------------------------------|-------------|
+| RF-DETR-Nano | 8.31e-4 | 7.15e-7 | PASS |
+| YOLOX-Nano | 1.06e-5 | 2.19e-6 | PASS |
+
+RF-DETR raw max-abs reached 0.1597 on `dets` and 0.4354 on `labels` on one
+image. Isolation showed the cause: hold scores agree to 8.3e-4 there, the
+top-20 query sets are identical (20 of 20), and only 3 of 300 queries cross
+0.5 in both runs. The large deltas sit on queries with scores near 0.003, so no
+detection changes. This is consistent with FP32 versus ONNX Runtime accumulation
+differences on near-saturated background logits, not an export defect.
+
+YOLOX boxes are emitted in pixels of the 640 frame, so the gate normalizes them
+by 640 before comparing. Without that, the same 1.4e-3 pixel difference reads
+as a failure against a 1e-3 gate that was authored for 0..1 coordinates.
+
+### Preprocess contract difference (blocks YOLOX in the harness)
+
+| | RF-DETR | YOLOX |
+|---|---------|-------|
+| Channel order | RGB | RGB |
+| Scale | /255 then ImageNet mean/std | raw 0..255, no normalization |
+| Letterbox pad | 114 gray, centered | 114 gray, centered |
+
+`tools/eval/src/preprocess.ts` implements the RF-DETR contract and is shared by
+the eval harness. `tools/eval/src/decode.ts` decodes RF-DETR query output only.
+YOLOX cannot be scored by `eval_hold.ts` until the harness gains a per-model
+preprocess mode plus YOLOX decode and NMS. RF-DETR is fully wired today.
+
+### Core ML conversion risk, updated
+
+The RF-DETR graph contains two `GridSample` nodes (deformable attention sampling
+in the decoder cross attention, bilinear, `padding_mode=zeros`) plus 16 Softmax
+and a LayerNormalization heavy path. `GridSample` is the op class that
+historically blocked this model on Core ML and MPS, and it is the reason RF-DETR
+should be treated as a Core ML conversion gamble rather than a plan.
+The YOLOX graph is Conv, Sigmoid, and elementwise only (113 Conv, 110 Sigmoid,
+no grid_sample, no softmax, no attention), which is why it remains the smaller
+deployment risk even at lower accuracy (val mAP50:95 0.5224 versus 0.6915). No
+device conversion has been attempted yet; both remain unmeasured on ANE.

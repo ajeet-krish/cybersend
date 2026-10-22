@@ -92,6 +92,9 @@ def export_artifact(
     """Export checkpoint to ONNX and write manifest.json next to it."""
     print(f"Loading checkpoint {checkpoint_path}")
     model = RFDETR.from_checkpoint(str(checkpoint_path))
+    # Resolve to an absolute path: the manifest records repo-relative paths via
+    # relative_to(PROJECT_ROOT), which raises ValueError on a relative input.
+    dataset_dir = dataset_dir.resolve()
 
     export_dir = onnx_path.parent
     export_dir.mkdir(parents=True, exist_ok=True)
