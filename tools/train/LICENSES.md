@@ -62,6 +62,15 @@ https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_n
 Stored in tools/train/artifacts/pretrained/ (git ignored), same Apache-2.0
 terms as the framework.
 
+Pretrained initialization for the D1b scaling run: yolox_s.pth
+(72,089,125 bytes), the official Apache-2.0 Small checkpoint from the same
+Megvii releases page:
+https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_s.pth
+Stored in tools/train/artifacts/pretrained/ (git ignored), same Apache-2.0
+terms. It initializes configs/yolox_s_d1.py; the key overlap is checked at load
+and recorded in the README (456 of 462 tensors, 99.7% of parameters, only the
+80-class head keys skipped).
+
 ## climbtag "Climbing Hold Detection" (CC BY 4.0)
 
 Roboflow Universe, v29 export (2026-06-02), 4,931 images, instance segmentation

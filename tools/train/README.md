@@ -458,6 +458,66 @@ fails the false positive budget (1.88 per image versus 0.5) and cannot meet the
 recall. No D1 model is shippable as specified; see the gate table in
 docs/research.md and the decision record in docs/decisions.md.
 
+## D1b scaling run: YOLOX-S (branch approved 2026-10-21, run awaiting go-ahead)
+
+D1 left Phase 4 accuracy-decided but shipment-blocked, and the two D1 models
+fail on opposite sides: RF-DETR-Nano meets the accuracy thresholds but misses
+the false positive budget at the recall floor and cannot meet the 15 MB int8
+budget at 28.9M parameters (Core ML compression does not help, see
+docs/research.md). YOLOX-Nano fits size by an order of magnitude but tops out at
+precision 0.7168 when recall reaches 0.80. The user chose scaling YOLOX over
+revising budgets (docs/decisions.md).
+
+Recipe: configs/yolox_s_d1.py, identical to configs/yolox_d1.py except the model
+scale (depth 0.33, width 0.50, dense convolutions, 8.94M parameters at one
+class). Everything else matches for comparability: fixed 640, batch 4, 40
+epochs, 5 warmup, 5 no-aug, no multiscale, single-process loading, same seed.
+Dense convolutions are required by the official checkpoint, which is a dense
+COCO model: 456 of 462 tensors match by name and shape, 99.7% of parameters,
+with only the 80-class head keys skipped (the D1 Nano build needed
+`depthwise=True` for the same reason, see configs/yolox_d1.py).
+
+Size: about 8.9M parameters, so roughly 9 MB at int8 against the 15 MB budget,
+and the graph stays Conv, Sigmoid, and elementwise only. No preprocessing or
+postprocessing change: the harness contract for YOLOX already covers raw 0..255
+input, cxcywh pixels, and NMS at IoU 0.65.
+
+Pretrained initialization, Apache-2.0, stored git ignored:
+`artifacts/pretrained/yolox_s.pth` (72,089,125 bytes), from
+https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_s.pth
+(recorded in LICENSES.md).
+
+```bash
+cd tools/train
+.venv-yolox/bin/python -m yolox.tools.train \
+  -f configs/yolox_s_d1.py -b 4 -c artifacts/pretrained/yolox_s.pth
+```
+
+Artifacts land in artifacts/train_yolox_s_d1/yolox_s_d1/ (checkpoints,
+train_log.txt, tensorboard), separate from the Nano run.
+
+Wall time is a range, not a number, because the recorded Nano run was 3.4x
+slower per iteration than the same recipe measures on an idle machine today:
+
+| Measurement | Nano | S |
+|---|---|---|
+| Isolated step timing, batch 4, EMA on, MPS (data / compute) | 0.216 s (0.043 / 0.172) | 0.338 s (0.042 / 0.296) |
+| Recorded trainer iteration at epoch 5 | 0.723 s | unknown |
+| Recorded final no-aug epochs | about 1 min per epoch | unknown |
+
+At 451 iterations per epoch, the isolated number predicts about 2.5 min per
+mosaic epoch (roughly 1.7 h for 40 epochs), while calibration against the
+recorded Nano run predicts about 8 min per epoch (roughly 5.5 h). Check the first
+epoch before letting it run: if epoch 1 exceeds about 10 min, stop and
+re-estimate, because the 16 GB machine is likely thermal or memory bound.
+
+Evaluation after the run follows the same protocol as D1: export to ONNX, parity
+check, then the val operating-curve sweep at several confidences. The frozen
+test split stays unopened; a second spend needs a policy decision, not a run.
+
+Resume traps are unchanged from the Nano section: never combine `--resume` with
+`-c`, and set `TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1`.
+
 ## ONNX export and torch parity (D1, 2026-10-21)
 
 Both D1 models export to ONNX opset 17 and run in `onnxruntime-node`. Numbers
