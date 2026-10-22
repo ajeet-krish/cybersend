@@ -119,7 +119,12 @@ domain, migration, repository, CSV, and export boundaries:
 | Val comparison, 591 images, confidence 0.5 | npm run eval on val | RF-DETR 0.9490 / 0.8894 / 0.9235; YOLOX 0.9185 / 0.6725 / 0.8101 |
 | Frozen test run, 582 images, single gated use, RF-DETR | npm run eval -- --gate --i-accept-one-test-run | precision 0.9509, recall 0.8788, mAP@0.5 0.9130, FP/image 1.8832, median count error 1.0 |
 | Phase 4 accuracy criteria | docs/requirements.md section 6 | PASS for precision, recall, mAP, count error; FAIL for FP/image (0.5 limit) |
-| Core ML conversion | not run yet | PENDING |
+| Core ML export, RF-DETR, rfdetr 1.11.2 exporter | PYTHONPATH=src .venv/bin/python -m hold_train.export_coreml | PASS, 104.4 MB float32 package, iOS16 mlprogram, 740 MIL ops, about 5 s |
+| Core ML versus ONNX parity, float32, 5 val images | PYTHONPATH=src .venv/bin/python -m hold_train.parity_coreml | PASS (CPU_ONLY score 8.31e-4, box 8.79e-7; all compute units 8.31e-4, 8.94e-7) |
+| Core ML latency, float32, M5 Mac, one loaded photo | same tool | CPU_ONLY median 95.1 ms; all compute units median 43.6 ms (41 to 50 ms warm), first call 4164 ms including load |
+| Weight compressed packages | hold_train.export_coreml --palettize-bits 8 4 | float16 51.6 MB, int8 26 MB, int4 13 MB |
+| Compressed package parity | parity_coreml on each package, CPU_ONLY | FAIL all three (float16 score 2.96e-1, int8 4.54e-1, int4 9.77e-1 with non-finite boxes) |
+| Compressed package val accuracy | not run, needs a Core ML evaluation path in the harness | PENDING |
 
 The test run consumed the one-run policy; the ledger line is in
 tools/eval/reports/test_ledger.jsonl and the report is

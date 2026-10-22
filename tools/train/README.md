@@ -559,6 +559,48 @@ The harness-versus-in-loop mAP gap also shrank to noise at D1: RF-DETR scores
 COCO mAP50 (a VOC versus COCO interpolation difference, plus NMS details).
 The open reconciliation item in the eval README is effectively closed for D1.
 
+## Core ML export and parity (D1, 2026-10-21)
+
+Feasibility path, not a shipment path. rfdetr 1.11.2 ships a Core ML exporter
+that rewrites deformable attention into a rank 5 path, so the two GridSample
+nodes that were the historical Apple backend blocker do not block conversion.
+The exporter pins minimum deployment target to iOS16 (the app floor) and expects
+the same ImageNet normalization and 1x3x640x640 input as ONNX.
+
+```bash
+cd tools/train
+
+# Conversion (float32 package, optional uniform weight compression).
+PYTHONPATH=src .venv/bin/python -m hold_train.export_coreml \
+  --checkpoint artifacts/train_rf_detr_d1/checkpoint_best_total.pth \
+  --output-dir artifacts/coreml_rfdetr_d1 --precision float32 --palettize-bits 8 4
+
+# Parity against the canonical ONNX graph (val only, never the test split).
+PYTHONPATH=src .venv/bin/python -m hold_train.parity_coreml \
+  --mlpackage artifacts/coreml_rfdetr_d1/rfdetr-nano_fp32.mlpackage \
+  --onnx artifacts/holds_detector_d1.onnx --count 5 --compute-units CPU_ONLY
+```
+
+`parity_coreml.py` reuses the torch parity decision space (hold scores and boxes
+of queries above 0.5, tolerance 1e-3) and maps the package outputs by shape
+(`concat_2` dets, `linear_102` labels) rather than by position. It adds a
+`--compute-units` switch: CPU_ONLY for a deterministic numeric check, ALL to
+exercise the ANE path.
+
+Measured on this machine (M5, five val images; details in docs/research.md):
+
+| Package | Size | Parity | Notes |
+|---|---|---|---|
+| float32 | 104.4 MB | PASS 8.31e-4 score, 8.79e-7 box | ANE path also passes; 43.6 ms median warm, 4.16 s first call |
+| float16 | 51.6 MB | FAIL 2.96e-1 score | detection count preserved on the sensitive image, one active box moves 0.59 |
+| int8, 8 bit palettized | 26 MB | FAIL 4.54e-1 score | 2 of 56 detections lost on the sensitive image |
+| int4, 4 bit palettized | 13 MB | FAIL 9.77e-1 score | non-finite boxes, all 56 detections lost |
+
+Compressed packages are measurement artifacts only. The only parity-clean
+package is 104.4 MB, so Core ML does not resolve the 15 MB budget. Compression
+modes in coremltools are KMEANS (needs scikit-learn), UNIFORM, UNIQUE, CUSTOM;
+the recorded variants used UNIFORM on a float16 package.
+
 ## Preprocess parity with the app
 
 Inference preprocess (letterbox 640 pad 114 centered, RGB float32 NCHW,

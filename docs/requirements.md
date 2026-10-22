@@ -199,6 +199,13 @@ and passes at the boundary. False positives are 1.8832 per image and fail the
 size budget but fails recall at every threshold. No Phase 4 model is shippable
 under this section yet, and the decision is recorded in docs/decisions.md.
 
+**Status (Core ML, 2026-10-21).** The RF-DETR conversion is real: an iOS16
+mlprogram package passes decision-space parity against ONNX at float32 (8.31e-4
+score, 8.79e-7 box) and runs warm in 41 to 50 ms on the M5. Compression does not
+hold: float16 51.6 MB, int8 26 MB, and int4 13 MB all fail parity, so the
+parity-clean package is 104.4 MB and the 15 MB budget is still unmet. Device
+latency, memory, thermals, and cold load remain unmeasured.
+
 ### Phase 4: Inference performance and thermals (iPhone 11 / A13 class minimum)
 - Model: YOLOX-Nano or RF-DETR-Nano, int8 quantized, <= 15 MB bundled; cold model load <= 2 s.
 - Latency: p50 <= 500 ms, p95 <= 1500 ms per photo (2048 px working resolution).

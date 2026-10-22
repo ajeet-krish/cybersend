@@ -283,14 +283,70 @@ or formally revise a budget with justification recorded in docs/decisions.md)
 before any model can be declared shippable. The Core ML conversion work below is
 a feasibility check on RF-DETR, not a shipment path.
 
-### Core ML conversion risk, updated
+### Core ML conversion (2026-10-21)
 
-The RF-DETR graph contains two `GridSample` nodes (deformable attention sampling
-in the decoder cross attention, bilinear, `padding_mode=zeros`) plus 16 Softmax
-and a LayerNormalization heavy path. `GridSample` is the op class that
-historically blocked this model on Core ML and MPS, and it is the reason RF-DETR
-should be treated as a Core ML conversion gamble rather than a plan.
-The YOLOX graph is Conv, Sigmoid, and elementwise only (113 Conv, 110 Sigmoid,
-no grid_sample, no softmax, no attention), which is why it remains the smaller
-deployment risk even at lower accuracy (val mAP50:95 0.5224 versus 0.6915). No
-device conversion has been attempted yet; both remain unmeasured on ANE.
+Result up front: conversion works and runs on the ANE. Compression does not: every
+package small enough to approach the size budget fails the numeric gate, so Core
+ML does not resolve the Phase 4 conflict.
+
+**Path.** rfdetr 1.11.2 ships its own Core ML exporter
+(`RFDETR.export(format="coreml")`: `torch.export` then coremltools 9.0). It
+rewrites deformable attention into a rank 5 path before lowering, so the two
+`GridSample` nodes that were the historical blocker (deformable attention
+sampling in the decoder cross attention, bilinear, `padding_mode=zeros`) did not
+block the conversion. The exporter also patches two missing coremltools torch
+op registrations (`aten.alias`, `aten.__and__`) and pins
+`minimum_deployment_target` to iOS16, which matches the app floor. Conversion
+succeeded on the first attempt in about 5 s, lowering to 740 MIL ops with no
+custom ops. Tool: `tools/train/src/hold_train/export_coreml.py`.
+
+**Package contract.** Input `tensors` float32 [1, 3, 640, 640] NCHW, RGB,
+ImageNet normalized, same preprocessing as ONNX. Outputs `concat_2`
+[1, 300, 4] normalized cxcywh (dets) and `linear_102` [1, 300, 2] logits
+(labels). Those output names are internal MIL names, not a chosen contract, so
+the parity tool maps them by shape and role rather than assuming position.
+
+**Size and compression.** Uniform weight palettization on a float16 package,
+fp16 activations, `coremltools.optimize.coreml.palettize_weights`:
+
+| Variant | Size | Decision-space parity at 1e-3 |
+|---|---|---|
+| float32 | 104.4 MB | PASS |
+| float16 | 51.6 MB | FAIL |
+| int8 (8 bit palettized) | 26 MB | FAIL |
+| int4 (4 bit palettized) | 13 MB | FAIL |
+
+**Core ML versus ONNX parity**, five val images, same decision space as the torch
+gate (hold scores and boxes of queries scoring at least 0.5):
+
+| Package | compute units | max hold-score diff | max active box diff | Verdict |
+|---|---|---|---|---|
+| float32 | CPU_ONLY | 8.31e-4 | 8.79e-7 | PASS |
+| float32 | ALL (CPU plus ANE) | 8.31e-4 | 8.94e-7 | PASS |
+| float16 | CPU_ONLY | 2.96e-1 | 5.93e-1 | FAIL |
+| int8 | CPU_ONLY | 4.54e-1 | 7.31e-1 | FAIL |
+| int4 | CPU_ONLY | 9.77e-1 | inf | FAIL |
+
+The drift is a tail effect, not a uniform shift. On the most sensitive val image
+(56 active queries at confidence 0.5) median score drift is 2.0e-2 for float16 and
+1.9e-2 for int8, while the worst single query moves 2.96e-1 and 4.54e-1. float16
+keeps the detection count at 56, int8 drops 2 of 56, and int4 drops all 56 and
+returns non-finite boxes. So int4 is unusable without argument, int8 is
+borderline at the level of individual holds, and float16 is close in bulk but
+still breaks a strict equivalence contract. The gate is an equivalence check
+against torch, which is the right test for a deployment copy; it is not an
+accuracy measure, and no compressed variant has a val accuracy number yet.
+
+**Latency**, float32 package, M5 Mac, one photo, model already loaded: CPU_ONLY
+median 95.1 ms; all compute units 43.6 ms median with a 41 to 50 ms warm range,
+first call 4.16 s including load and specialization. That is well under the
+500 ms p50 budget as a Mac proxy, but an A13 phone is unmeasured, and the first
+call cost is the number that matters for the 2 s cold-load limit.
+
+**Consequence.** The only parity-clean Core ML package is 104 MB float32. int8
+lands at 26 MB against a 15 MB budget and does not pass parity; int4 fits at
+13 MB and destroys the output. Core ML therefore removes one unknown (the model
+converts and the ANE path is fast) without changing the shipment decision. YOLOX
+remains structurally the friendlier graph (113 Conv, 110 Sigmoid, no GridSample,
+no Softmax, no attention), so the conversion risk that just cleared for RF-DETR
+was never the binding constraint there; accuracy is.

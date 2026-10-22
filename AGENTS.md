@@ -64,7 +64,7 @@ ML phases (requirements numbering), unchanged:
 | 1 | Core foundation | Not Started |
 | 2 | Photo capture and tagging MVP | Not Started |
 | 3 | Grade normalization | Not Started |
-| 4 | AI hold detection (Apache-2.0 self-trained) | In Progress (accuracy decided 2026-10-21 on the single frozen test run: RF-DETR-Nano 0.9509 precision, 0.8788 recall, 0.9130 mAP@0.5; shipment blocked because FP/image is 1.8832 versus 0.5 and int8 size about 29 MB versus 15 MB, while YOLOX fails recall; Core ML feasibility check next) |
+| 4 | AI hold detection (Apache-2.0 self-trained) | In Progress (accuracy decided 2026-10-21 on the single frozen test run: RF-DETR-Nano 0.9509 precision, 0.8788 recall, 0.9130 mAP@0.5; shipment blocked because FP/image is 1.8832 versus 0.5 and int8 size about 29 MB versus 15 MB, while YOLOX fails recall; Core ML conversion works at float32 with parity 8.31e-4 and 41 to 50 ms warm on the M5, but every compressed package fails parity (float16 51.6 MB, int8 26 MB, int4 13 MB), so the retrain versus budget-revision decision is open) |
 | 5 | BoulderVision video analysis (experimental) | Not Started |
 
 Native migration milestones (the app track since 2026-10-19):
