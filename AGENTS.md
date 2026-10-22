@@ -101,8 +101,8 @@ Pose v1 (video analysis, approved 2026-10-21; Vision body pose, no hold dependen
 
 | Phase | Description | Status |
 |-------|-------------|--------|
-| P0 | Filming contract, clip corpus, Vision pose spike measured on device | In Progress |
-| P1 | Extraction service: AVAssetReader, Vision adapter, resumable analysis actor | Not Started |
+| P0 | Filming contract, clip corpus, Vision pose spike measured on device | Deferred (corpus filming takes several weeks) |
+| P1 | Extraction service: AVAssetReader, Vision adapter, resumable analysis actor | Complete (298 package tests green, 18 new) |
 | P2 | Analysis records, migration 006, retention default change | Not Started |
 | P3 | Tier A metrics: attempt window, progress curve, fall, smoothness, hesitation map | Not Started |
 | P4 | Guided recorder | Not Started |

@@ -153,3 +153,22 @@ UI smoke set: 19 cases, green.
 The test run consumed the one-run policy; the ledger line is in
 tools/eval/reports/test_ledger.jsonl and the report is
 tools/eval/reports/d1_test_eval.json.
+
+## 2026-10-21 - Pose P1 extraction service
+
+| Item | Command | Result |
+|------|---------|--------|
+| Pose suite, 18 tests | cd ios && swift test --filter Pose | PASS |
+| Full package suite, 298 tests in 49 suites | cd ios && swift test | PASS |
+| Sampling policy: 30 and 60 fps keep stride 1, 120 fps gives 2, 240 fps gives 4, unknown gives 1 | swift test --filter stride | PASS |
+| Orientation matrix from preferredTransform: identity, 90, 180, 270, mirrored, and the eight signed permutation cases | swift test --filter orientation | PASS |
+| Buffer scaling to a 720 px long edge, even dimensions, small sources untouched | swift test --filter analysisBuffer | PASS |
+| Coverage counts only usable core joints, interpolated samples never count | swift test --filter coverage | PASS |
+| Quality gate flags a gap heavy track unusable and handles an empty track | swift test --filter quality | PASS |
+| Multi person ordering is deterministic for both input orders | swift test --filter observationOrdering | PASS |
+| Reader against a generated H.264 clip: metadata, stride, early stop, resume after timestamp | swift test --filter reader | PASS |
+| Domain pose layer imports no Vision, AVFoundation, or UIKit | swift test --filter domainPoseLayer | PASS |
+
+Not covered by tests, because it needs a device and footage with a person: Vision wrist
+accuracy, per frame latency, thermal behaviour, and real multi person subject selection. Those
+are the P0 measurements, and the corpus is still outstanding.
