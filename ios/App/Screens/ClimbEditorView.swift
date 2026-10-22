@@ -78,21 +78,40 @@ struct ClimbEditorView: View {
             SectionTitle("Name")
             Card {
                 TextField("For example: Blue V4 slab", text: $store.name)
-                    .textFieldStyle(.roundedBorder)
+                    .themedField()
                     .autocapitalization(.words)
                     .accessibilityIdentifier("climb.name")
             }
 
-            // Grade is a menu rather than a chip strip: the scheme list and the V scale
-            // level range are long enough that a horizontal strip pushed the level the
-            // climber wanted off screen, and a menu is one tap either way.
-            SectionTitle("Grade")
+            // One details group: everything that describes where and on what the problem
+            // is, including the gym, so a problem can be created in or moved to any gym.
+            SectionTitle("Details")
             Card {
-                HStack {
-                    Text("Scheme")
-                        .foregroundStyle(Theme.secondaryText)
-                    Spacer(minLength: 12)
-                    Picker("Scheme", selection: Binding(
+                detailRow("Gym") {
+                    if store.gyms.isEmpty {
+                        Text("No gyms yet")
+                            .font(.subheadline)
+                            .foregroundStyle(Theme.secondaryText)
+                    } else {
+                        Picker("Gym", selection: $store.gymId) {
+                            ForEach(store.gyms) { gym in
+                                Text(gym.name).tag(gym.id)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .tint(Theme.accentSolid)
+                        // A menu label otherwise yields its width to the Spacer and wraps a
+                        // two word gym name; the intrinsic menu width keeps it on one line.
+                        .fixedSize(horizontal: true, vertical: false)
+                        .accessibilityIdentifier("climb.gym")
+                    }
+                }
+                divider
+                // Grade stays a menu rather than a chip strip: the scheme list and the V
+                // scale level range are long enough that a horizontal strip pushed the
+                // level the climber wanted off screen, and a menu is one tap either way.
+                detailRow("Grade scheme") {
+                    Picker("Grade scheme", selection: Binding(
                         get: { store.schemeId },
                         set: { store.selectScheme($0) }
                     )) {
@@ -104,12 +123,8 @@ struct ClimbEditorView: View {
                     .tint(Theme.accentSolid)
                     .accessibilityIdentifier("climb.scheme")
                 }
-                Divider()
-                    .overlay(Theme.separator)
-                HStack {
-                    Text("Level")
-                        .foregroundStyle(Theme.secondaryText)
-                    Spacer(minLength: 12)
+                divider
+                detailRow("Level") {
                     if let levels = store.selectedLevels {
                         Picker("Level", selection: $store.levelId) {
                             Text("None").tag(String?.none)
@@ -127,57 +142,78 @@ struct ClimbEditorView: View {
                             .accessibilityIdentifier("climb.level.missing")
                     }
                 }
+                divider
+                detailRow("Wall angle") {
+                    TextField("Optional, 0 to 90", text: $store.angleText)
+                        .keyboardType(.numberPad)
+                        .multilineTextAlignment(.trailing)
+                        .accessibilityIdentifier("climb.angle")
+                }
+                divider
+                detailRow("Colour circuit") {
+                    TextField("Optional", text: $store.colorCircuit)
+                        .autocapitalization(.words)
+                        .multilineTextAlignment(.trailing)
+                        .accessibilityIdentifier("climb.color")
+                }
             }
 
-            SectionTitle("Details")
+            SectionTitle("Notes")
             Card {
-                TextField("Wall angle in degrees (optional, 0 to 90)", text: $store.angleText)
-                    .textFieldStyle(.roundedBorder)
-                    .keyboardType(.numberPad)
-                    .accessibilityIdentifier("climb.angle")
-                TextField("Color circuit (optional)", text: $store.colorCircuit)
-                    .textFieldStyle(.roundedBorder)
-                    .autocapitalization(.words)
-                    .accessibilityIdentifier("climb.color")
                 TextField(
-                    "Problem details (optional): beta, style, what to remember",
+                    "For example: keep the hips close on the top out",
                     text: $store.notes,
                     axis: .vertical
                 )
-                .lineLimit(3...8)
-                .textFieldStyle(.roundedBorder)
+                .lineLimit(2...6)
+                .themedField()
                 .accessibilityIdentifier("climb.notes")
+            }
+
+            SectionTitle("Climb category")
+            Card {
+                categoryGrid
+            }
+
+            // Photo and holds show on the create screen too: picking a photo on a problem
+            // that does not exist yet creates it first, then ingests, so the climber can
+            // shoot the wall without a separate save.
+            photoSection
+            holdsSection
+
+            if !store.isNew {
+                SectionTitle("Manage")
+                Card {
+                    // Side by side: two destructive-ish actions stacked cost a full row
+                    // each and the attempt count already lives in the problem history.
+                    HStack(spacing: 12) {
+                        SecondaryButton(store.climb?.isArchived == true ? "Unarchive" : "Archive") {
+                            toggleArchive()
+                        }
+                        .accessibilityIdentifier("climb.archive")
+                        Button("Delete", role: .destructive) {
+                            confirmDelete = true
+                        }
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(Theme.separator.opacity(0.25))
+                        .foregroundStyle(Theme.danger)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .accessibilityIdentifier("climb.delete")
+                    }
+                }
             }
 
             PrimaryButton(store.isNew ? "Add \(noun)" : "Save changes") {
                 save()
             }
             .accessibilityIdentifier("climb.save")
-
-            if !store.isNew {
-                photoSection
-                holdsSection
-                SectionTitle("Manage")
-                Card {
-                    Text(DisplayText.attemptCount(store.attemptCount))
-                        .font(.subheadline)
-                        .foregroundStyle(Theme.secondaryText)
-                        .accessibilityIdentifier("climb.attempts")
-                    SecondaryButton(store.climb?.isArchived == true ? "Unarchive \(noun)" : "Archive \(noun)") {
-                        toggleArchive()
-                    }
-                    .accessibilityIdentifier("climb.archive")
-                    Button("Delete \(noun)", role: .destructive) {
-                        confirmDelete = true
-                    }
-                    .frame(maxWidth: .infinity)
-                    .accessibilityIdentifier("climb.delete")
-                }
-            }
         }
         .accessibilityIdentifier("climb.screen")
         .navigationTitle(store.isNew ? "New \(noun)" : noun.capitalized)
         .onAppear {
+            store.ensureGymSelection(fallback: gymId ?? logbook.selectedGymId)
             if !store.isNew {
                 photoStore.load(climbId: climbId)
                 store.refreshHolds()
@@ -255,6 +291,55 @@ struct ClimbEditorView: View {
         }
     }
 
+    // MARK: - Details and categories
+
+    /// One label plus control row inside the details card, so every field lines up.
+    private func detailRow<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
+        HStack(spacing: 12) {
+            Text(label)
+                .foregroundStyle(Theme.secondaryText)
+            Spacer(minLength: 8)
+            content()
+        }
+    }
+
+    private var divider: some View {
+        Divider()
+            .overlay(Theme.separator)
+    }
+
+    /// The category tags as toggle buttons. Adaptive columns keep the grid two or three
+    /// across on a phone without hard coding a count per width.
+    private var categoryGrid: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 96), spacing: 8)],
+            alignment: .leading,
+            spacing: 8
+        ) {
+            ForEach(climbCategories, id: \.self) { category in
+                categoryButton(category)
+            }
+        }
+    }
+
+    private func categoryButton(_ category: ClimbCategory) -> some View {
+        let selected = store.isSelected(category)
+        return Button {
+            store.toggleCategory(category)
+        } label: {
+            Text(category.title)
+                .font(.subheadline.weight(.semibold))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                .background(selected ? Theme.accentSolid : Theme.separator.opacity(0.25))
+                .foregroundStyle(selected ? Theme.onAccent : Theme.primaryText)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityIdentifier("climb.category.\(category.rawValue)")
+    }
+
     // MARK: - Photo section (M3)
 
     @ViewBuilder
@@ -294,12 +379,6 @@ struct ClimbEditorView: View {
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("climb.photo.card")
 
-            NavigationLink(value: LogbookRoute.tagging(climbId: climbId)) {
-                Row(title: "Tag holds", systemImage: "hand.tap")
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("climb.photo.tag")
-
             SecondaryButton("Replace photo") {
                 showPhotoSourceDialog = true
             }
@@ -311,17 +390,21 @@ struct ClimbEditorView: View {
             .frame(maxWidth: .infinity)
             .accessibilityIdentifier("climb.photo.delete")
         } else {
-            Card {
-                EmptyState(
-                    systemImage: "camera",
-                    title: "Add wall photo",
-                    message: "Photograph the wall to place and tag holds on it."
-                )
-            }
-            .accessibilityIdentifier("climb.photo.empty")
-            PrimaryButton("Add wall photo") {
+            // One affordance, not an empty state plus a duplicate button: the whole card
+            // opens the photo source dialog.
+            Button {
                 showPhotoSourceDialog = true
+            } label: {
+                Card {
+                    EmptyState(
+                        systemImage: "camera",
+                        title: "Add wall photo",
+                        message: "Photograph the wall to place and tag holds on it."
+                    )
+                }
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
             .accessibilityIdentifier("climb.photo.add")
         }
         if cameraDisabled {
@@ -354,25 +437,25 @@ struct ClimbEditorView: View {
 
     @ViewBuilder
     private var holdsSection: some View {
+        // Tagging lives here and only here: the photo section used to carry a second Tag
+        // holds link, and the card repeated the count that the button detail already says.
         SectionTitle("Holds")
-        Card {
-            Text(store.holdCount == 0 ? "No holds yet" : "\(holdCountText) tagged")
-                .font(.subheadline)
-                .foregroundStyle(Theme.secondaryText)
-                .accessibilityIdentifier("climb.holds.count")
-            if !store.roleBreakdown.isEmpty {
-                Text(store.roleBreakdown)
-                    .font(.caption)
-                    .foregroundStyle(Theme.secondaryText)
-                    .accessibilityIdentifier("climb.holds.breakdown")
+        NavigationLink(value: LogbookRoute.tagging(climbId: climbId)) {
+            Card {
+                Row(
+                    title: "Tag holds",
+                    detail: store.isNew ? "Save first" : (store.holdCount == 0 ? "None tagged" : holdCountText),
+                    systemImage: "hand.tap"
+                )
+                // The Row ends in a Spacer, so without a content shape the empty middle of
+                // the row is not hittable and a tap in the center of the link does nothing.
+                .contentShape(Rectangle())
             }
-            NavigationLink(value: LogbookRoute.tagging(climbId: climbId)) {
-                Row(title: "Tag holds", detail: holdCountText, systemImage: "hand.tap")
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("climb.holds.manage")
+            .contentShape(Rectangle())
         }
-        .accessibilityIdentifier("climb.holds.card")
+        .buttonStyle(.plain)
+        .disabled(store.isNew)
+        .accessibilityIdentifier("climb.holds.manage")
     }
 
     private var holdCountText: String {
@@ -408,7 +491,10 @@ struct ClimbEditorView: View {
         Task {
             do {
                 if photoStore.photo == nil {
-                    try await photoStore.addPhoto(bytes: bytes, source: source, climbId: climbId)
+                    // A photo on a not yet saved problem creates it first: there is no row
+                    // to hang the photo on otherwise.
+                    let targetId = try ensureStoredClimb()
+                    try await photoStore.addPhoto(bytes: bytes, source: source, climbId: targetId)
                 } else {
                     try await photoStore.replacePhoto(bytes: bytes, source: source)
                 }
@@ -418,6 +504,21 @@ struct ClimbEditorView: View {
                 photoIngestError = (error as? DomainValidationError)?.message ?? error.localizedDescription
             }
         }
+    }
+
+    /// The climb id to attach media to, creating the climb first when the screen is still in
+    /// create mode. Returns the stored row's id and flips the editor into edit mode, so the
+    /// photo and holds sections continue to work in place.
+    private func ensureStoredClimb() throws -> String {
+        if !store.isNew, let climb = store.climb {
+            return climb.id
+        }
+        let stored = try store.save(fallbackGymId: gymId ?? logbook.selectedGymId)
+        actionError = nil
+        onSaved?(stored)
+        logbook.refresh()
+        store.reloadAfterCreate(climbId: stored.id)
+        return stored.id
     }
 
     /// Development only synthetic capture: a deterministic wall JPEG through the same
@@ -446,7 +547,7 @@ struct ClimbEditorView: View {
 
     private func save() {
         do {
-            let stored = try store.save(gymId: gymId ?? logbook.selectedGymId)
+            let stored = try store.save(fallbackGymId: gymId ?? logbook.selectedGymId)
             actionError = nil
             onSaved?(stored)
             logbook.refresh()

@@ -88,8 +88,8 @@ tagging, capture, and the problems catalog.
 | Per screen dark mode contrast on device | Gate item 7 above | PENDING DEVICE |
 | Home visual pass (heatmap, recent blocks, gym menu) | Simulator screenshots reviewed 2026-10-21 | PASS (visual) |
 
-Known gap: old sessions cannot yet attach a photo or video after the fact. Tracked in
-docs/decisions.md and AGENTS.md.
+Resolved: sessions (open and closed) attach photos and videos after the fact through the
+session media block; the earlier gap note no longer applies.
 
 ## Climb categories (2026-10-21)
 
@@ -107,6 +107,29 @@ domain, migration, repository, CSV, and export boundaries:
 | Golden v5 export bytes, only schema_version and climbs.categories differ from v4 | ExportSerializeTests.goldenBytesMatch | PASS |
 | v4 file imports through the 4 to 5 migration with categories null | ImportTests.nativeV4FixtureImports | PASS |
 | v1, v2, v3 fixtures still import after the spec split | ImportTests, ExportSerializeTests | PASS |
+
+## Problems editor, detail, catalog, and open session (2026-10-21)
+
+Package suite: 280 swift-testing cases in 49 suites, green. App suite: 25 XCTest cases, green.
+UI smoke set: 19 cases, green.
+
+| Item | Covered by | Status |
+|------|-----------|--------|
+| Session climb membership: add, select, remove while untried, attempts pin a climb, reload rebuilds from attempts | SessionDetailStoreTests.addAndRemoveSessionClimbs, attemptedClimbsStayInTheSession | PASS |
+| Editor sections: gym picker, details group, notes, category grid, single Tag holds | TaggingSmokeTests (tag link from the Holds row), ProblemsCatalogSmokeTests | PASS |
+| Categories on the catalog row and the detail chips, gym in both | ProblemsCatalogSmokeTests.testCatalogListsSeedProblemsAndOpensHistory | PASS |
+| Catalog filters by gym, level, category, status and the filtered empty state | ProblemCatalogStore in-memory filters, ProblemsCatalogSmokeTests archive toggle | PASS (automated) |
+| Detail shows gym, categories, hold stats, notes, history; no tagging link | ProblemsCatalogSmokeTests, TaggingSmokeTests reach tagging only through the editor | PASS |
+| Add Climb, Edit Problem, New Problem side by side | QuickLogSmokeTests, FallHoldSmokeTests, RpeSmokeTests, SessionClimbInlineSmokeTests | PASS |
+| Attempts read climb name, result, RPE, fall hold and are editable during an open session | QuickLogSmokeTests attempt label assertions, SessionDetailView edit sheet | PASS (automated) |
+| Tap budget after the climb list: 5 taps worst case, 3 when the climb is already added | QuickLogSmokeTests.testLogAttemptWithinFiveTaps, testLogAttemptWithHoldRowAsTheFifthTap | PASS |
+| Themed fields replace the system rounded border on every text field | Simulator screenshots (climb name and notes, session notes, gyms) | PASS (visual) |
+| Outcome buttons carry the outcome colour and dim when disabled | QuickLogSmokeTests, RpeSmokeTests, FallHoldSmokeTests unchanged and green | PASS |
+| All four catalog filters visible without scrolling | Simulator screenshot after the FlowLayout change | PASS (visual) |
+| Photo empty state is one tappable card, no duplicate button | TaggingSmokeTests and SessionClimbInlineSmokeTests tap climb.photo.add | PASS |
+| Hold stats shows role and percent across and down on one line per hold | Simulator screenshot, seeded three hold climb | PASS (visual) |
+| App icon: white climbing mark on purple, 1024 px, no alpha | sips inspection (1024, hasAlpha no) and asset catalog build | PASS |
+| Screenshot pass: catalog, detail, hold stats, editor (top and bottom), create screen, open session, gym settings | Simulator screenshots reviewed 2026-10-21 | PASS (visual) |
 
 ## Hold detection ML (2026-10-21)
 

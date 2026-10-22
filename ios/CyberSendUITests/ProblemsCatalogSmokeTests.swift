@@ -27,8 +27,12 @@ final class ProblemsCatalogSmokeTests: XCTestCase {
             "the row carries the grade label"
         )
         XCTAssertTrue(
-            app.staticTexts["Match the left crimp, then stand up on the right gaston."].exists,
-            "the row previews the problem details"
+            app.staticTexts["Slab · Technical"].exists,
+            "the row previews the problem categories instead of the notes"
+        )
+        XCTAssertTrue(
+            app.staticTexts.matching(NSPredicate(format: "label == 'Boulder Lab Renamed'")).firstMatch.exists,
+            "the row carries the gym"
         )
 
         climbOne.tap()
@@ -36,6 +40,9 @@ final class ProblemsCatalogSmokeTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["problem.name"].waitForExistence(timeout: 10), "the detail screen opens")
         XCTAssertEqual(app.staticTexts["problem.name"].label, "Climb One")
         XCTAssertEqual(app.staticTexts["problem.grade"].label, "V3")
+        XCTAssertEqual(app.staticTexts["problem.gym"].label, "Boulder Lab Renamed", "the detail names the gym")
+        XCTAssertTrue(app.staticTexts["Slab"].exists, "the detail lists the climb categories")
+        XCTAssertTrue(app.buttons["problem.holds"].exists, "hold stats are reachable from the detail")
         XCTAssertTrue(
             app.staticTexts["problem.details"].label.contains("left crimp"),
             "the detail screen shows the problem details"

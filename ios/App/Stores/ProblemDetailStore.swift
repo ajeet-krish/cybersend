@@ -12,6 +12,11 @@ final class ProblemDetailStore: ObservableObject {
     @Published private(set) var climb: Climb?
     @Published private(set) var photo: Photo?
     @Published private(set) var gradeLabel: String?
+    /// The gym the problem belongs to, for the header line.
+    @Published private(set) var gymName: String?
+    /// Tagged holds, read only here: the stats sheet reports them, and tagging itself only
+    /// happens inside the problem editor.
+    @Published private(set) var holds: [Hold] = []
     @Published private(set) var attempts: [Attempt] = []
     @Published private(set) var lastErrorMessage: String?
 
@@ -32,6 +37,18 @@ final class ProblemDetailStore: ObservableObject {
         climb?.isArchived == true
     }
 
+    /// Start, intermediate, top, and unassigned counts, in that order, skipping zeros.
+    var holdRoleCounts: [(title: String, count: Int)] {
+        var counts: [(String, Int)] = [
+            ("Start", holds.filter { $0.role == .start }.count),
+            ("Intermediate", holds.filter { $0.role == .intermediate }.count),
+            ("Top", holds.filter { $0.role == .top }.count),
+            ("Unassigned", holds.filter { $0.role == nil }.count),
+        ]
+        counts.removeAll { $0.1 == 0 }
+        return counts
+    }
+
     func refresh() {
         do {
             climb = try repos.climbs.get(id: climbId)
@@ -44,6 +61,8 @@ final class ProblemDetailStore: ObservableObject {
             }
             let systems = try repos.grades.listSystems()
             gradeLabel = DisplayText.grade(climb, systems: systems)
+            gymName = try repos.gyms.get(id: climb.gymId)?.name
+            holds = try repos.holds.listByClimb(climbId: climb.id)
             photo = try repos.media.listPhotos(filter: ListPhotosFilter(climbId: climb.id)).first
             attempts = try repos.attempts.listByClimb(climbId: climb.id).reversed()
             lastErrorMessage = nil

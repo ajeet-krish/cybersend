@@ -340,6 +340,85 @@ Entry format: "## [Date], Phase [N]: [Title]" with Context, Decision, Rationale,
 
 **Trade-offs:** Filtering by category happens in memory rather than in SQL, which is fine for one climber's catalog and would need an index or a join table at a much larger scale. Renaming a token later needs a data migration. Unknown tokens are silently dropped rather than reported, so a category added by a newer build disappears quietly on import here instead of warning.
 
+## 2026-10-21, UI overhaul: the editor is one form with details, categories, and a single tagging path
+
+**Context:** The climb editor had grown by addition: Name and a Grade card, then a Details card with free text angle and color and a notes field, then a save button, then photo and holds cards, then a manage card with an attempt count. Two "Tag holds" links existed (one under the photo, one in the holds card), the holds card repeated the count the row detail showed, and the gym was fixed to the logbook selection even though the session passes a gym override. The problem detail screen carried a tagging link too, so the read only screen could write holds.
+
+**Decision:** One form, in the order Name, Details (gym, grade scheme, level, wall angle, colour circuit), Notes, Climb category, Photo, Holds, Manage. The gym is a picker: a create uses the picked gym (falling back to the session or logbook selection), and an edit can move the problem, which is why `Climb.gymId` became a variable and `UpdateClimbPatch` gained a validated `gymId`. Categories are a toggle grid over the fixed `ClimbCategory` list. Tagging exists only as the Holds row; the duplicate link under the photo was removed and the holds card no longer repeats a count (the row detail is the summary). Manage lost the attempt count because the problem history owns it, and Archive and Delete sit side by side. The detail screen shows photo, gym, name with grade, category chips, a read only View hold stats sheet, notes, history, and edit plus archive: tagging is reachable only through Edit problem. A photo picked while the problem is still unsaved saves the problem first, then ingests, and continues in edit mode.
+
+**Rationale:** The editor is used at the wall with one hand, so the fields belong in the order a climber thinks about the problem (what it is, where it is, what it feels like) rather than in the order the schema grew. One tagging path removes the question of which link to use and keeps the write surface in the editor. The read only detail keeps the catalog honest: tapping a problem to look at it cannot accidentally change its holds. The gym picker retires the old "move a problem through the catalog" workaround.
+
+**Trade-offs:** A create screen now carries photo and holds sections that mostly say "save first", which is two cards of noise for someone who only wants to type a name. The auto-create on photo ingest writes an untitled problem if the climber shoots the wall before naming it; deleting it afterwards is the recovery. Moving a problem to another gym keeps its old walls and holds, which are gym specific, so the editor does not clear them automatically.
+
+## 2026-10-21, UI overhaul: session climb membership is derived from attempts plus an in-memory add list
+
+**Context:** The open session screen had one selected climb behind a dropdown. The ask was a workout style list where each climb added to the session is a row, with Add Climb, Edit Problem, and New Problem side by side, and attempts editable during the session. A persisted membership list would mean a new table, an export table, dump ordering, restore wiring, and a payload version for something the session can already infer.
+
+**Decision:** SessionDetailStore keeps an ordered `addedClimbIds` list. On every reload it drops ids the gym no longer resolves, appends every climb that has an attempt in the session, and keeps the selection inside the list (an existing session opens on its first climb). Add Climb appends and targets a climb; a climb with no attempts can be removed, one with attempts cannot because attempts are the stronger fact. The list survives refreshes on the screen and is rebuilt from attempts when the session is reopened. The Attempts section stays flat with the climb name first, then the result, effort, and fall hold, and each row opens the existing edit sheet while the session is open.
+
+**Rationale:** Attempts are already the durable record of what a session touched, so deriving membership from them needs no schema change, no migration, no export surface, and cannot drift from the attempts it describes. The in-memory list only covers the gap between adding a climb and trying it, which is exactly the window where nothing is written yet. Reusing the edit sheet for open sessions is one code path for both states.
+
+**Trade-offs:** A climb added and never tried disappears when the screen is left or the app restarts, which is arguably correct but can surprise. The list is per screen, so two devices or two windows would not share it. Removing a climb with attempts is refused silently in the store (the button is hidden), which is a small hidden rule.
+
+## 2026-10-21, UI overhaul: the catalog spans gyms and filters in memory
+
+**Context:** The Problems tab followed the logbook's selected gym. Once rows show their gym and the catalog needs a gym filter, following a hidden selection at the same time is confusing, and a filter that only ever has one value is not a filter.
+
+**Decision:** The catalog loads every climb (archived included only when the toggle is on) once, resolves gym names and grades in the store, and filters in memory by gym, level (scheme plus level id, so two schemes labelled V4 stay distinct), category, and climb status (sent, flash, ongoing). Level options are ordered by scheme and level rank rather than alphabetically, so V2 sorts before V10. Filters that no longer match after a reload are cleared rather than leaving an empty list. The empty state distinguishes "no problems yet" from "no problems match" and offers Clear filters.
+
+**Rationale:** Personal catalogs are small, and one load plus in-memory filtering keeps the SQL surface unchanged (US-13) while making every filter instant. Gym and level pairs are the identity of a row, so the filters compare those rather than display strings. Status means what the badges mean: sent covers a plain send, flash covers a flash, and ongoing means neither yet.
+
+**Trade-offs:** Every reload reads every climb and one attempt query per climb for the summary, which is fine at hundreds of problems and would need an aggregate query much later. The rows are all in memory, so a very large imported catalog costs memory rather than paging. Status is not a stored field, so "ongoing" is computed from attempts each time.
+
+## 2026-10-21, Visual pass: themed fields, outcome colours, wrapped filters, and the app icon
+
+**Context:** A simulator screenshot pass over the overhauled screens found a handful of
+things that read as defects. Text fields used the system rounded border, which fills with
+the page background, so every field on a dark card was a black rectangle. The three outcome
+buttons were the same accent purple, three identical primary actions one thumb slip apart.
+The fourth catalog filter (status) sat off screen inside a horizontal scroller, so the most
+useful filter was invisible. The photo empty state said "Add wall photo" twice: once in the
+empty state card and once in a full width button below it. The app icon was still the old
+orange petal mark.
+
+**Decision:** Four UI changes and one asset change, all mechanical:
+
+- `themedField()` (App/UI/Theme/Theme.swift) replaces `.textFieldStyle(.roundedBorder)`
+  everywhere: raised surface fill, card border, 10 pt radius, primary text.
+- Outcome buttons are soft tinted buttons in the outcome colour (flash info cyan, send
+  success green, fail danger red) with a matching border and label. The colour is defined
+  once as `AttemptOutcome.themeColor` and reused by the problem history badges. Disabled
+  buttons use a 6 percent tint and tertiary text, and the Edit Problem action in the open
+  session draws its own disabled colour for the same reason.
+- The catalog filter bar uses a small `FlowLayout` instead of a horizontal ScrollView, so
+  gym, level, category, and status all stay visible.
+- The photo empty state is one tappable card; the duplicate button is gone.
+- The app icon is the supplied climbing mark rendered white on a purple gradient
+  (#8E6BE0 to #684AC6, the accentSolid family), 1024 px, no alpha, single size asset.
+
+**Rationale:** A field has to look like a field, not a hole in the card. Outcome colour is
+already the language of the attempt badges, so colouring the buttons makes the action and
+its record match and removes the three identical primary actions. A filter that is off
+screen is not a filter, and wrapping costs one row of vertical space. One affordance per
+action, and an icon that uses the app's purple rather than an unrelated orange.
+
+**Trade-offs:** The themed field drops the system focus treatment, so the cursor and the
+keyboard are the only focus cues; a focus border would need its own state plumbing. Tinted
+outcome buttons are less loud than the filled accent button they replaced, which is the
+point, but they read as secondary next to Save changes. The wrapping filter bar takes a
+second row on a phone. The icon's white glyph sits between 3.9:1 and 6:1 against the
+gradient, which is fine for a non text mark but would be too low for body text.
+
+## 2026-10-21, Phase 4: Harness gains per-model preprocess and YOLOX postprocess
+
+**Context:** The D1 phase produced two Apache-2.0 exports with incompatible contracts. RF-DETR takes ImageNet-normalized RGB and emits normalized cxcywh plus per-class logits with no NMS. YOLOX takes raw 0..255 RGB and emits cxcywh pixels with objectness and class scores, also without NMS. The harness had exactly one hard-coded contract, so only RF-DETR could be scored.
+
+**Decision:** The Detector interface declares a `preprocess` mode ("imagenet" or "raw"); evaluate.ts encodes the tensor from that declaration. YOLOX postprocess lives in a new `decode_yolox.ts` (clipped xyxy, score = objectness times best class, class-agnostic greedy NMS at IoU 0.65 over anchors scoring at least 0.01), mirroring the training-side COCO evaluation. `--model-kind` defaults to auto and infers the kind from output names, refusing to guess on anything unknown.
+
+**Rationale:** Two models with different contracts were always going to need this, and putting the contract on the detector keeps one source of truth instead of a flag that can silently disagree with the model. NMS at 0.65 with a 0.01 floor is the convention the YOLOX validation numbers were produced under, so harness numbers are comparable to the training log. Verifying the cxcywh reading against ground truth first (0.79 mean best IoU as cxcywh versus 0.00 as xyxy) avoided baking a convention error into the metric.
+
+**Trade-offs:** The harness now carries model-specific postprocess, which is scope it did not have, and the YOLOX decode path is only exercised against the real export (unit tests cover the pure functions, not the graph). The 0.01 pre-NMS floor means the YOLOX mAP is not directly comparable to RF-DETR's mAP at a 1e-4 floor, a gap that matters little in practice because the operating point is 0.5. Result on val: YOLOX fails the Phase 4 recall gate at every threshold, so the single gated test run goes to RF-DETR.
+
 ## 2026-10-21, Phase 4: D1 accuracy winner is not shippable, decision pending
 
 **Context:** D1 trained two Apache-2.0 candidates and spent the single frozen test run on RF-DETR-Nano. RF-DETR passes the three accuracy thresholds (precision 0.9509, recall 0.8788, mAP@0.5 0.9130) and the count-error limit (1.0), but produces 1.8832 false positives per image against a 0.5 budget, and its 28.9M parameters put an int8 build at roughly 29 MB against a 15 MB budget. YOLOX-Nano meets size (about 1 MB int8) and mAP, but cannot reach 0.80 recall at any threshold (0.80 recall costs precision down to 0.7168).

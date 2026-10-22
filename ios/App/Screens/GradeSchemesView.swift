@@ -31,11 +31,11 @@ struct GradeSchemesView: View {
             Card {
                 VStack(alignment: .leading, spacing: 8) {
                     TextField("Name", text: $newName)
-                        .textFieldStyle(.roundedBorder)
+                        .themedField()
                         .autocapitalization(.words)
                         .accessibilityIdentifier("grades.new-name")
                     TextField("Level labels, low to high (for example A, B, C)", text: $newLabels)
-                        .textFieldStyle(.roundedBorder)
+                        .themedField()
                         .autocapitalization(.words)
                         .accessibilityIdentifier("grades.new-labels")
                     Button("Add scheme") {

@@ -37,8 +37,14 @@ public final class SessionDetailStore: ObservableObject {
     /// Holds per climb id for the fall hold picker; populated for every climb in the
     /// session gym plus any attempt-only climb (usually empty until M3 tagging).
     @Published public private(set) var climbHolds: [String: [Hold]] = [:]
-    /// The climb quick-log logs against (set from the chip row).
+    /// The climb quick-log logs against (set from the climb list).
     @Published public private(set) var selectedClimbId: String?
+    /// The climbs added to this session, in add order. Membership is a session screen
+    /// concept, not a stored table: a climb is in the session because the climber added it
+    /// here, and every climb with an attempt is in it by construction. A climb added and
+    /// never tried is remembered for the life of this screen and reappears once it has an
+    /// attempt.
+    @Published public private(set) var addedClimbIds: [String] = []
     @Published public private(set) var lastErrorMessage: String?
 
     private let repos: Repositories
@@ -47,6 +53,13 @@ public final class SessionDetailStore: ObservableObject {
         self.repos = repos
         self.sessionId = sessionId
         refresh()
+    }
+
+    /// The climbs in this session, resolved to rows and in add order.
+    public var sessionClimbs: [Climb] {
+        addedClimbIds.compactMap { id in
+            climbs.first { $0.id == id } ?? groups.first { $0.climb.id == id }?.climb
+        }
     }
 
     /// The selected climb from the quick-log list or the attempt groups.
@@ -75,10 +88,41 @@ public final class SessionDetailStore: ObservableObject {
             climbs = try repos.climbs.list(options: ListClimbsOptions(gymId: session.gymId))
             groups = try groupAttempts(attempts)
             climbHolds = try loadClimbHolds()
+            reconcileSessionClimbs()
             lastErrorMessage = nil
         } catch {
             lastErrorMessage = error.localizedDescription
         }
+    }
+
+    /// Adds a climb to the session and targets it for logging, which is the one action
+    /// behind the Add Climb button.
+    public func addClimb(_ climb: Climb) {
+        addClimb(id: climb.id)
+    }
+
+    public func addClimb(id: String) {
+        guard sessionClimbs.contains(where: { $0.id == id }) || climbs.contains(where: { $0.id == id }) else {
+            return
+        }
+        if !addedClimbIds.contains(id) {
+            addedClimbIds.append(id)
+        }
+        selectedClimbId = id
+    }
+
+    /// Removes a climb the climber added but has not tried. A climb with attempts stays in
+    /// the session because its attempts are part of the session.
+    public func removeClimb(id: String) {
+        guard group(forClimb: id)?.attempts.isEmpty ?? true else { return }
+        addedClimbIds.removeAll { $0 == id }
+        if selectedClimbId == id {
+            selectedClimbId = addedClimbIds.first
+        }
+    }
+
+    public func group(forClimb climbId: String) -> ClimbGroup? {
+        groups.first { $0.climb.id == climbId }
     }
 
     /// Selects the climb quick-log logs against (nil clears the selection).
@@ -162,6 +206,25 @@ public final class SessionDetailStore: ObservableObject {
     }
 
     // MARK: - Private
+
+    /// Keeps the added climb list honest after every reload: drop ids the gym no longer
+    /// has, append climbs that gained an attempt elsewhere, and never leave the selection
+    /// pointing at a climb that is not in the session.
+    private func reconcileSessionClimbs() {
+        let resolvable = Set(climbs.map(\.id)).union(groups.map(\.id))
+        addedClimbIds = addedClimbIds.filter { resolvable.contains($0) }
+        for group in groups where !addedClimbIds.contains(group.climb.id) {
+            addedClimbIds.append(group.climb.id)
+        }
+        if let selectedClimbId {
+            if !addedClimbIds.contains(selectedClimbId) {
+                self.selectedClimbId = addedClimbIds.first
+            }
+        } else {
+            // A session that already has attempts opens on the first climb that has one.
+            self.selectedClimbId = addedClimbIds.first
+        }
+    }
 
     /// Buckets the session's attempts (ordered by attempted_at, attempt_no) per climb and
     /// keeps first attempt order, resolving each climb, including attempt-only climbs that

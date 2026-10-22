@@ -1,3 +1,4 @@
+import CyberSendDomain
 import SwiftUI
 
 // Theme tokens (docs/architecture.md M2: dark mode themed from day one, US-24). The palette
@@ -67,6 +68,49 @@ enum Theme {
         Color(uiColor: UIColor { traits in
             traits.userInterfaceStyle == .dark ? UIColor(rgb: dark) : UIColor(rgb: light)
         })
+    }
+}
+
+// MARK: - Fields
+
+/// Text fields sit inside cards, so the system rounded border (which fills with the page
+/// background in dark mode) reads as a black hole against the card. This keeps the same
+/// recessed field look in both appearances using the raised surface token.
+struct ThemedField: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(Theme.surfaceRaised)
+            .foregroundStyle(Theme.primaryText)
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .strokeBorder(Theme.cardBorder, lineWidth: 1)
+            )
+    }
+}
+
+extension View {
+    /// The app wide text field surface (climb name and notes, session notes, gym names,
+    /// scheme labels).
+    func themedField() -> some View {
+        modifier(ThemedField())
+    }
+}
+
+// MARK: - Outcome colour
+
+extension AttemptOutcome {
+    /// One colour per outcome for badges and the outcome buttons: flash is info (cyan),
+    /// send is success (green), fail is danger (red). Filled outcome surfaces use this as
+    /// a soft tint so the label keeps its contrast in both appearances.
+    var themeColor: Color {
+        switch self {
+        case .flash: return Theme.info
+        case .send: return Theme.success
+        case .fail: return Theme.danger
+        }
     }
 }
 

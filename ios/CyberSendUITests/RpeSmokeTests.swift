@@ -22,6 +22,13 @@ final class RpeSmokeTests: XCTestCase {
         )
         app.buttons["session.card.open"].tap()
 
+        // A fresh session starts with no climbs, so add one to log against.
+        XCTAssertTrue(app.buttons["session.climb.add"].waitForExistence(timeout: 10))
+        app.buttons["session.climb.add"].tap()
+        let climbOption = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Climb One'")).firstMatch
+        XCTAssertTrue(climbOption.waitForExistence(timeout: 10), "the Add Climb menu lists the gym's climbs")
+        climbOption.tap()
+
         let effort = app.descendants(matching: .any)["session.attempt-rpe"]
         XCTAssertTrue(effort.waitForExistence(timeout: 10), "the quick log card exposes per attempt effort")
         effort.tap()

@@ -29,7 +29,7 @@ struct GymsManagerView: View {
             Card {
                 HStack(spacing: 12) {
                     TextField("Gym name", text: $newName)
-                        .textFieldStyle(.roundedBorder)
+                        .themedField()
                         .autocapitalization(.words)
                         .disableAutocorrection(true)
                         .accessibilityIdentifier("gyms.new-name")

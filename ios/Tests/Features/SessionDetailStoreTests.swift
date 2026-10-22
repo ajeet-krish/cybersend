@@ -204,4 +204,50 @@ struct SessionDetailStoreTests {
         }
         #expect(notFound?.code == "session_not_found")
     }
+
+    @Test("a climb can be added to the session, selected, and removed while untried")
+    func addAndRemoveSessionClimbs() throws {
+        let fixture = try makeSessionFixture()
+        let second = try seedClimb(fixture.test.repos, gymId: fixture.gym.id, name: "Red V3")
+        let store = SessionDetailStore(repos: fixture.test.repos, sessionId: fixture.session.id)
+
+        #expect(store.sessionClimbs.isEmpty, "a fresh session starts with no climbs")
+
+        store.addClimb(fixture.climb)
+        #expect(store.sessionClimbs.map(\.id) == [fixture.climb.id])
+        #expect(store.selectedClimbId == fixture.climb.id, "adding a climb targets it for logging")
+
+        store.addClimb(second)
+        #expect(store.sessionClimbs.map(\.id) == [fixture.climb.id, second.id], "add order is kept")
+        #expect(store.selectedClimbId == second.id)
+
+        // Adding twice is a no-op rather than a duplicate row.
+        store.addClimb(second)
+        #expect(store.sessionClimbs.count == 2)
+
+        store.removeClimb(id: second.id)
+        #expect(store.sessionClimbs.map(\.id) == [fixture.climb.id])
+        #expect(store.selectedClimbId == fixture.climb.id, "removing the selected climb falls back to the next one")
+
+        // Adding an id the gym does not have is ignored.
+        store.addClimb(id: "missing-climb")
+        #expect(store.sessionClimbs.map(\.id) == [fixture.climb.id])
+    }
+
+    @Test("a climb with an attempt in the session cannot be removed and reappears after a reload")
+    func attemptedClimbsStayInTheSession() throws {
+        let fixture = try makeSessionFixture()
+        let store = SessionDetailStore(repos: fixture.test.repos, sessionId: fixture.session.id)
+        store.addClimb(fixture.climb)
+        _ = try store.logAttempt(outcome: .send)
+
+        store.removeClimb(id: fixture.climb.id)
+        #expect(store.sessionClimbs.map(\.id) == [fixture.climb.id], "attempts are part of the session")
+
+        // Logging without adding first (a repository write from elsewhere) still surfaces
+        // the climb in the session on the next reload.
+        let store2 = SessionDetailStore(repos: fixture.test.repos, sessionId: fixture.session.id)
+        #expect(store2.sessionClimbs.map(\.id) == [fixture.climb.id])
+        #expect(store2.selectedClimbId == fixture.climb.id)
+    }
 }

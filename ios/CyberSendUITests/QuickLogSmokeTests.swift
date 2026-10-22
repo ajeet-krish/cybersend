@@ -6,17 +6,17 @@ import XCTest
 // at most 4 taps per attempt):
 //
 //   1. tap the open session card (pushes the session screen)
-//   2. tap the climb dropdown (opens the climb menu)
-//   3. tap a climb (switch the quick log climb)
+//   2. tap Add Climb (opens the climb menu)
+//   3. tap a climb (adds it to the session and targets it)
 //   4. tap Fail (opens the fall hold sheet)
 //   5. tap Skip (saves the attempt without a hold)
 //
 // The test fails on a sixth tap: the tap helper refuses to exceed the budget, and the
 // final assertions prove the attempt saved without any further interaction. The M3
 // variant swaps Skip for a real hold row (the climb's seeded climb_holds), keeping the
-// same 5 tap budget with the fall hold recorded. The dropdown costs one more tap than
-// the old chip strip only when the climb changes; logging against the already selected
-// climb stays at 3 taps (open, outcome, save).
+// same 5 tap budget with the fall hold recorded. Adding a climb costs two taps (menu,
+// climb); logging against the already selected climb stays at 3 taps (open, outcome,
+// save).
 
 @MainActor
 final class QuickLogSmokeTests: XCTestCase {
@@ -40,12 +40,12 @@ final class QuickLogSmokeTests: XCTestCase {
         )
         tap(app.buttons["session.card.open"])
 
-        // 2: open the quick log climb dropdown.
-        tap(app.buttons["session.climb.select"])
+        // 2: open the Add Climb menu.
+        tap(app.buttons["session.climb.add"])
 
         // 3: switch the quick log climb to the seeded Climb Two.
         let climbOption = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Climb Two'")).firstMatch
-        XCTAssertTrue(climbOption.waitForExistence(timeout: 10), "the dropdown lists the gym's climbs")
+        XCTAssertTrue(climbOption.waitForExistence(timeout: 10), "the Add Climb menu lists the gym's climbs")
         tap(climbOption)
 
         // 4: tap Fail, which opens the fall hold sheet (US-12.3). The wait is polling,
@@ -87,11 +87,11 @@ final class QuickLogSmokeTests: XCTestCase {
         )
         tap(app.buttons["session.card.open"])
 
-        // 2 and 3: open the quick log climb dropdown and switch to the seeded Climb Two
-        // (the climb with real holds tagged on its wall photo, M3).
-        tap(app.buttons["session.climb.select"])
+        // 2 and 3: open Add Climb and add the seeded Climb Two (the climb with real holds
+        // tagged on its wall photo, M3), which also targets it for logging.
+        tap(app.buttons["session.climb.add"])
         let climbOption = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Climb Two'")).firstMatch
-        XCTAssertTrue(climbOption.waitForExistence(timeout: 10), "the dropdown lists the gym's climbs")
+        XCTAssertTrue(climbOption.waitForExistence(timeout: 10), "the Add Climb menu lists the gym's climbs")
         tap(climbOption)
 
         // 4: tap Fail, which opens the fall hold sheet with the climb's real holds.

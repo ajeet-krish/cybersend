@@ -80,12 +80,11 @@ struct SessionDetailView: View {
         .accessibilityIdentifier("session.screen")
         .navigationTitle("Session")
         .onAppear {
+            // A session starts with the climbs it already has attempts on, plus the climb the
+            // quick log was opened for. With neither, the Add Climb button is the first move.
             store.refresh()
             if let initialClimbId {
-                store.selectClimb(id: initialClimbId)
-            }
-            if store.selectedClimbId == nil {
-                store.selectClimb(id: store.climbs.first?.id)
+                store.addClimb(id: initialClimbId)
             }
         }
         .sheet(item: $pendingFall) { request in
@@ -116,9 +115,10 @@ struct SessionDetailView: View {
                     keepsOpenAfterCreate: true,
                     onSaved: { saved in
                         // The row exists the moment it is saved: refresh the quick log list
-                        // and target the new or edited problem for the next attempt.
+                        // and add the new or edited problem to the session, targeted for the
+                        // next attempt.
                         store.refresh()
-                        store.selectClimb(saved)
+                        store.addClimb(saved)
                     }
                 )
                 .toolbar {
@@ -211,99 +211,79 @@ struct SessionDetailView: View {
 
     @ViewBuilder
     private var openSessionContent: some View {
-        SectionTitle("Climb")
-        Card {
-            if store.climbs.isEmpty {
+        // The climb list leads: each climb added to this session is a row (workout app
+        // style), the selected one is the quick log target, and the three actions sit side
+        // by side under it.
+        SectionTitle("Climbs")
+        if store.sessionClimbs.isEmpty {
+            Card {
                 EmptyState(
                     systemImage: "figure.climbing",
-                    title: "No quick log climbs",
-                    message: "Add a problem for this gym to log attempts against."
+                    title: "No climbs yet",
+                    message: "Add the climbs you are working on, then log attempts against them."
                 )
-                Button {
-                    editorTarget = .new
-                } label: {
-                    Label("New problem", systemImage: "plus")
-                        .font(.subheadline.weight(.medium))
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .accessibilityIdentifier("session.climb.new")
-            } else {
-                // A single dropdown replaces the chip strip: the climb list grows past a
-                // screenful once a gym has real problems, and a strip of chips made the
-                // climb being targeted hard to see. The menu shows a checkmark on the
-                // selected climb and the grade right under its name.
-                Menu {
-                    ForEach(store.climbs) { climb in
-                        Button {
-                            store.selectClimb(climb)
-                        } label: {
-                            if climb.id == store.selectedClimbId {
-                                Label(climbTitle(climb), systemImage: "checkmark")
-                            } else {
-                                Text(climbTitle(climb))
-                            }
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 12) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(selectedClimbName)
-                                .font(.headline)
-                                .foregroundStyle(Theme.primaryText)
-                                .accessibilityIdentifier("session.climb.selected")
-                            if let grade = selectedClimbGrade {
-                                Text(grade)
-                                    .font(.caption)
-                                    .foregroundStyle(Theme.secondaryText)
-                                    .accessibilityIdentifier("session.climb.selected-grade")
-                            }
-                        }
-                        Spacer(minLength: 8)
-                        Image(systemName: "chevron.up.chevron.down")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(Theme.secondaryText)
-                    }
-                    .contentShape(Rectangle())
-                }
-                .accessibilityIdentifier("session.climb.select")
-                .accessibilityLabel("Climb: \(selectedClimbName)")
-
-                Divider()
-                    .overlay(Theme.separator)
-                    .padding(.vertical, 8)
-
-                HStack(spacing: 10) {
-                    Button {
-                        editorTarget = .new
-                    } label: {
-                        Label("New problem", systemImage: "plus")
-                            .font(.subheadline.weight(.medium))
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                    .accessibilityIdentifier("session.climb.new")
-
-                    Button {
-                        if let climbId = store.selectedClimbId {
-                            editorTarget = .edit(climbId)
-                        }
-                    } label: {
-                        Label("Edit problem", systemImage: "pencil")
-                            .font(.subheadline.weight(.medium))
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(store.selectedClimbId == nil)
-                    .accessibilityIdentifier("session.climb.edit")
-                }
+                .accessibilityIdentifier("session.climbs.empty")
+            }
+        } else {
+            ForEach(store.sessionClimbs) { climb in
+                sessionClimbCard(climb)
             }
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("session.climbs")
+
+        HStack(spacing: 10) {
+            Menu {
+                let available = availableClimbs
+                if available.isEmpty {
+                    Text("Every climb is already added")
+                } else {
+                    ForEach(available) { climb in
+                        Button(climbTitle(climb)) {
+                            store.addClimb(climb)
+                        }
+                    }
+                }
+            } label: {
+                sessionActionLabel("Add Climb", systemImage: "plus")
+            }
+            .accessibilityIdentifier("session.climb.add")
+
+            Button {
+                if let climbId = store.selectedClimbId {
+                    editorTarget = .edit(climbId)
+                }
+            } label: {
+                sessionActionLabel(
+                    "Edit Problem",
+                    systemImage: "pencil",
+                    enabled: store.selectedClimbId != nil
+                )
+            }
+            .disabled(store.selectedClimbId == nil)
+            .accessibilityIdentifier("session.climb.edit")
+
+            Button {
+                editorTarget = .new
+            } label: {
+                sessionActionLabel("New Problem", systemImage: "plus.square")
+            }
+            .accessibilityIdentifier("session.climb.new")
+        }
 
         SectionTitle("Log attempt")
         Card {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text(selectedClimbName)
+                    .font(.headline)
+                    .foregroundStyle(Theme.primaryText)
+                    .accessibilityIdentifier("session.climb.target")
+                Spacer(minLength: 8)
+                if let grade = selectedClimbGrade {
+                    Text(grade)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.secondaryText)
+                        .accessibilityIdentifier("session.climb.selected-grade")
+                }
+            }
             HStack(spacing: 10) {
                 outcomeButton(.flash)
                 outcomeButton(.send)
@@ -337,10 +317,12 @@ struct SessionDetailView: View {
                     .foregroundStyle(Theme.secondaryText)
                     .accessibilityIdentifier("session.attempts.count")
                 ForEach(attemptRows(recentAttempts)) { row in
-                    Text(openAttemptLabel(row.attempt))
-                        .font(.subheadline)
-                        .foregroundStyle(Theme.primaryText)
-                        .accessibilityIdentifier("session.attempt.\(row.index)")
+                    attemptRowLink(row, index: row.index)
+                    if row.index < recentAttempts.count - 1 {
+                        Divider()
+                            .overlay(Theme.separator)
+                            .padding(.vertical, 6)
+                    }
                 }
             }
         }
@@ -351,6 +333,130 @@ struct SessionDetailView: View {
             showCloseSheet = true
         }
         .accessibilityIdentifier("session.close")
+    }
+
+    /// One climb in the session: name, grade, categories, and how it has gone so far. The
+    /// whole row selects the climb for the next attempt; a climb with no attempts can be
+    /// removed, one with attempts cannot because its attempts are part of the session.
+    private func sessionClimbCard(_ climb: Climb) -> some View {
+        let selected = climb.id == store.selectedClimbId
+        let attempts = store.group(forClimb: climb.id)?.attempts ?? []
+        return Card {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                    .font(.footnote)
+                    .foregroundStyle(selected ? Theme.accent : Theme.tertiaryText)
+                    .padding(.top, 3)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 4) {
+                    // The grade is the chip below, so the title stays the name alone.
+                    Text(climb.name ?? "Untitled climb")
+                        .font(.headline)
+                        .foregroundStyle(Theme.primaryText)
+                        .lineLimit(2)
+                        .accessibilityIdentifier(selected ? "session.climb.selected" : "session.climb.name.\(climb.id)")
+                    HStack(spacing: 6) {
+                        if let grade = DisplayText.grade(climb, systems: logbook.gradeSystems) {
+                            Chip(grade)
+                        }
+                        if !climb.categories.isEmpty {
+                            Text(climb.categories.map(\.title).joined(separator: " · "))
+                                .font(.caption2)
+                                .foregroundStyle(Theme.secondaryText)
+                                .lineLimit(1)
+                                .accessibilityIdentifier("session.climb.categories.\(climb.id)")
+                        }
+                    }
+                    Text(climbProgress(attempts))
+                        .font(.caption)
+                        .foregroundStyle(Theme.secondaryText)
+                        .accessibilityIdentifier("session.climb.progress.\(climb.id)")
+                }
+                Spacer(minLength: 8)
+                if attempts.isEmpty {
+                    Button {
+                        store.removeClimb(id: climb.id)
+                    } label: {
+                        Image(systemName: "minus.circle")
+                            .foregroundStyle(Theme.secondaryText)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("session.climb.remove.\(climb.id)")
+                    .accessibilityLabel("Remove \(climbTitle(climb)) from this session")
+                }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                store.selectClimb(climb)
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityIdentifier("session.climb.row.\(climb.id)")
+    }
+
+    /// The disabled state is drawn here rather than left to `.disabled`: the label sets its
+    /// own foregroundStyle, so a disabled action would otherwise still look active.
+    private func sessionActionLabel(
+        _ title: String,
+        systemImage: String,
+        enabled: Bool = true
+    ) -> some View {
+        VStack(spacing: 4) {
+            Image(systemName: systemImage)
+                .font(.subheadline.weight(.semibold))
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 10)
+        .background(Theme.surfaceRaised)
+        .foregroundStyle(enabled ? Theme.accent : Theme.tertiaryText)
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+
+    private var availableClimbs: [Climb] {
+        let added = Set(store.sessionClimbs.map(\.id))
+        return store.climbs.filter { !added.contains($0.id) }
+    }
+
+    private func climbProgress(_ attempts: [Attempt]) -> String {
+        guard !attempts.isEmpty else { return "Not tried yet" }
+        guard let last = attempts.last else { return "Not tried yet" }
+        let count = DisplayText.attemptCount(attempts.count)
+        let sent = attempts.contains { $0.outcome == .send || $0.outcome == .flash }
+        return "\(count) · \(DisplayText.outcomeTitle(last.outcome))\(sent ? " · Sent" : "")"
+    }
+
+    /// One attempt line, climb name first, then the result, effort, and fall details. Tapping
+    /// the row opens the edit sheet while the session is open, so an attempt can be corrected
+    /// on the spot (outcome, effort, fall hold, notes) instead of only after it closes.
+    private func attemptRowLink(_ row: IndexedAttempt, index: Int) -> some View {
+        HStack(spacing: 8) {
+            Text(openAttemptLabel(row.attempt))
+                .font(.subheadline)
+                .foregroundStyle(Theme.primaryText)
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityIdentifier("session.attempt.\(index)")
+            Button {
+                editingAttempt = row.attempt
+            } label: {
+                Image(systemName: "pencil")
+                    .font(.caption)
+                    .foregroundStyle(Theme.secondaryText)
+                    .padding(6)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("session.attempt.\(index).edit")
+            .accessibilityLabel("Edit attempt \(row.attempt.attemptNo)")
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            editingAttempt = row.attempt
+        }
     }
 
     private var selectedClimbName: String {
@@ -366,16 +472,30 @@ struct SessionDetailView: View {
         DisplayText.climbTitle(climb, systems: logbook.gradeSystems)
     }
 
+    /// Outcome coloured, not accent coloured: three equally purple buttons read as three
+    /// identical primary actions and invite a mis tap, while the outcome colours match the
+    /// badges on the attempt rows and in problem history. The soft tint keeps the label
+    /// readable in both appearances (contrast is measured on the badge tint in
+    /// docs/decisions.md).
     private func outcomeButton(_ outcome: AttemptOutcome) -> some View {
-        Button {
+        let enabled = outcomeEnabled(outcome)
+        return Button {
             outcomeTapped(outcome)
         } label: {
             Text(DisplayText.outcomeTitle(outcome))
+                .font(.subheadline.weight(.semibold))
                 .frame(maxWidth: .infinity)
+                .padding(.vertical, 13)
+                .background(outcome.themeColor.opacity(enabled ? 0.18 : 0.06))
+                .foregroundStyle(enabled ? outcome.themeColor : Theme.tertiaryText)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .strokeBorder(outcome.themeColor.opacity(enabled ? 0.45 : 0.12), lineWidth: 1)
+                )
         }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.large)
-        .disabled(!outcomeEnabled(outcome))
+        .buttonStyle(.plain)
+        .disabled(!enabled)
         .accessibilityIdentifier("outcome.\(outcome.rawValue)")
     }
 
@@ -485,16 +605,20 @@ struct SessionDetailView: View {
         }
     }
 
+    /// Attempt text reading climb name first, then the result, effort, and fall hold, so a
+    /// flat attempt list stays readable when the session works several problems.
     private func openAttemptLabel(_ attempt: Attempt) -> String {
-        let climbName = climbName(for: attempt.climbId)
-        var text = "#\(attempt.attemptNo) \(DisplayText.outcomeTitle(attempt.outcome)), \(climbName)"
-        if let holdText = DisplayText.fallHoldTitle(fallOnHoldId: attempt.fallOnHoldId, holds: holdsForClimb(attempt.climbId)) {
-            text += ", \(holdText)"
-        }
+        var parts = [
+            climbName(for: attempt.climbId),
+            "#\(attempt.attemptNo) \(DisplayText.outcomeTitle(attempt.outcome))",
+        ]
         if let rpeText = DisplayText.rpe(attempt.rpe) {
-            text += ", \(rpeText)"
+            parts.append(rpeText)
         }
-        return text
+        if let holdText = DisplayText.fallHoldTitle(fallOnHoldId: attempt.fallOnHoldId, holds: holdsForClimb(attempt.climbId)) {
+            parts.append(holdText)
+        }
+        return parts.joined(separator: " · ")
     }
 
     private func climbName(for climbId: String) -> String {
@@ -717,7 +841,7 @@ struct CloseSessionSheet: View {
                 Card {
                     TextField("Notes (optional)", text: $notes, axis: .vertical)
                         .lineLimit(1...4)
-                        .textFieldStyle(.roundedBorder)
+                        .themedField()
                         .accessibilityIdentifier("close.notes")
                 }
             }
@@ -861,7 +985,7 @@ struct EditAttemptSheet: View {
                 Card {
                     TextField("Notes (optional)", text: $notes, axis: .vertical)
                         .lineLimit(1...4)
-                        .textFieldStyle(.roundedBorder)
+                        .themedField()
                         .accessibilityIdentifier("attempt.edit.notes")
                 }
             }

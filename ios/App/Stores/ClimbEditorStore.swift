@@ -12,9 +12,10 @@ import Foundation
 final class ClimbEditorStore: ObservableObject {
     /// The climb being edited; nil in create mode.
     @Published private(set) var climb: Climb?
-    /// Attempt count for the manage card; deleting a climb with attempts is blocked
-    /// (US-26), so the editor surfaces the count before the user tries.
-    @Published private(set) var attemptCount: Int = 0
+    /// Every gym for the details group picker. The editor can create a problem in any gym
+    /// and move an existing one, which is why the gym is a field rather than a screen
+    /// context.
+    @Published private(set) var gyms: [Gym] = []
     /// Hold count for the holds card (M3, US-19): drives the summary, the tagging link,
     /// and the delete and replace photo warnings when holds exist.
     @Published private(set) var holdCount: Int = 0
@@ -25,6 +26,10 @@ final class ClimbEditorStore: ObservableObject {
     @Published private(set) var gradeSystems: [GradeSystem] = []
 
     @Published var name: String = ""
+    /// The gym the problem belongs to. For a create it starts as the gym the climber is
+    /// standing in (the session's gym) or the selected gym; for an edit it is the climb's
+    /// current gym.
+    @Published var gymId: String = ""
     @Published var schemeId: String = defaultGradeSystemID
     @Published var levelId: String?
     @Published var angleText: String = ""
@@ -32,6 +37,8 @@ final class ClimbEditorStore: ObservableObject {
     /// Free text problem details (Migration 004, Problems catalog): beta, style, what to
     /// remember. Empty is stored as nil so the column reads as "no details yet".
     @Published var notes: String = ""
+    /// Descriptive category tags (Migration 005), toggled from the category button grid.
+    @Published private(set) var categories: Set<ClimbCategory> = []
     @Published private(set) var lastErrorMessage: String?
 
     /// True when the screen creates a new climb instead of editing an existing one.
@@ -45,6 +52,7 @@ final class ClimbEditorStore: ObservableObject {
     init(repos: Repositories, climbId: String?) {
         self.repos = repos
         self.isNew = climbId == nil
+        gyms = (try? repos.gyms.list()) ?? []
         if let climbId {
             load(climbId: climbId)
         } else {
@@ -79,7 +87,8 @@ final class ClimbEditorStore: ObservableObject {
                 angleText = climb.angleDeg.map { String(Int($0)) } ?? ""
                 colorCircuit = climb.colorCircuit ?? ""
                 notes = climb.notes ?? ""
-                attemptCount = try repos.climbs.countAttempts(id: climbId)
+                gymId = climb.gymId
+                categories = Set(climb.categories)
                 refreshHolds()
             } else {
                 lastErrorMessage = "This climb was deleted."
@@ -97,6 +106,26 @@ final class ClimbEditorStore: ObservableObject {
         holdCount = holds.count
     }
 
+    /// Falls back to the gym the climber is standing in when the editor opened without a
+    /// loaded climb and the session or logbook has a selection.
+    func ensureGymSelection(fallback: String?) {
+        guard gymId.isEmpty, let fallback else { return }
+        gymId = fallback
+    }
+
+    /// Adds or removes one category tag.
+    func toggleCategory(_ category: ClimbCategory) {
+        if categories.contains(category) {
+            categories.remove(category)
+        } else {
+            categories.insert(category)
+        }
+    }
+
+    func isSelected(_ category: ClimbCategory) -> Bool {
+        categories.contains(category)
+    }
+
     /// Switches grade scheme and clears the level: a level id only means something inside
     /// its scheme (US-9 keeps grade a (scheme, level) pair, never a free string), so
     /// carrying a level across schemes would produce a pair the repository rejects.
@@ -106,57 +135,45 @@ final class ClimbEditorStore: ObservableObject {
         levelId = nil
     }
 
-    /// The role breakdown for the holds card, for example "1 start, 1 intermediate,
-    /// 1 top"; empty when there are no holds.
-    var roleBreakdown: String {
-        var parts: [String] = []
-        for (role, label) in [(HoldRole.start, "start"), (.intermediate, "intermediate"), (.top, "top")] {
-            let count = holds.filter { $0.role == role }.count
-            if count > 0 {
-                parts.append(count == 1 ? "1 \(label)" : "\(count) \(label)s")
-            }
-        }
-        let unassigned = holds.filter { $0.role == nil }.count
-        if unassigned > 0 {
-            parts.append(unassigned == 1 ? "1 unassigned" : "\(unassigned) unassigned")
-        }
-        return parts.joined(separator: ", ")
-    }
-
-    /// Saves the climb: create at gymId (the logbook selection, US-11 surfaces the gym)
-    /// or update the loaded row. Angle is validated like the TypeScript spec: empty is
-    /// allowed (nullable column), otherwise a number from 0 to 90 (US-10.2).
+    /// Saves the climb: create in the picked gym (the logbook selection when the picker is
+    /// empty, US-11 surfaces the gym) or update the loaded row, which can also move it to
+    /// another gym. Angle is validated like the TypeScript spec: empty is allowed (nullable
+    /// column), otherwise a number from 0 to 90 (US-10.2).
     @discardableResult
-    func save(gymId: String?) throws -> Climb {
+    func save(fallbackGymId: String?) throws -> Climb {
         let angleDeg = try parseAngle(angleText)
+        let targetGymId = gymId.isEmpty ? fallbackGymId : gymId
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedColor = colorCircuit.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
         let stored: Climb
         if let climb {
             stored = try repos.climbs.update(id: climb.id, patch: UpdateClimbPatch(
+                gymId: .set(targetGymId ?? climb.gymId),
                 name: .set(trimmedName),
                 gradeSystemId: .set(schemeId),
                 gradeLevelId: .set(levelId),
                 colorCircuit: .set(trimmedColor.isEmpty ? nil : trimmedColor),
                 angleDeg: .set(angleDeg),
-                notes: .set(trimmedNotes.isEmpty ? nil : trimmedNotes)
+                notes: .set(trimmedNotes.isEmpty ? nil : trimmedNotes),
+                categories: .set(orderedClimbCategories(Array(categories)))
             ))
         } else {
-            guard let gymId else {
+            guard let targetGymId else {
                 throw DomainValidationError(
                     "gym_not_selected",
                     "Select a gym on the Logbook tab before adding a climb."
                 )
             }
             stored = try repos.climbs.create(CreateClimbInput(
-                gymId: gymId,
+                gymId: targetGymId,
                 name: trimmedName.isEmpty ? nil : trimmedName,
                 gradeSystemId: schemeId,
                 gradeLevelId: levelId,
                 colorCircuit: trimmedColor.isEmpty ? nil : trimmedColor,
                 angleDeg: angleDeg,
-                notes: trimmedNotes.isEmpty ? nil : trimmedNotes
+                notes: trimmedNotes.isEmpty ? nil : trimmedNotes,
+                categories: orderedClimbCategories(Array(categories))
             ))
         }
         climb = stored

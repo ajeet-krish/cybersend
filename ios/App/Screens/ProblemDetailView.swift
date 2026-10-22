@@ -16,6 +16,7 @@ struct ProblemDetailView: View {
     @EnvironmentObject private var thumbnails: ClimbThumbnailsModel
     @StateObject private var store: ProblemDetailStore
     @State private var actionError: String?
+    @State private var showHoldStats = false
 
     init(climbId: String, services: AppServices) {
         self.climbId = climbId
@@ -32,7 +33,8 @@ struct ProblemDetailView: View {
 
             if let climb = store.climb {
                 header(climb)
-                details(climb)
+                holdStatsRow
+                notes(climb)
                 history
                 manage(climb)
             }
@@ -40,6 +42,13 @@ struct ProblemDetailView: View {
         .accessibilityIdentifier("problem.screen")
         .navigationTitle(store.climb?.name ?? "Problem")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showHoldStats) {
+            HoldStatsSheet(
+                holds: store.holds,
+                roleCounts: store.holdRoleCounts,
+                photoURL: store.photo.flatMap { photoURL($0) }
+            )
+        }
         .onAppear {
             store.refresh()
             thumbnails.refresh()
@@ -68,6 +77,14 @@ struct ProblemDetailView: View {
         }
 
         Card {
+            if let gymName = store.gymName {
+                Text(gymName)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Theme.secondaryText)
+                    .textCase(.uppercase)
+                    .tracking(0.6)
+                    .accessibilityIdentifier("problem.gym")
+            }
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Text(climb.name ?? "Untitled problem")
                     .font(.title3.weight(.semibold))
@@ -103,14 +120,50 @@ struct ProblemDetailView: View {
             }
             .font(.caption)
             .foregroundStyle(Theme.secondaryText)
+
+            if !climb.categories.isEmpty {
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 84), spacing: 6)],
+                    alignment: .leading,
+                    spacing: 6
+                ) {
+                    ForEach(climb.categories, id: \.self) { category in
+                        Chip(category.title)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+                .padding(.top, 4)
+                .accessibilityIdentifier("problem.categories")
+            }
         }
     }
 
-    // MARK: - Details
+    // MARK: - Hold stats
 
-    private func details(_ climb: Climb) -> some View {
+    /// Read only hold stats. Tagging itself only lives in the problem editor, so the detail
+    /// screen reports what is tagged rather than opening the canvas.
+    private var holdStatsRow: some View {
+        Card {
+            Button {
+                showHoldStats = true
+            } label: {
+                Row(
+                    title: "View hold stats",
+                    detail: store.holds.isEmpty ? "No holds tagged" : "\(store.holds.count) holds",
+                    systemImage: "hand.tap"
+                )
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("problem.holds")
+        }
+    }
+
+    // MARK: - Notes
+
+    private func notes(_ climb: Climb) -> some View {
         Group {
-            SectionTitle("Details")
+            SectionTitle("Notes")
             Card {
                 if let notes = climb.notes, !notes.isEmpty {
                     Text(notes)
@@ -169,10 +222,10 @@ struct ProblemDetailView: View {
         HStack(alignment: .top, spacing: 10) {
             Text(DisplayText.outcomeTitle(attempt.outcome))
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(outcomeColor(attempt.outcome))
+                .foregroundStyle(attempt.outcome.themeColor)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 3)
-                .background(outcomeColor(attempt.outcome).opacity(0.15))
+                .background(attempt.outcome.themeColor.opacity(0.15))
                 .clipShape(Capsule())
                 .frame(width: 62, alignment: .leading)
             VStack(alignment: .leading, spacing: 2) {
@@ -213,17 +266,6 @@ struct ProblemDetailView: View {
                     .overlay(Theme.separator)
                     .padding(.vertical, 6)
 
-                NavigationLink(value: ProblemsRoute.tagging(climbId: climb.id)) {
-                    Row(
-                        title: "Tag holds",
-                        detail: store.photo == nil ? "Add a photo first" : nil,
-                        systemImage: "hand.tap"
-                    )
-                }
-                .buttonStyle(.plain)
-                .disabled(store.photo == nil)
-                .accessibilityIdentifier("problem.tag")
-
                 SecondaryButton(climb.isArchived ? "Unarchive problem" : "Archive problem") {
                     toggleArchive()
                 }
@@ -244,14 +286,6 @@ struct ProblemDetailView: View {
         return try? services.media.storage.url(relativeURI: uri)
     }
 
-    private func outcomeColor(_ outcome: AttemptOutcome) -> Color {
-        switch outcome {
-        case .flash: return Theme.info
-        case .send: return Theme.success
-        case .fail: return Theme.danger
-        }
-    }
-
     private func toggleArchive() {
         do {
             try store.setArchived(!store.isArchived)
@@ -260,5 +294,106 @@ struct ProblemDetailView: View {
         } catch {
             actionError = (error as? DomainValidationError)?.message ?? error.localizedDescription
         }
+    }
+
+}
+
+// Read only hold stats (UI overhaul): what is tagged on this problem, by role and by
+// position. Tagging itself stays in the problem editor, so this sheet reports and never
+// edits.
+private struct HoldStatsSheet: View {
+    let holds: [Hold]
+    let roleCounts: [(title: String, count: Int)]
+    let photoURL: URL?
+
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            Screen {
+                if let photoURL {
+                    AsyncImage(url: photoURL) { image in
+                        image.resizable().scaledToFill()
+                    } placeholder: {
+                        RoundedRectangle(cornerRadius: Theme.cardCornerRadius, style: .continuous)
+                            .fill(Theme.surfaceRaised)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 180)
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.cardCornerRadius, style: .continuous))
+                    .accessibilityIdentifier("problem.holds.photo")
+                }
+
+                if holds.isEmpty {
+                    Card {
+                        EmptyState(
+                            systemImage: "hand.tap",
+                            title: "No holds tagged",
+                            message: "Edit the problem to tag the holds on this wall photo."
+                        )
+                    }
+                    .accessibilityIdentifier("problem.holds.empty")
+                } else {
+                    Card {
+                        ForEach(Array(roleCounts.enumerated()), id: \.offset) { index, entry in
+                            if index > 0 {
+                                Divider()
+                                    .overlay(Theme.separator)
+                                    .padding(.vertical, 4)
+                            }
+                            HStack {
+                                Text(entry.title)
+                                    .font(.subheadline)
+                                    .foregroundStyle(Theme.primaryText)
+                                Spacer(minLength: 8)
+                                Text("\(entry.count)")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(Theme.secondaryText)
+                            }
+                            .accessibilityIdentifier("problem.holds.count.\(entry.title.lowercased())")
+                        }
+                    }
+
+                    SectionTitle("Tagged holds")
+                    Text("Position is percent across, then percent down the photo.")
+                        .font(.caption)
+                        .foregroundStyle(Theme.secondaryText)
+                    Card {
+                        ForEach(Array(holds.enumerated()), id: \.element.id) { index, hold in
+                            if index > 0 {
+                                Divider()
+                                    .overlay(Theme.separator)
+                                    .padding(.vertical, 4)
+                            }
+                            Row(
+                                title: "Hold \(index + 1)",
+                                detail: "\(roleTitle(hold.role)) · \(percent(hold.xNorm)), \(percent(hold.yNorm))",
+                                systemImage: "circle.dashed"
+                            )
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Hold stats")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+    }
+
+    private func roleTitle(_ role: HoldRole?) -> String {
+        switch role {
+        case .start: return "Start"
+        case .intermediate: return "Intermediate"
+        case .top: return "Top"
+        case nil: return "Unassigned"
+        }
+    }
+
+    private func percent(_ value: Double) -> String {
+        "\(Int((value * 100).rounded()))%"
     }
 }

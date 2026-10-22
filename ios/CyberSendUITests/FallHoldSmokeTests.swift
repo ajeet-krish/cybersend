@@ -29,9 +29,9 @@ final class FallHoldSmokeTests: XCTestCase {
             "the seeded open session renders its open action"
         )
         app.buttons["session.card.open"].tap()
-        app.buttons["session.climb.select"].tap()
+        app.buttons["session.climb.add"].tap()
         let climbOption = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Climb Two'")).firstMatch
-        XCTAssertTrue(climbOption.waitForExistence(timeout: 10), "the dropdown lists the gym's climbs")
+        XCTAssertTrue(climbOption.waitForExistence(timeout: 10), "the Add Climb menu lists the gym's climbs")
         climbOption.tap()
     }
 

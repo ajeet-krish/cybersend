@@ -91,6 +91,11 @@ UI overhaul (the current track, started 2026-10-21):
 | UI-6 | Home: session card, 20 week consistency heatmap, last three sessions, last three climbs | Complete |
 | UI-7 | Session editor: add and edit a problem inline (the sheet continues into the photo section) | Complete |
 | UI-8 | Session media: photo or video on any session, library import plus playback only | Complete |
+| UI-9 | Problem editor restructure: details group with a gym picker, category grid, one Tag holds row, compact Manage | Complete |
+| UI-10 | Problem detail: gym, categories, read only View hold stats, tagging only inside the editor | Complete |
+| UI-11 | Catalog rows show gym and categories; filters for gym, level, category, and climb status | Complete |
+| UI-12 | Open session: a card per added climb, Add Climb / Edit Problem / New Problem side by side, attempts editable live | Complete |
+| UI-13 | Visual pass: themed text fields, outcome coloured buttons, wrapped catalog filters, single photo empty state, purple climbing app icon | Complete |
 
 ## Deep Docs
 

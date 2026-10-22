@@ -58,6 +58,13 @@ final class SessionClimbInlineSmokeTests: XCTestCase {
         XCTAssertTrue(app.buttons["session.card.open"].waitForExistence(timeout: 20))
         app.buttons["session.card.open"].tap()
 
+        // A fresh session starts with no climbs, so add one and then edit it.
+        XCTAssertTrue(app.buttons["session.climb.add"].waitForExistence(timeout: 10))
+        app.buttons["session.climb.add"].tap()
+        let climbOption = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Climb Two'")).firstMatch
+        XCTAssertTrue(climbOption.waitForExistence(timeout: 10), "the Add Climb menu lists the gym's climbs")
+        climbOption.tap()
+
         XCTAssertTrue(app.buttons["session.climb.edit"].waitForExistence(timeout: 10))
         app.buttons["session.climb.edit"].tap()
 

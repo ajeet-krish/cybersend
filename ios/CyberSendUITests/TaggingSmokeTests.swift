@@ -47,9 +47,11 @@ final class TaggingSmokeTests: XCTestCase {
             app.staticTexts["climb.photo.dimensions"].waitForExistence(timeout: 20),
             "the photo card renders after the synthetic ingest"
         )
-        let tagRow = app.buttons["climb.photo.tag"]
+        // Tagging lives only in the Holds section of the editor (the duplicate link under
+        // the photo was removed in the UI overhaul).
+        let tagRow = app.buttons["climb.holds.manage"]
         scrollIntoView(tagRow, in: app)
-        XCTAssertTrue(tagRow.waitForExistence(timeout: 10), "the photo section links to the tagging screen")
+        XCTAssertTrue(tagRow.waitForExistence(timeout: 10), "the holds section links to the tagging screen")
         tagRow.tap()
 
         // 4: the canvas renders with the empty state hint.
@@ -172,7 +174,7 @@ final class TaggingSmokeTests: XCTestCase {
         ).firstMatch
         XCTAssertTrue(synthetic.waitForExistence(timeout: 10))
         synthetic.tap()
-        let tagRow = app.buttons["climb.photo.tag"]
+        let tagRow = app.buttons["climb.holds.manage"]
         scrollIntoView(tagRow, in: app)
         XCTAssertTrue(tagRow.waitForExistence(timeout: 15))
         tagRow.tap()
@@ -250,8 +252,11 @@ final class TaggingSmokeTests: XCTestCase {
 
     /// Swipes up until the element is on screen (bounded, so a missing element fails at
     /// the existence assertion instead of looping forever).
+    /// Scrolls until the element is both present and hittable: an element that exists at
+    /// the bottom edge can sit under the tab bar, where a synthesized tap lands on the bar
+    /// rather than the control.
     private func scrollIntoView(_ element: XCUIElement, in app: XCUIApplication, maxSwipes: Int = 8) {
-        for _ in 0..<maxSwipes where !element.exists {
+        for _ in 0..<maxSwipes where !(element.exists && element.isHittable) {
             app.swipeUp()
         }
     }

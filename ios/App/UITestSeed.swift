@@ -58,7 +58,8 @@ enum UITestSeed {
                 name: "Climb One",
                 gradeSystemId: defaultGradeSystemID,
                 gradeLevelId: "v3",
-                notes: "Match the left crimp, then stand up on the right gaston."
+                notes: "Match the left crimp, then stand up on the right gaston.",
+                categories: [.slab, .technical]
             )
         )
         let climbTwo = try repos.climbs.create(
@@ -67,7 +68,8 @@ enum UITestSeed {
                 name: "Climb Two",
                 gradeSystemId: defaultGradeSystemID,
                 gradeLevelId: "v4",
-                notes: "Keep the hips close on the top out."
+                notes: "Keep the hips close on the top out.",
+                categories: [.overhang, .dyno]
             )
         )
 
