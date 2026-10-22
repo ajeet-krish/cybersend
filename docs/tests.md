@@ -200,3 +200,37 @@ recognised shape, and the 5 to 6 payload migration adds the two tables as empty.
 
 Not covered: the same device measurements as P1 (wrist accuracy, latency, thermal), because the
 corpus is deferred. No accuracy claim is made anywhere in storage or export.
+
+## 2026-10-21 - Pose P3 Tier A metrics
+
+Pure Domain maths over a prepared track. No Vision, no AVFoundation, no GRDB in the layer; the
+structural guard from P1 fails the build if that changes.
+
+| Item | Command | Result |
+|------|---------|--------|
+| Full package suite, 320 tests in 51 suites | cd ios && swift test | PASS |
+| Body scale from head to ankle spans, with the expected median and spread | swift test --filter bodyScaleUses | PASS |
+| Body scale falls back to torso length when ankles are missing, flagged unreliable | swift test --filter bodyScaleFallsBack | PASS |
+| Fewer than three frames yields no prepared track and no metrics | swift test --filter twoFrames | PASS |
+| Camera class separates still, slow drift, and handheld drift | swift test --filter cameraClass | PASS |
+| Rise then fall produces an attempt window, a fall event, and an end at the fall | swift test --filter riseAndFall | PASS |
+| A stationary clip is reported as no attempt with low confidence | swift test --filter stationaryClip | PASS |
+| Progress curve is time ordered, starts at the bottom, and ends at the top before the fall | swift test --filter progressCurve | PASS |
+| A straight path scores smoother than a zigzag on both jerk and path efficiency | swift test --filter straightPath | PASS |
+| The hesitation map peaks at the pause location and reports the dwell time | swift test --filter hesitationMap | PASS |
+| Metrics are deterministic and record both algorithm and threshold versions | swift test --filter metricsRecord | PASS |
+
+Three findings, all from tests:
+
+1. The fall debounce seeded its "previous fall" with `Int.min`, so the first subtraction overflowed
+and trapped. Now an optional previous timestamp.
+2. A quiet end of 800 ms near the ground is correct for ending an attempt, but it also ends an
+attempt during a mid climb pause if the climber is low. That is the right behaviour (a rest on the
+pad is not climbing) and it is now pinned by the hesitation fixture, which pauses above the ground
+band instead.
+3. The progress curve ends at the fall, not at the bottom, because the attempt window ends where
+the fall begins. That is intentional and now asserted.
+
+Still unmeasured: every threshold in MetricThresholds is a hypothesis. The engine records
+`thresholdsVersion` and `algorithmVersion` on every result so a later corpus pass can invalidate
+old analyses explicitly.
