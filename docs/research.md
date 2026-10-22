@@ -205,18 +205,40 @@ YOLOX boxes are emitted in pixels of the 640 frame, so the gate normalizes them
 by 640 before comparing. Without that, the same 1.4e-3 pixel difference reads
 as a failure against a 1e-3 gate that was authored for 0..1 coordinates.
 
-### Preprocess contract difference (blocks YOLOX in the harness)
+### Harness support for YOLOX, and val gate numbers
 
 | | RF-DETR | YOLOX |
 |---|---------|-------|
 | Channel order | RGB | RGB |
 | Scale | /255 then ImageNet mean/std | raw 0..255, no normalization |
 | Letterbox pad | 114 gray, centered | 114 gray, centered |
+| Box decode | in graph, normalized cxcywh | in graph, cxcywh pixels |
+| NMS | none needed (set prediction) | harness, IoU 0.65 over anchors >= 0.01 |
 
-`tools/eval/src/preprocess.ts` implements the RF-DETR contract and is shared by
-the eval harness. `tools/eval/src/decode.ts` decodes RF-DETR query output only.
-YOLOX cannot be scored by `eval_hold.ts` until the harness gains a per-model
-preprocess mode plus YOLOX decode and NMS. RF-DETR is fully wired today.
+The harness gained a per-model preprocess mode, declared by the detector, plus
+YOLOX decode and NMS (`tools/eval/src/decode_yolox.ts`). No silent fallback: a
+model whose output names match neither contract is rejected and requires
+`--model-kind`. The cxcywh reading was verified against ground truth before the
+harness trusted it (mean best IoU 0.79 as cxcywh, 0.00 as xyxy).
+
+Val results at confidence 0.5, 591 images, no test split involved:
+
+| Model | precision | recall | mAP@0.5 | Phase 4 gate (0.85 / 0.80 / 0.75) |
+|---|---|---|---|---|
+| RF-DETR-Nano | 0.9490 | 0.8894 | 0.9235 | PASS |
+| YOLOX-Nano | 0.9185 | 0.6725 | 0.8101 | FAIL (recall) |
+
+YOLOX cannot clear the gate at any single threshold. Recall reaches 0.80 only at
+confidence 0.2, where precision is 0.7168; the pair at 0.4 is 0.8671 / 0.7294;
+at 0.3 it is 0.8033 / 0.7699. Precision and recall trade monotonically, so no
+threshold satisfies both floors. This decides the Phase 4 model on val alone,
+before any test-split spend.
+
+The harness-versus-in-loop mAP gap also collapsed at D1: RF-DETR scores 0.9235
+here against 0.9204 in-loop (0.0031 apart), and YOLOX 0.8101 against 0.781 COCO
+mAP50, which is consistent with VOC all-point versus COCO 101-point
+interpolation plus NMS details. The reconciliation item in the eval README is
+closed for D1.
 
 ### Core ML conversion risk, updated
 

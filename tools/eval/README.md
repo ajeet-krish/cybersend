@@ -30,6 +30,13 @@ npm run eval -- --model ../train/artifacts/holds_detector_d1.onnx \
   --split-dir ../train/datasets/merged/val \
   --report reports/d1_val_eval.json --confidence 0.5
 
+# Same harness for the YOLOX export (raw 0..255 input, NMS applied here because
+# the graph has none). --model-kind defaults to auto, which reads the output
+# names; passing it explicitly removes any doubt.
+npm run eval -- --model ../train/artifacts/holds_detector_yolox_d1.onnx \
+  --model-kind yolox --split-dir ../train/datasets/merged/val \
+  --report reports/d1_val_eval_yolox.json --confidence 0.5
+
 # The ONE gated test run: scoring the frozen test split requires the explicit
 # --i-accept-one-test-run flag (without it the harness refuses with exit 2
 # before loading the model) and appends a line to reports/test_ledger.jsonl
@@ -48,11 +55,12 @@ npm run verify -- ../train/artifacts/holds_detector_d1.onnx
 npm run typecheck
 ```
 
-Flags for npm run eval (all optional): --model, --split-dir (alias
---test-dir, default ../train/datasets/merged/val), --report (defaults to
-reports/d1_val_eval.json, or d1_test_eval.json for a test split), --confidence
-(operating threshold, default 0.5), --iou (default 0.5), --score-floor
-(default 1e-4), --gate, --label, --i-accept-one-test-run.
+Flags for npm run eval (all optional): --model, --model-kind
+(auto|rfdetr|yolox, default auto), --split-dir (alias --test-dir, default
+../train/datasets/merged/val), --report (defaults to reports/d1_val_eval.json,
+or d1_test_eval.json for a test split), --confidence (operating threshold,
+default 0.5), --iou (default 0.5), --score-floor (default 1e-4), --gate,
+--label, --i-accept-one-test-run.
 
 ## One gated test run policy
 
@@ -77,20 +85,27 @@ and `npm run eval:stub` never touch the ledger.
 ## Layout
 
 - src/preprocess.ts: the shared inference preprocess contract (letterbox 640,
-  pad 114 centered, RGB float32 NCHW, ImageNet normalization), pure typed
-  arrays, no native imports. Kept in lockstep with the app path
-  src/features/ml/preprocess.ts per docs/architecture.md.
-- src/evaluate.ts: detector-agnostic eval core. Ground truth boxes live in
-  image pixels and are mapped into the letterboxed frame with the same
-  geometry the model sees; on baked data (hold-bake) that mapping is an
+  pad 114 centered, RGB float32 NCHW), pure typed arrays, no native imports.
+  Two value modes: "imagenet" (RF-DETR) and "raw" (YOLOX, 0..255). Kept in
+  lockstep with the app path src/features/ml/preprocess.ts per
+  docs/architecture.md.
+- src/evaluate.ts: detector-agnostic eval core. The detector declares its
+  preprocess mode and the core encodes the tensor accordingly. Ground truth
+  boxes live in image pixels and are mapped into the letterboxed frame with the
+  same geometry the model sees; on baked data (hold-bake) that mapping is an
   identity, so raw-resolution splits and baked splits both work directly.
 - src/metrics.ts: greedy confidence-ordered matching, IoU, VOC 2010+ all-point
   AP (precision envelope via suffix maxima).
-- src/detector.ts: Detector interface; OnnxDetector (onnxruntime-node, no NMS,
-  DETR-style raw queries) and StubDetector (oracle/noop, deterministic jitter).
+- src/detector.ts: Detector interface; OnnxDetector (onnxruntime-node, kind
+  rfdetr or yolox, auto-detected from output names) and StubDetector
+  (oracle/noop, deterministic jitter).
 - src/decode.ts: RF-DETR output decode (dets = normalized cxcywh, labels =
   num_classes + 1 logits where channel 0 is the hold score and the trailing
   channel is no-object).
+- src/decode_yolox.ts: YOLOX output decode (cxcywh pixels to clipped xyxy,
+  score = objectness times best class, then class-agnostic greedy NMS at IoU
+  0.65 over anchors scoring at least 0.01, the COCO convention used during
+  training).
 - src/eval_hold.ts: harness main with report writing, the --gate check, and the
   test split guard (exit 2 without --i-accept-one-test-run).
 - src/test_policy.ts: one gated test run policy (split detection, acceptance
@@ -99,7 +114,8 @@ and `npm run eval:stub` never touch the ledger.
 - src/stub_fixture.ts: deterministic synthetic fixture generator (JPEGs +
   COCO JSON, no committed binaries).
 - src/*.test.ts: node --test unit tests, including baked_parity.test.ts (baked
-  image + harness letterbox round trip) and test_policy.test.ts.
+  image + harness letterbox round trip), test_policy.test.ts, and
+  yolox_decode.test.ts (cxcywh decode, clipping, NMS, raw preprocess mode).
 - reports/: committed eval reports (stub_eval.json is labeled STUB and proves
   the harness only; smoke_eval.json is a historical Phase 0 record whose model
   artifact was deleted; test_ledger.jsonl grows by one line per accepted test

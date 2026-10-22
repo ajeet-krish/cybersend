@@ -507,15 +507,45 @@ Measured (5 val images each):
 Reports land in artifacts/parity_rfdetr_d1.json and
 artifacts/parity_yolox_d1.json (git ignored; summary in docs/research.md).
 
-### Preprocess contract difference
+### Preprocess and postprocess contract difference
 
-The harness preprocess (`tools/eval/src/preprocess.ts`) applies ImageNet
-normalization, which matches the RF-DETR export. The YOLOX export expects raw
-0..255 RGB with no normalization, and it carries no NMS. YOLOX therefore cannot
-run through `eval_hold.ts` until the harness gains a per-model preprocess mode
-plus YOLOX decode and NMS. Parity for YOLOX above was measured by feeding both
-runtimes the same tensor, so it proves export fidelity and says nothing about
-harness compatibility.
+| | RF-DETR | YOLOX |
+|---|---------|-------|
+| Channel order | RGB | RGB |
+| Scale | /255 then ImageNet mean/std | raw 0..255, no normalization |
+| Letterbox pad | 114 gray, centered | 114 gray, centered |
+| Box decode | in graph, normalized cxcywh | in graph, cxcywh pixels |
+| NMS | none needed (set prediction) | outside the graph, IoU 0.65 over anchors >= 0.01 |
+
+`tools/eval/src/preprocess.ts` now takes a per-model mode ("imagenet" for
+RF-DETR, "raw" for YOLOX), and the detector declares which mode the core must
+use, so a mismatch cannot be silently applied. YOLOX decode and NMS live in
+`tools/eval/src/decode_yolox.ts`: cxcywh pixels to clipped xyxy, score =
+objectness times best class, then class-agnostic greedy NMS at IoU 0.65 over
+anchors scoring at least 0.01 (the COCO convention the training-side eval used).
+`--model-kind` defaults to auto and reads the output names (`dets` plus
+`labels` is RF-DETR, a single `output` is YOLOX); it refuses to guess otherwise.
+
+Both exports now run end to end through `eval_hold.ts`. The cxcywh reading of
+the YOLOX output was verified on a val image before the harness trusted it:
+mean best IoU against ground truth is 0.79 as cxcywh and 0.00 as xyxy.
+
+Val results at confidence 0.5 (591 images, harness, no test split involved):
+
+| Model | precision | recall | mAP@0.5 |
+|---|---|---|---|
+| RF-DETR-Nano | 0.9490 | 0.8894 | 0.9235 |
+| YOLOX-Nano | 0.9185 | 0.6725 | 0.8101 |
+
+RF-DETR clears the Phase 4 gates on val (0.85 / 0.80 / 0.75). YOLOX cannot
+clear them at any single threshold: recall reaches 0.80 only at confidence 0.2,
+where precision is 0.7168, and at 0.4 the pair is 0.8671 / 0.7294. The gate
+therefore decides the model choice without spending the test run on YOLOX.
+
+The harness-versus-in-loop mAP gap also shrank to noise at D1: RF-DETR scores
+0.9235 here versus 0.9204 in-loop (0.0031 apart), and YOLOX 0.8101 versus 0.781
+COCO mAP50 (a VOC versus COCO interpolation difference, plus NMS details).
+The open reconciliation item in the eval README is effectively closed for D1.
 
 ## Preprocess parity with the app
 
@@ -540,17 +570,20 @@ cd tools/eval && npm test   # includes baked_parity.test.ts (identity on baked i
 
 ## Troubleshooting
 
-### Harness mAP vs RF-DETR in-loop validation mAP (open reconciliation item)
+### Harness mAP vs RF-DETR in-loop validation mAP (closed at D1)
 
 Recorded in tools/eval/reports/smoke_eval.json: RF-DETR's in-loop validation
 mAP@50 logged during the Phase 0 smoke run was higher than what the Node
 harness computes on the same split with standard single-class AP@0.5 semantics.
 Harness correctness was verified directly on that run (preprocess parity with
 RF-DETR's Normalize transform, ONNX boxes within a few pixels of torch
-predict). The remaining difference is a metric-semantics question (checkpoint
-selection uses RF-DETR's in-loop metric, the Phase 4 gate uses the harness
-metric), and it must be reconciled or explicitly documented as an accepted
-offset before D1 gate numbers are treated as authoritative.
+predict).
+
+D1 status: the gap does not reproduce. On the D1 val split the harness gives
+mAP@0.5 0.9235 against 0.9204 in-loop (0.0031 apart), and YOLOX gives 0.8101
+against 0.781 COCO mAP50, consistent with VOC all-point versus COCO 101-point
+interpolation. D1 gate numbers are treated as authoritative; the smoke record
+stays as history and gates nothing.
 
 ## History note
 

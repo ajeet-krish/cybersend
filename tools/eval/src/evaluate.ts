@@ -4,8 +4,10 @@
  *
  * Ground truth boxes are stored in image pixels (xywh) and are mapped into the
  * letterboxed frame with the same preprocess contract the model sees
- * (letterbox 640, pad 114, centered). The merged D1 dataset ships pre-letterboxed
- * by tools/train hold-bake, so on that data the meta is scale 1 with zero pads
+ * (letterbox 640, pad 114, centered). The detector declares the tensor contract
+ * ("imagenet" for RF-DETR, "raw" 0..255 for YOLOX) and the core encodes the
+ * tensor accordingly. The merged D1 dataset ships pre-letterboxed by
+ * tools/train hold-bake, so on that data the meta is scale 1 with zero pads
  * and the mapping below is an exact identity; raw-resolution splits (fixtures,
  * own-gym photos) are letterboxed here instead. Matching is greedy
  * confidence-ordered; mAP uses VOC 2010+ all-point interpolation (see
@@ -129,7 +131,13 @@ export async function evaluateSplit(
         `${image.file_name}: JPEG is ${decoded.width}x${decoded.height} but the annotation file says ${image.width}x${image.height}`,
       );
     }
-    const { data, meta } = letterboxToTensor(decoded.data, decoded.width, decoded.height, TARGET_SIZE);
+    const { data, meta } = letterboxToTensor(
+      decoded.data,
+      decoded.width,
+      decoded.height,
+      TARGET_SIZE,
+      detector.preprocess,
+    );
 
     const letterboxed: GroundTruth[] = (gtSourceByImage[imageIndex] ?? []).map((gt) => {
       const box = gtBoxToLetterbox(

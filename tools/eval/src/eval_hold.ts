@@ -4,16 +4,26 @@
  * Runs the exported hold detector ONNX over a frozen COCO split with
  * onnxruntime-node and computes precision, recall, and mAP at IoU 0.5 for the
  * single "hold" class. Preprocessing is the shared pure-TS contract in
- * preprocess.ts (letterbox 640, pad 114, ImageNet normalization); the merged
- * dataset ships pre-letterboxed by hold-bake, so on that data the letterbox is
- * an identity and ground truth boxes already live in the model frame. No NMS:
- * RF-DETR is a DETR-style set predictor and is evaluated on its raw per-query
- * outputs.
+ * preprocess.ts (letterbox 640, pad 114, centered); the tensor encoding follows
+ * the model: ImageNet normalization for RF-DETR, raw 0..255 for YOLOX. The
+ * merged dataset ships pre-letterboxed by hold-bake, so on that data the
+ * letterbox is an identity and ground truth boxes already live in the model
+ * frame.
+ *
+ * Postprocess differs by model. RF-DETR is a DETR-style set predictor and is
+ * evaluated on its raw per-query outputs (no NMS). YOLOX has no NMS in its
+ * graph, so the harness applies class-agnostic greedy NMS at IoU 0.65 over
+ * anchors scoring at least 0.01, matching the training-side COCO evaluation.
  *
  * Usage:
- *   node src/eval_hold.ts [--model path.onnx] [--split-dir dir] [--report out.json]
+ *   node src/eval_hold.ts [--model path.onnx] [--model-kind auto|rfdetr|yolox]
+ *                         [--split-dir dir] [--report out.json]
  *                         [--confidence 0.5] [--iou 0.5] [--score-floor 1e-4]
  *                         [--gate] [--label text] [--i-accept-one-test-run]
+ *
+ * --model-kind defaults to auto, which reads the output names (dets plus labels
+ * is RF-DETR, a single output is YOLOX) and refuses to guess when they match
+ * neither.
  *
  * The default split is val (not test). Scoring the frozen test split requires
  * the explicit --i-accept-one-test-run flag and appends a line to
@@ -28,7 +38,7 @@ import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { OnnxDetector } from "./detector.ts";
+import { OnnxDetector, type ModelKind } from "./detector.ts";
 import { evaluateSplit } from "./evaluate.ts";
 import {
   TEST_ACCEPT_FLAG,
@@ -43,6 +53,7 @@ import {
 
 interface Args {
   readonly modelPath: string;
+  readonly modelKind: ModelKind | "auto";
   readonly splitDir: string;
   readonly reportPath: string;
   readonly confidence: number;
@@ -72,11 +83,16 @@ function parseArgs(argv: readonly string[]): Args {
     const index = argv.indexOf(name);
     return index >= 0 ? argv[index + 1] : undefined;
   };
+  const rawKind = readFlag("--model-kind") ?? "auto";
+  if (rawKind !== "auto" && rawKind !== "rfdetr" && rawKind !== "yolox") {
+    throw new Error(`--model-kind must be auto, rfdetr, or yolox (got ${rawKind})`);
+  }
   const splitDir = path.resolve(
     readFlag("--split-dir") ?? readFlag("--test-dir") ?? DEFAULTS.splitDir,
   );
   return {
     modelPath: path.resolve(readFlag("--model") ?? DEFAULTS.modelPath),
+    modelKind: rawKind,
     splitDir,
     reportPath: path.resolve(
       readFlag("--report") ?? path.join(EVAL_ROOT, "reports", defaultReportName(splitKind(splitDir))),
@@ -88,6 +104,18 @@ function parseArgs(argv: readonly string[]): Args {
     label: readFlag("--label") ?? "D1 BASELINE EVALUATION",
     acceptOneTestRun: argv.includes(TEST_ACCEPT_FLAG),
   };
+}
+
+/** Read the export manifest that sits next to the ONNX file, either naming scheme. */
+async function readManifest(modelPath: string): Promise<Record<string, unknown> | null> {
+  const directory = path.dirname(modelPath);
+  for (const name of ["manifest.json", "manifest_yolox_d1.json"]) {
+    const raw = await readFile(path.join(directory, name), "utf8").catch(() => null);
+    if (raw !== null) {
+      return JSON.parse(raw) as Record<string, unknown>;
+    }
+  }
+  return null;
 }
 
 async function main(): Promise<void> {
@@ -103,9 +131,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  const manifestPath = path.join(path.dirname(args.modelPath), "manifest.json");
-  const manifestRaw = await readFile(manifestPath, "utf8").catch(() => null);
-  const manifest = manifestRaw !== null ? (JSON.parse(manifestRaw) as Record<string, unknown>) : null;
+  const manifest = await readManifest(args.modelPath);
 
   if (kind === "test") {
     // Append before scoring so a run that dies midway still consumed its
@@ -127,13 +153,17 @@ async function main(): Promise<void> {
     console.log(`test split: ledger entry appended to ${path.relative(REPO_ROOT, ledgerPath)}`);
   }
 
+  const detector = await OnnxDetector.create(args.modelPath, args.modelKind);
+
   console.log(`model: ${args.modelPath}`);
+  console.log(`model kind: ${detector.kind} (preprocess ${detector.preprocess})`);
   console.log(`split: ${args.splitDir}`);
   console.log(
-    `thresholds: confidence=${args.confidence} iou=${args.iou} score_floor=${args.scoreFloor} (no NMS, DETR-style raw queries)`,
+    detector.kind === "yolox"
+      ? `thresholds: confidence=${args.confidence} iou=${args.iou} score_floor=${args.scoreFloor} (NMS 0.65 over anchors >= 0.01)`
+      : `thresholds: confidence=${args.confidence} iou=${args.iou} score_floor=${args.scoreFloor} (no NMS, DETR-style raw queries)`,
   );
 
-  const detector = await OnnxDetector.create(args.modelPath);
   const result = await evaluateSplit(detector, args.splitDir, {
     iou: args.iou,
     confidence: args.confidence,
@@ -156,6 +186,8 @@ async function main(): Promise<void> {
     generated_at: new Date().toISOString(),
     model: {
       path: path.relative(path.dirname(args.reportPath), args.modelPath),
+      kind: detector.kind,
+      preprocess: detector.preprocess,
       manifest: manifest ?? undefined,
     },
     dataset: {
@@ -166,8 +198,14 @@ async function main(): Promise<void> {
       note: "see tools/train/DATASET_CARD.md for sources, licenses, and split provenance",
     },
     method: {
-      preprocess: "letterbox 640x640 pad 114 centered, RGB float32 NCHW, (v/255 - mean)/std ImageNet",
-      nms: "none (DETR-style set prediction, raw per-query outputs)",
+      preprocess:
+        detector.preprocess === "raw"
+          ? "letterbox 640x640 pad 114 centered, RGB float32 NCHW, raw 0..255 (no normalization)"
+          : "letterbox 640x640 pad 114 centered, RGB float32 NCHW, (v/255 - mean)/std ImageNet",
+      nms:
+        detector.kind === "yolox"
+          ? "class-agnostic greedy NMS at IoU 0.65 over anchors scoring at least 0.01, applied in the harness (the graph has none)"
+          : "none (DETR-style set prediction, raw per-query outputs)",
       score_floor_for_map: args.scoreFloor,
       operating_confidence: args.confidence,
       iou_threshold: args.iou,

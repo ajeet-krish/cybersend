@@ -10,7 +10,13 @@
  *
  *   1. letterbox the image into a square canvas of TARGET_SIZE with pad value 114,
  *      centered, aspect ratio preserved;
- *   2. RGB float32 NCHW tensor with (value / 255 - mean) / std (ImageNet stats).
+ *   2. RGB float32 NCHW tensor, in one of two modes:
+ *      - "imagenet" (RF-DETR): (value / 255 - mean) / std with ImageNet stats;
+ *      - "raw" (YOLOX): the 0..255 value as-is, no scaling and no mean/std.
+ *
+ * Per-model mode exists because the two D1 exports were trained on different
+ * tensor contracts. The mode is declared by the detector (see detector.ts) and
+ * never guessed from the model graph.
  *
  * Decoders (Skia in the app, jpeg-js in the eval harness) only produce RGBA bytes.
  * Everything from RGBA onward lives here, with no native imports.
@@ -20,6 +26,12 @@ export const TARGET_SIZE = 640;
 export const PAD_VALUE = 114;
 export const IMAGENET_MEAN: readonly [number, number, number] = [0.485, 0.456, 0.406];
 export const IMAGENET_STD: readonly [number, number, number] = [0.229, 0.224, 0.225];
+
+/**
+ * Tensor contract of a model: "imagenet" for RF-DETR, "raw" (0..255) for YOLOX.
+ * The letterbox geometry is identical for both; only the value scaling differs.
+ */
+export type PreprocessMode = "imagenet" | "raw";
 
 /** Geometry of the letterbox transform, needed to map detections back to source pixels. */
 export interface LetterboxMeta {
@@ -138,8 +150,8 @@ export function letterboxRgba(
   };
 }
 
-/** Convert size x size x 3 uint8 RGB into a normalized float32 NCHW tensor. */
-export function normalizeToNchw(rgb: Uint8Array, size: number): Float32Array {
+/** Convert size x size x 3 uint8 RGB into a float32 NCHW tensor for the given contract. */
+export function normalizeToNchw(rgb: Uint8Array, size: number, mode: PreprocessMode = "imagenet"): Float32Array {
   const plane = size * size;
   if (rgb.length !== plane * 3) {
     throw new Error(`rgb length ${rgb.length} does not match ${size}x${size} x3`);
@@ -153,21 +165,23 @@ export function normalizeToNchw(rgb: Uint8Array, size: number): Float32Array {
   for (const [channel, mean, std] of channels) {
     const offset = channel * plane;
     for (let i = 0; i < plane; i += 1) {
-      out[offset + i] = ((rgb[i * 3 + channel] ?? 0) / 255 - mean) / std;
+      const value = rgb[i * 3 + channel] ?? 0;
+      out[offset + i] = mode === "imagenet" ? (value / 255 - mean) / std : value;
     }
   }
   return out;
 }
 
-/** Letterbox RGBA bytes and normalize into a float32 NCHW tensor in one step. */
+/** Letterbox RGBA bytes and encode into a float32 NCHW tensor in one step. */
 export function letterboxToTensor(
   rgba: Uint8Array,
   sourceWidth: number,
   sourceHeight: number,
   size: number = TARGET_SIZE,
+  mode: PreprocessMode = "imagenet",
 ): TensorResult {
   const { rgb, meta } = letterboxRgba(rgba, sourceWidth, sourceHeight, size);
-  return { data: normalizeToNchw(rgb, size), meta };
+  return { data: normalizeToNchw(rgb, size, mode), meta };
 }
 
 /**
