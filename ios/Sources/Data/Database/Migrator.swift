@@ -57,7 +57,14 @@ public struct MigrationRunResult: Equatable, Sendable {
 
 /// The migrations this build knows how to run.
 public func defaultMigrations() -> [Migration] {
-    [initialMigration, climbHoldsMigration, attemptRpeMigration, climbNotesMigration, climbCategoriesMigration]
+    [
+        initialMigration,
+        climbHoldsMigration,
+        attemptRpeMigration,
+        climbNotesMigration,
+        climbCategoriesMigration,
+        poseAnalysisMigration,
+    ]
 }
 
 /// The schema version of the newest migration this build ships (US-7.4: newer databases are

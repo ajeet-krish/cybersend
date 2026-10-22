@@ -62,7 +62,9 @@ struct MediaRepositoryTests {
         let video = try test.repos.media.createVideo(CreateVideoInput(uri: "videos/clip.mp4", durationMs: 30_000, fps: 60))
 
         #expect(video.poseStatus == .none)
-        #expect(video.retentionClass == .ephemeral)
+        // Pose v1 changes the default to keep so the review surface has a clip to play
+        // (requirements US-36, decision record 2026-10-21).
+        #expect(video.retentionClass == .keep)
         #expect(try test.repos.media.getVideo(id: video.id) == video)
         #expect(try test.repos.media.listVideos().map(\.id) == [video.id])
 

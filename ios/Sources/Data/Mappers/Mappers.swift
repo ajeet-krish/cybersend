@@ -13,6 +13,8 @@ public enum DataError: Error, Equatable, CustomStringConvertible {
     case unknownPhotoSource(String)
     case unknownPoseStatus(String)
     case unknownRetentionClass(String)
+    case unknownCameraClass(String)
+    case unknownAnalysisEventType(String)
 
     public var description: String {
         switch self {
@@ -22,6 +24,8 @@ public enum DataError: Error, Equatable, CustomStringConvertible {
         case .unknownPhotoSource(let raw): return "Unknown photo source in database: \(raw)"
         case .unknownPoseStatus(let raw): return "Unknown pose status in database: \(raw)"
         case .unknownRetentionClass(let raw): return "Unknown retention class in database: \(raw)"
+        case .unknownCameraClass(let raw): return "Unknown camera class in database: \(raw)"
+        case .unknownAnalysisEventType(let raw): return "Unknown analysis event type in database: \(raw)"
         }
     }
 }

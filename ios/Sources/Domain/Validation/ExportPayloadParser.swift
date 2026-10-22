@@ -165,6 +165,40 @@ public func parseExportPayload(_ json: String) throws -> ParsedImportPayload {
             warnings: nativeWarnings
         )
     }
+    if providedNames == Set(nativeV5TableNames) {
+        // Native version 5 shape: no video_analyses and no analysis_events. Rows validate
+        // against the version 5 column shape, which is the current spec for every table that
+        // existed then; the registered payload migration from 5 adds the two tables as empty.
+        // The same newest-first fallbacks apply, so a version 2, 3, or 4 file also lands here.
+        let lookups: [(String) -> ExportTableSpec?] = [
+            { ExportTable(rawValue: $0)?.spec },
+            nativeV4TableSpec(for:),
+            nativeV3TableSpec(for:),
+            nativeV2TableSpec(for:),
+        ]
+        var parsed: [ExportTable: [ExportRow]]?
+        var lastError: Error?
+        for lookup in lookups {
+            do {
+                parsed = try parseTables(tables, lookup: lookup)
+                break
+            } catch {
+                lastError = error
+            }
+        }
+        guard let parsed else {
+            throw lastError ?? ImportPayloadError(importInvalidPayloadMessage)
+        }
+        var nativeWarnings: [String] = []
+        let guarded = renamingCollisionsInNativeGradeTables(parsed, warnings: &nativeWarnings)
+        return ParsedImportPayload(
+            schemaVersion: schemaVersion,
+            exportedAt: exportedAt,
+            legacyShape: false,
+            tables: guarded,
+            warnings: nativeWarnings
+        )
+    }
     if providedNames == Set(nativeV1TableNames) {
         // Native version 1 shape: no climb_holds table and no photos.original_uri
         // column. Rows validate against the version 1 specs; the registered payload
@@ -855,4 +889,25 @@ private func renamingCollisionsInNativeGradeTables(
         return copy
     }
     return tables
+}
+
+// MARK: - Payload migration from 5 to 6
+
+/// Version 5 to 6 of the payload (Pose v1): adds the two analysis tables as empty rows.
+///
+/// Version 5 files were written before on device pose analysis existed, so there is nothing to
+/// synthesize. The tables are added explicitly rather than left absent so a migrated payload has
+/// the same table set as a fresh export, which keeps the staging load and the upsert report
+/// uniform. Idempotent: a payload that already carries them passes through unchanged.
+public func migrateV5PayloadToV6(_ payload: ParsedImportPayload) -> ParsedImportPayload {
+    var tables = payload.tables
+    if tables[.videoAnalyses] == nil { tables[.videoAnalyses] = [] }
+    if tables[.analysisEvents] == nil { tables[.analysisEvents] = [] }
+    return ParsedImportPayload(
+        schemaVersion: payload.schemaVersion,
+        exportedAt: payload.exportedAt,
+        legacyShape: payload.legacyShape,
+        tables: tables,
+        warnings: payload.warnings
+    )
 }

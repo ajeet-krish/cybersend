@@ -172,3 +172,31 @@ tools/eval/reports/d1_test_eval.json.
 Not covered by tests, because it needs a device and footage with a person: Vision wrist
 accuracy, per frame latency, thermal behaviour, and real multi person subject selection. Those
 are the P0 measurements, and the corpus is still outstanding.
+
+## 2026-10-21 - Pose P2 analysis storage and migration 006
+
+| Item | Command | Result |
+|------|---------|--------|
+| Full package suite, 310 tests in 51 suites | cd ios && swift test | PASS |
+| Migration 006 adds analysis_events and video_analyses with both indexes | swift test --filter Migrations | PASS |
+| Version 5 database upgrades to 6, keeps existing video rows, and lands empty analysis tables | swift test --filter upgradeKeepsVideos | PASS |
+| One analysis per video is enforced by the unique constraint on video_id | swift test --filter oneAnalysisPerVideo | PASS |
+| Save, fetch, decode the packed track, and read events in order | swift test --filter savesAnalysis | PASS |
+| Re-analysis replaces the record and its events rather than accumulating versions | swift test --filter reanalysisReplaces | PASS |
+| Deleting the video cascades to the analysis and its events | swift test --filter cascadeDelete | PASS |
+| The export dump contains no track_blob column | swift test --filter exportOmitsTheBlob | PASS |
+| Full backup round trip keeps analysis metadata and events and reports needsRecompute | swift test --filter backupRoundTrip | PASS |
+| Packed track round trip, unknown source fps, size in the 90 to 130 KB range for 900 frames, foreign bytes and truncation rejected | swift test --filter poseTrack | PASS |
+
+Two findings from this phase, both caught by tests rather than by review.
+
+1. The export dump used `SELECT *` per table. Adding the packed track blob made every backup
+fail with "unsupported column value type in the database", not just the new table. The dump now
+selects the export columns from the table spec, which is what the export contract always meant and
+which protects later columns of the same kind.
+2. The import parser requires the payload table names to match a known set exactly. Adding two
+tables would have rejected every existing version 5 backup as invalid. Version 5 names are now a
+recognised shape, and the 5 to 6 payload migration adds the two tables as empty.
+
+Not covered: the same device measurements as P1 (wrist accuracy, latency, thermal), because the
+corpus is deferred. No accuracy claim is made anywhere in storage or export.

@@ -89,7 +89,12 @@ public struct GRDBDumpRepository: DumpRepository {
         try writer.read { db in
             var dump: [ExportTable: [ExportRow]] = [:]
             for table in ExportTable.allCases {
-                let rows = try Row.fetchAll(db, sql: "SELECT * FROM \(table.rawValue)")
+                // Select the export columns rather than `*`. The export contract is the spec,
+                // and a table may carry columns that are deliberately not exported, such as
+                // video_analyses.track_blob (a packed binary pose track). Selecting `*` would
+                // hand the serializer an unsupported value type and fail the whole backup.
+                let columns = table.spec.columnNames.joined(separator: ", ")
+                let rows = try Row.fetchAll(db, sql: "SELECT \(columns) FROM \(table.rawValue)")
                 dump[table] = try rows.map { try exportRow(from: $0) }
             }
             return TableDump(rows: dump)

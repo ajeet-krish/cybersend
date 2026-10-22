@@ -23,10 +23,10 @@ struct ExportSerializeTests {
         }
     }
 
-    @Test("golden v5 export matches the fixture byte for byte")
+    @Test("golden v6 export matches the fixture byte for byte")
     func goldenBytesMatch() throws {
         // Serialization only, no database: the fixture pins the exact bytes the exporter
-        // produces for the seed dump at schema version 5, so any drift in table order,
+        // produces for the seed dump at schema version 6, so any drift in table order,
         // column order, key order, number formatting, or escaping fails here. The
         // formatting is cross-checked against Node JSON.stringify(payload, null, 2). The
         // v2, v3, and v4 fixtures stay in the tree as import compatibility inputs: they are
@@ -35,10 +35,10 @@ struct ExportSerializeTests {
         // climbs.categories).
         let json = serializeExportPayload(buildExportPayload(
             dump: goldenSeedRows(),
-            schemaVersion: 5,
+            schemaVersion: 6,
             exportedAt: fixtureExportTime
         ))
-        let golden = try fixtureString("data_native_golden_v5")
+        let golden = try fixtureString("data_native_golden_v6")
         #expect(json == golden)
         #expect(Data(json.utf8) == Data(golden.utf8))
     }

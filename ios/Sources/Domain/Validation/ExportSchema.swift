@@ -82,6 +82,8 @@ public enum ExportTable: String, CaseIterable, Sendable {
     case photos = "photos"
     case videos = "videos"
     case poseKeypoints = "pose_keypoints"
+    case videoAnalyses = "video_analyses"
+    case analysisEvents = "analysis_events"
     case attempts = "attempts"
     case gradeNormParams = "grade_norm_params"
     case settings = "settings"
@@ -239,6 +241,37 @@ public enum ExportTable: String, CaseIterable, Sendable {
                 column("t_ms", .integer),
                 column("score", .real, nullable: true),
                 column("keypoints_json", .text),
+            ])
+        case .videoAnalyses:
+            // The packed pose track is deliberately absent: it is regenerable, large, and not
+            // useful to a human reading a JSON export (docs/decisions.md, 2026-10-21).
+            return ExportTableSpec(columns: [
+                column("id", .text),
+                column("video_id", .text),
+                column("algorithm_version", .integer),
+                column("vision_revision", .integer),
+                column("sampling_hz", .real),
+                column("source_width", .integer),
+                column("source_height", .integer),
+                column("source_fps", .real, nullable: true),
+                column("camera_class", .text),
+                column("coverage", .real),
+                column("track_format", .text, nullable: true),
+                column("quality_flags", .text),
+                column("created_at", .text),
+            ], conflictColumns: ["video_id"])
+        case .analysisEvents:
+            return ExportTableSpec(columns: [
+                column("id", .text),
+                column("analysis_id", .text),
+                column("type", .text),
+                column("start_ms", .integer),
+                column("end_ms", .integer, nullable: true),
+                column("joint", .text, nullable: true),
+                column("x_norm", .real, nullable: true),
+                column("y_norm", .real, nullable: true),
+                column("value", .real, nullable: true),
+                column("confidence", .real),
             ])
         case .attempts:
             return ExportTableSpec(columns: [
@@ -440,7 +473,21 @@ public let legacyTableNamesInInsertOrder: [String] = [
 /// the registered payload migration from 1 then synthesizes the version 2 additions.
 public let nativeV1TableNames: [String] = ExportTable.allCases
     .map(\.rawValue)
-    .filter { $0 != ExportTable.climbHolds.rawValue }
+    .filter {
+        $0 != ExportTable.climbHolds.rawValue
+            && $0 != ExportTable.videoAnalyses.rawValue
+            && $0 != ExportTable.analysisEvents.rawValue
+    }
+
+/// The version 5 table set: everything except the pose analysis tables added by migration 006.
+/// Version 5 files are the most recent payloads in the field before Pose v1, so they must stay
+/// importable without a rebuild of their bytes.
+public let nativeV5TableNames: [String] = ExportTable.allCases
+    .map(\.rawValue)
+    .filter {
+        $0 != ExportTable.videoAnalyses.rawValue
+            && $0 != ExportTable.analysisEvents.rawValue
+    }
 
 /// The version 1 spec for one native table: identical to the current spec except photos,
 /// which predates original_uri. Anything else is not a version 1 table.

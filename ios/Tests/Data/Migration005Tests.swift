@@ -23,7 +23,12 @@ struct Migration005Tests {
     func emptyUpgrade() throws {
         let db = try version4Database()
 
-        let result = try runPendingMigrations(on: db)
+        // Scoped to migration 005: later migrations (006 pose analysis) are covered by their
+        // own suite, so this test stays a test of the categories column alone.
+        let result = try runPendingMigrations(on: db, migrations: [
+            initialMigration, climbHoldsMigration, attemptRpeMigration,
+            climbNotesMigration, climbCategoriesMigration,
+        ])
         #expect(result.applied == [5])
 
         let columns = try db.read { db in
@@ -56,7 +61,10 @@ struct Migration005Tests {
             """)
         }
 
-        _ = try runPendingMigrations(on: db)
+        _ = try runPendingMigrations(on: db, migrations: [
+            initialMigration, climbHoldsMigration, attemptRpeMigration,
+            climbNotesMigration, climbCategoriesMigration,
+        ])
 
         let row = try #require(try db.read { db in
             try Row.fetchOne(db, sql: "SELECT * FROM climbs WHERE id = 'climb-1'")

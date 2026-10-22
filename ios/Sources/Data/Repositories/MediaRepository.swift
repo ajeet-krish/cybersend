@@ -69,7 +69,9 @@ public struct CreateVideoInput: Equatable, Sendable {
         durationMs: Int? = nil,
         fps: Double? = nil,
         poseStatus: PoseStatus = .none,
-        retentionClass: RetentionClass = .ephemeral
+        // Pose v1 supersedes the delete after extraction default (requirements US-36, decision
+        // record 2026-10-21): a review surface whose clip was deleted is not a review surface.
+        retentionClass: RetentionClass = .keep
     ) {
         self.uri = uri
         self.sessionId = sessionId

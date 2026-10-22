@@ -14,6 +14,7 @@ public struct Repositories: Sendable {
     public let media: any MediaRepository
     public let sessions: any SessionRepository
     public let settings: any SettingsRepository
+    public let videoAnalysis: any VideoAnalysisRepository
 
     public init(writer: any DatabaseWriter) {
         let grades = GRDBGradeRepository(writer: writer)
@@ -26,6 +27,7 @@ public struct Repositories: Sendable {
         self.media = GRDBMediaRepository(writer: writer)
         self.sessions = GRDBSessionRepository(writer: writer)
         self.settings = GRDBSettingsRepository(writer: writer)
+        self.videoAnalysis = GRDBVideoAnalysisRepository(writer: writer)
     }
 }
 

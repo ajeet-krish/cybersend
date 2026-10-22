@@ -22,6 +22,7 @@ struct MigrationsFromEmptyTests {
         let tables = try db.read { try tableNames($0) }
         // grdb_migrations is GRDB's own runner bookkeeping; everything else is our schema.
         #expect(tables == [
+            "analysis_events",
             "attempts",
             "board_problems",
             "boards",
@@ -38,6 +39,7 @@ struct MigrationsFromEmptyTests {
             "schema_migrations",
             "sessions",
             "settings",
+            "video_analyses",
             "videos",
             "walls",
         ])
@@ -110,6 +112,7 @@ struct MigrationsFromEmptyTests {
         _ = try runPendingMigrations(on: db)
         let indexes = try db.read { try indexedNames($0) }
         #expect(indexes == [
+            "idx_analysis_events_analysis",
             "idx_attempts_climb",
             "idx_attempts_session",
             "idx_attempts_session_climb",
@@ -123,6 +126,7 @@ struct MigrationsFromEmptyTests {
             "idx_photos_session",
             "idx_pose_video_t",
             "idx_sessions_gym_started",
+            "idx_video_analyses_video",
             "idx_videos_retention",
             "idx_videos_session",
             "idx_walls_gym",

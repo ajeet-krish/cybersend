@@ -527,10 +527,11 @@ struct ImportTests {
         #expect(dump[.climbs].first?["categories"] == .null, "the 4 to 5 migration stamps categories null")
         #expect(dump[.attempts].first?["rpe"] == .integer(8), "effort written by version 4 survives")
 
-        // Re-exporting upgrades the bytes: the backup this build writes carries the column.
+        // Re-exporting upgrades the bytes: the backup this build writes carries the column and
+        // the current schema version (6 since pose analysis was added).
         let exported = try buildExportJSON(repos: test.repos, now: fixtureExportTime)
         let object = try #require(JSONSerialization.jsonObject(with: Data(exported.utf8)) as? [String: Any])
-        #expect(object["schema_version"] as? Int == 5)
+        #expect(object["schema_version"] as? Int == currentSchemaVersion)
         let climbs = try #require((object["tables"] as? [String: Any])?["climbs"] as? [[String: Any]])
         #expect(climbs.first?.keys.contains("categories") == true)
     }

@@ -1,0 +1,135 @@
+{
+  "app": "cybersend",
+  "schema_version": 6,
+  "exported_at": "2026-10-19T12:00:00.000Z",
+  "tables": {
+    "grade_systems": [
+      {
+        "id": "kilter_soft",
+        "name": "Kilter Soft",
+        "is_builtin": 0,
+        "created_at": "2026-10-01T00:00:00.000Z",
+        "updated_at": "2026-10-01T00:00:00.000Z"
+      }
+    ],
+    "grade_levels": [
+      {
+        "id": "kilter_soft_l0",
+        "system_id": "kilter_soft",
+        "label": "KB1",
+        "rank_order": 0,
+        "color_hex": null
+      }
+    ],
+    "gyms": [
+      {
+        "id": "gym-1",
+        "name": "Boulder Garden",
+        "timezone": "America/Denver",
+        "is_archived": 0,
+        "created_at": "2026-10-01T00:00:00.000Z",
+        "updated_at": "2026-10-01T00:00:00.000Z"
+      }
+    ],
+    "walls": [],
+    "boards": [],
+    "board_problems": [],
+    "climbs": [
+      {
+        "id": "climb-1",
+        "gym_id": "gym-1",
+        "wall_id": null,
+        "board_id": null,
+        "board_problem_id": null,
+        "name": "Blue \"V4\" slab",
+        "grade_system_id": "v_scale",
+        "grade_level_id": "v4",
+        "grade_norm": null,
+        "color_circuit": "blue",
+        "angle_deg": 30,
+        "notes": null,
+        "categories": null,
+        "is_active": 1,
+        "is_archived": 0,
+        "created_at": "2026-10-01T00:00:00.000Z",
+        "updated_at": "2026-10-01T00:00:00.000Z"
+      }
+    ],
+    "holds": [
+      {
+        "id": "hold-1",
+        "climb_id": "climb-1",
+        "x_norm": 0.5,
+        "y_norm": 0.55,
+        "radius_norm": 0.02,
+        "role": "start",
+        "color_family": "blue",
+        "source": "manual",
+        "ordinal": 1,
+        "created_at": "2026-10-01T00:00:00.000Z",
+        "updated_at": "2026-10-01T00:00:00.000Z"
+      }
+    ],
+    "climb_holds": [
+      {
+        "climb_id": "climb-1",
+        "hold_id": "hold-1",
+        "sequence": 1,
+        "created_at": "2026-10-01T00:00:00.000Z"
+      }
+    ],
+    "sessions": [
+      {
+        "id": "session-1",
+        "gym_id": "gym-1",
+        "started_at": "2026-10-01T00:00:00.000Z",
+        "ended_at": "2026-10-01T00:00:00.000Z",
+        "rpe": 7,
+        "notes": "Crims, \"pinches\"\nand slopers",
+        "created_at": "2026-10-01T00:00:00.000Z",
+        "updated_at": "2026-10-01T00:00:00.000Z"
+      }
+    ],
+    "photos": [
+      {
+        "id": "photo-1",
+        "climb_id": "climb-1",
+        "session_id": null,
+        "uri": "photos/photo-1.jpg",
+        "thumb_uri": "thumbs/photo-1.jpg",
+        "original_uri": "originals/photo-1.jpg",
+        "width": 4032,
+        "height": 3024,
+        "source": "camera",
+        "captured_at": "2026-10-01T00:00:00.000Z",
+        "created_at": "2026-10-01T00:00:00.000Z"
+      }
+    ],
+    "videos": [],
+    "pose_keypoints": [],
+    "video_analyses": [],
+    "analysis_events": [],
+    "attempts": [
+      {
+        "id": "attempt-1",
+        "session_id": "session-1",
+        "climb_id": "climb-1",
+        "attempt_no": 1,
+        "outcome": "send",
+        "fall_on_hold_id": "hold-1",
+        "video_id": null,
+        "notes": null,
+        "attempted_at": "2026-10-01T00:00:00.000Z",
+        "rpe": null
+      }
+    ],
+    "grade_norm_params": [],
+    "settings": [
+      {
+        "key": "gym.default_id",
+        "value_json": "\"gym-1\"",
+        "updated_at": "2026-10-01T00:00:00.000Z"
+      }
+    ]
+  }
+}
