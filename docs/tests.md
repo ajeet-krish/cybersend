@@ -234,3 +234,23 @@ the fall begins. That is intentional and now asserted.
 Still unmeasured: every threshold in MetricThresholds is a hypothesis. The engine records
 `thresholdsVersion` and `algorithmVersion` on every result so a later corpus pass can invalidate
 old analyses explicitly.
+
+## 2026-10-21 - Pose pipeline bridge
+
+| Item | Command | Result |
+|------|---------|--------|
+| Full package suite, 325 tests in 52 suites | cd ios && swift test | PASS |
+| iOS app target builds with the new Features file | xcodebuild -project ios/CyberSend.xcodeproj -scheme CyberSend -sdk iphonesimulator build | BUILD SUCCEEDED |
+| One call extracts, computes metrics, stores the track, writes three events, and marks the video done | swift test --filter PoseAnalysisPipeline | PASS |
+| Quality flags are empty for a clean static clip | swift test --filter qualityFlagsDescribe | PASS |
+| A track with no metrics is stored, flagged `metrics_unavailable`, and forced to handheld | swift test --filter unusableMetrics | PASS |
+| A throwing runner leaves pose_status failed and no analysis row | swift test --filter failureIsRecorded | PASS |
+| Re-running replaces the analysis and deletes the old events | swift test --filter rerunReplaces | PASS |
+
+The pipeline fixture omits wrists first, which showed up as coverage 0.833 rather than the 1.0 the
+test assumed. That is the coverage rule working (10 of 12 core joints), not a pipeline bug, but it
+was worth fixing the fixture rather than the expectation: a real Vision frame carries wrists, and a
+fixture that does not is a fixture that would hide a regression in wrist handling later.
+
+Event order in one millisecond is now deterministic (attempt start, then fall, then attempt end).
+Before this, a fall and an attempt end at the same timestamp could be stored in either order.

@@ -129,6 +129,8 @@ Metrics live in Domain and take a PoseTrack value, not a pixel buffer, so they a
 
 Storage is video_analyses (one row per video: algorithm_version, vision_revision, sampling_hz, camera_class, coverage, packed Float16 track blob) plus analysis_events (type, start and end ms, joint, normalized position, value, confidence). The blob is about 103 KB for a 30 s clip at 30 Hz, which is why the row per frame pose_keypoints design is retired rather than scaled. Export carries analyses and events, not the blob.
 
+PoseAnalysisPipeline is the only entry point that writes an analysis: it runs extraction, Tier A metrics, and the repository save as one actor-isolated call, sets videos.pose_status to running, done, or failed, and turns the metric warnings into comma separated quality flags. A track that yields no metrics is still stored, because re-extracting later is the expensive step; such a row is forced to camera_class handheld so an absent classification can never unlock comparison, and it carries metrics_unavailable.
+
 Camera stability class is computed per clip from global track drift and gates comparison: static and near static clips support metric comparison and spatial side by side, handheld clips support relative metrics only and are labelled as such in the UI. The feature stays behind the ai_pose_analysis flag, off by default, with the recorder and review surfaces compiled out of release until the graduation criteria in requirements section 6 are met.
 
 ## Feature Flags

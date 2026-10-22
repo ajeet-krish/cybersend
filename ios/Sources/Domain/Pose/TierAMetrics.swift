@@ -100,6 +100,9 @@ public struct TierAMetrics: Codable, Equatable, Sendable {
     /// Score 0 to 1 for how much the clip can be trusted, derived from coverage and scale spread.
     public var quality: Double
     public var attemptWindow: AttemptWindow
+    /// Everything worth storing as an analysis event, in clip order: the attempt boundaries and
+    /// any falls. Tier B events join this list later.
+    public var events: [DetectedEvent]
     public var fallEvents: [DetectedEvent]
     /// Height above the lowest centroid, in body heights, sampled at the progress rate.
     public var progress: [MetricSample]
@@ -176,7 +179,10 @@ public enum TierAMetricsEngine {
             startMs: window.endMs,
             confidence: window.confidence
         ))
-        events.sort { $0.startMs < $1.startMs }
+        events.sort { lhs, rhs in
+            if lhs.startMs != rhs.startMs { return lhs.startMs < rhs.startMs }
+            return Self.eventOrder(lhs.type) < Self.eventOrder(rhs.type)
+        }
 
         return TierAMetrics(
             algorithmVersion: algorithmVersion,
@@ -190,6 +196,7 @@ public enum TierAMetricsEngine {
                 confidence: window.confidence,
                 detectedByMotion: window.detectedByMotion
             ),
+            events: events,
             fallEvents: falls,
             progress: progress,
             highestPoint: highestPoint,
@@ -199,6 +206,19 @@ public enum TierAMetricsEngine {
             hesitation: hesitation,
             warnings: warnings
         )
+    }
+
+    // MARK: - Events
+
+    /// Ties in clip time are broken deterministically: the attempt opens, the fall happens, the
+    /// attempt closes. Without this a fall and an attempt end at the same millisecond could be
+    /// stored in either order depending on the sort implementation.
+    static func eventOrder(_ type: AnalysisEventType) -> Int {
+        switch type {
+        case .attemptStart: return 0
+        case .attemptEnd: return 2
+        default: return 1
+        }
     }
 
     // MARK: - Camera class
