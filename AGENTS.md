@@ -97,6 +97,18 @@ UI overhaul (the current track, started 2026-10-21):
 | UI-12 | Open session: a card per added climb, Add Climb / Edit Problem / New Problem side by side, attempts editable live | Complete |
 | UI-13 | Visual pass: themed text fields, outcome coloured buttons, wrapped catalog filters, single photo empty state, purple climbing app icon | Complete |
 
+Pose v1 (video analysis, approved 2026-10-21; Vision body pose, no hold dependency):
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| P0 | Filming contract, clip corpus, Vision pose spike measured on device | In Progress |
+| P1 | Extraction service: AVAssetReader, Vision adapter, resumable analysis actor | Not Started |
+| P2 | Analysis records, migration 006, retention default change | Not Started |
+| P3 | Tier A metrics: attempt window, progress curve, fall, smoothness, hesitation map | Not Started |
+| P4 | Guided recorder | Not Started |
+| P5 | Review UI: overlay, timeline, summary card, session card, Videos tab | Not Started |
+| P6 | Gated comparison, Tier B metrics: dyno, cut feet, rest | Not Started |
+
 ## Deep Docs
 
 - [Requirements](docs/requirements.md)

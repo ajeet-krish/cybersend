@@ -1,6 +1,6 @@
 # CyberSend Architecture
 
-Last updated: 2026-10-20 (M3 plan, photo capture and hold tagging)
+Last updated: 2026-10-21 (pose pipeline M6 plan of record)
 
 Snapshot of the current design. Full DDL lives in docs/schema.sql (v1) plus the M3 Migration 002 delta below. The TypeScript tree (src/ and app/) is frozen and serves as the behavioral port spec; it is never built into the app.
 
@@ -13,9 +13,12 @@ Local first bouldering tracker, native iOS only, Swift. SwiftUI screens with UIK
 | Component | Responsibility | Location |
 |-----------|---------------|----------|
 | Domain | Entities, grade normalization, attempt rules, stats, import validation, canvas coordinate geometry (M3). Pure Swift, no GRDB or UIKit. | ios/Sources/Domain |
+| Domain (pose) | Pure metrics over a typed pose track: body scale, smoothing, derivatives, attempt window, fall, dyno, cut feet, hesitation map, camera class. No Vision import. | ios/Sources/Domain/Pose |
 | Data | GRDB database, migrations (001, 002), repositories, records and mappers, backup serialization. The only SQL surface. | ios/Sources/Data |
 | Features | Per-feature ObservableObject stores, photo ingest and media storage (M3), tagging store, backup and import services, flags. | ios/Sources/Features |
+| Video analysis | Frame reading, Vision pose adapter, analysis service (actor), quality and camera class, library and review stores. | ios/Sources/Features/VideoAnalysis |
 | App | Composition root, navigation, SwiftUI screens, theme, UIKit canvas and camera representables (M3), launch states. | ios/App |
+| Video analysis UI | Guided recorder, review screen with overlay and scrubbing timeline, pose overlay rendering, session card, videos library. | ios/App/VideoAnalysis |
 | Tests | swift-testing suites (Domain, Data, Features). DataTests and store tests run on in-memory GRDB. | ios/Tests |
 | App tests | XCTest smoke (CyberSendAppTests) and XCUITest smoke (CyberSendUITests). | ios/CyberSendAppTests, ios/CyberSendUITests |
 | ML tooling | Dataset build, training, ONNX export, eval harness. Stack independent, unchanged. | tools/train, tools/eval |
@@ -106,7 +109,7 @@ Session editor (SessionDetailView) lists every climb added to the session as a w
 | M3 | Photo capture and hold tagging MVP. Phase 2 gate unchanged. | US-17 to US-26 (US-23 open question) | In progress (plan of record) |
 | M4 | Grade normalization port: rasch_lite, translator, data-sufficiency gate, US-26.1 grade history. | US-27 to US-30 | Not started |
 | M5 | Hold detection: coremltools pipeline, parity gate, eval gates. | US-31 to US-35 | Not started |
-| M6 | BoulderVision video analysis behind the experimental flag. | US-36 to US-40 | Not started |
+| M6 | BoulderVision Pose v1: Vision pose extraction, analysis records (migration 006), Tier A metrics, guided recorder, review UI, gated comparison. Hold contact is Pose v2. | US-36 to US-40, US-40a | Not started |
 
 Gates: M2 quick-log at most 5 taps (3 when the climb is already selected; adding a climb from the session costs the two menu taps) and at most 5 s, cold start at most 2.5 s (dogfood). M3 Phase 2 gate: canvas at least 55 fps at 100 holds on 2048 px, tap placement error at most 3 px at 1x, three dogfooded gym sessions with zero data loss, airplane mode and proxy verified zero network, 2048 px policy, dark mode.
 
@@ -115,6 +118,18 @@ Gates: M2 quick-log at most 5 taps (3 when the climb is already selected; adding
 ONNX is the canonical artifact and the `.mlmodel` deployment copy sits behind two gates: decision-space parity against PyTorch (hold scores and active-query boxes within 1e-3) and the frozen-split quality gate. tools/eval declares per-model contracts: RF-DETR uses ImageNet normalization, normalized cxcywh output, and no NMS; YOLOX uses raw 0..255 input, cxcywh pixels, and harness-side NMS at IoU 0.65. Both D1 exports run end to end through that harness.
 
 D1 status: RF-DETR-Nano passes the three accuracy thresholds on the frozen test split (0.9509 precision, 0.8788 recall, 0.9130 mAP@0.5) but fails the false positive budget (1.88 per image versus 0.5) and cannot meet the 15 MB int8 size budget at 28.9M parameters. YOLOX-Nano fits the size budget but fails recall at every threshold. Core ML conversion is measured: rfdetr's exporter produces an iOS16 mlprogram package that passes decision-space parity against ONNX at float32 (8.31e-4) and runs warm at 41 to 50 ms on the M5 with all compute units, while weight compression breaks parity (float16 2.96e-1, int8 4.54e-1, int4 9.77e-1). The deployment copy therefore stays ONNX-canonical with a float32 Core ML package, both over the size budget, and the app path stays VNCoreMLRequest with .cpuAndNeuralEngine, NMS in Swift, and the letterboxToSourceBox coordinate contract, all unchanged until a model is shippable.
+
+## Pose Pipeline (M6, plan of record)
+
+Frame walking is AVAssetReader with AVAssetReaderTrackOutput at 720 px long edge and 32BGRA, so the downscale happens in the decode path and Vision never sees a full resolution buffer. Orientation comes from the track preferredTransform, never from the device orientation, because a portrait clip shot on a phone usually carries a 90 degree transform and ignoring it rotates every keypoint without producing an error. Sources above 60 fps (120 and 240 fps slow motion) are strided so the analysis rate stays at or below 60 Hz while presentation timestamps are preserved; the stored track is decimated to 30 Hz and event timestamps keep full resolution.
+
+One VNSequenceRequestHandler per clip with the request reused across frames, the request revision recorded on the analysis, and an autoreleasepool per frame. Vision returns normalized coordinates over the buffer it is given, which shares the source aspect ratio, so the pose path needs no letterbox math (unlike the hold detector contract).
+
+Metrics live in Domain and take a PoseTrack value, not a pixel buffer, so they are unit testable in CI where no camera exists, and so a Core ML pose model can replace Vision without touching the math. The seams are protocol VideoFrameReading (frame source) and protocol PoseDetecting (detector). The analysis service is an actor; progress is published to the main actor; cancellation is cooperative and resumption restarts from the last committed checkpoint.
+
+Storage is video_analyses (one row per video: algorithm_version, vision_revision, sampling_hz, camera_class, coverage, packed Float16 track blob) plus analysis_events (type, start and end ms, joint, normalized position, value, confidence). The blob is about 103 KB for a 30 s clip at 30 Hz, which is why the row per frame pose_keypoints design is retired rather than scaled. Export carries analyses and events, not the blob.
+
+Camera stability class is computed per clip from global track drift and gates comparison: static and near static clips support metric comparison and spatial side by side, handheld clips support relative metrics only and are labelled as such in the UI. The feature stays behind the ai_pose_analysis flag, off by default, with the recorder and review surfaces compiled out of release until the graduation criteria in requirements section 6 are met.
 
 ## Feature Flags
 

@@ -119,15 +119,16 @@ Priority legend: Must = MVP gate, Should = important, Could = nice.
 
 ### Phase 5: BoulderVision video analysis (exploratory, feature-flagged)
 
-Note: former Phase 5 Kilter integration was cut 2026-10-19 (Kilter Terms prohibit automated access; Aurora API dead).
+Note: former Phase 5 Kilter integration was cut 2026-10-19 (Kilter Terms prohibit automated access; Aurora API dead). The pose scope was approved on 2026-10-21 as Pose v1: Vision body pose only, no dependency on hold detection, metrics relative and body-normalized, comparison gated on camera stability. See docs/decisions.md.
 
 | ID | Story | Priority | Acceptance Criteria |
 |----|-------|----------|-------------------|
-| US-36 | Capture or import video with retention enforcement | Could | 1. Duration/fps/size stored at import; 2. Default retention "delete raw after metrics extraction", options 7/30 days; 3. Cache warns at 1 GB, prompts at 2 GB; 4. Deleting raw keeps extracted metrics |
-| US-37 | On-device pose estimation | Could | 1. Runtime from US-4 spike, fully on device; 2. No person / multiple people handled per edge cases; 3. Meets pose budgets; 4. Processing cancellable and resumable |
-| US-38 | Relative velocity and displacement metrics | Could | 1. Metrics normalized (body-height units, frame-relative), labeled relative not absolute; 2. Per-attempt summary stored; 3. Meets error budgets |
-| US-39 | Fall heatmaps and beta sequence comparison | Could | 1. Fall events derived from pose plus hold geometry; 2. Side-by-side comparison of two attempts on the same climb; 3. Renders <= 500 ms |
+| US-36 | Capture or import video with retention enforcement | Could | 1. Duration/fps/size stored at import; 2. Raw clips are kept by default so review and comparison have video to show, with per-clip delete always available and a settings option to purge after extraction (supersedes the earlier delete after extraction default); 3. Cache warns at 1 GB, prompts at 2 GB; 4. Deleting raw keeps extracted metrics |
+| US-37 | On-device pose estimation | Could | 1. Apple Vision `VNDetectHumanBodyPoseRequest` (2D, 19 named joints), fully on device, no bundled model weights and no conversion or quantization step; 2. iOS 18 and newer uses the holistic body plus hands path when the capability check passes, older devices use body only; 3. The Vision request revision is recorded with every analysis; 4. No person / multiple people handled per edge cases, never guessing silently; 5. Meets pose budgets; 6. Processing cancellable and resumable |
+| US-38 | Relative velocity and displacement metrics | Could | 1. Metrics normalized (body-height units, frame-relative), labeled relative not absolute, with no metre or force claims; 2. The vertical progress signal is the shoulder and hip midpoint, called body centroid and never centre of mass; 3. Per-attempt summary stored; 4. Meets error budgets |
+| US-39 | Fall detection, hesitation maps, and beta comparison | Could | 1. Fall events derived from pose alone in v1 (no hold geometry), with confidence and a user relabel path; 2. Comparison is metric comparison (progress curve, duration, fall point, hesitation map, speed profile) and is gated on camera stability class, with spatial side by side only when both clips share a camera pose; 3. Fall heatmaps on the wall photo need photo to video hold mapping and are deferred to the hold-contact tier; 4. Renders <= 500 ms |
 | US-40 | Whole feature behind experimental flag | Could | 1. Off by default; 2. Explicit experimental labeling and one-tap disable; 3. Crash or budget breach auto-disables and logs locally |
+| US-40a | Guided in-app recorder | Could | 1. Level indicator, framing overlay, duration counter; 2. Tap to lock focus and exposure; 3. 1080p60 with 1080p120 where the device supports it; 4. Writes through the existing video import path so metadata, retention, and backup behavior are unchanged; 5. Optional: library import keeps working with zero recorder dependency |
 
 ### Deferred stories (former Kilter phase, kept for possible re-entry)
 
@@ -224,9 +225,12 @@ latency, memory, thermals, and cold load remain unmeasured.
 - Subject found with keypoints in >= 95% of eval frames where a person is visible.
 - Static-clip keypoint jitter <= 0.02 body-heights after smoothing.
 - Relative velocity/displacement median error <= 15% vs manually annotated synthetic clips; labeled and exported as relative units.
-- Fall event detection F1 >= 0.80 on labeled eval clips (>= 30 clips, >= 10 falls).
+- Attempt window agreement: detected start and end within 1.0 s of manual annotation on >= 80% of labelled clips.
+- Camera stability classification correct on >= 80% of the labelled clip corpus (static, near static, handheld).
+- Fall event detection F1 >= 0.80 on labeled eval clips (>= 30 clips, >= 10 falls). This is a target to be measured on the corpus, not an assumed result. If it misses, the feature scope shrinks to progress and movement metrics and the phase is marked not shipped rather than degraded.
 - Throughput: 720p offline extraction of a 30 s clip <= 60 s; processing >= 10 fps sustained.
-- Memory: peak <= 500 MB; cache warning at 1 GB, prompt at 2 GB; raw video deleted per retention default.
+- Memory: peak <= 500 MB; cache warning at 1 GB, prompt at 2 GB; raw video kept by default per US-36, with purge available per clip and through a setting.
+- Corpus coverage: >= 30 clips, >= 10 falls, >= 2 gyms, >= 2 lighting conditions, with attempt windows, falls, and camera class labelled by timestamp.
 
 ### Cross-cutting app budgets (gates at Phase 2)
 - Cold start to interactive <= 2.5 s on the floor device.
