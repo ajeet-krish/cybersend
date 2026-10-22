@@ -350,7 +350,14 @@ npm run eval -- --model ../train/artifacts/holds_detector_d1.onnx \
 ```
 
 Secondary Phase 4 numerics (median absolute hold-count error <= 1.0, false
-positives per image <= 0.5) are reported in the same JSON. Proxy-domain gates
+positives per image <= 0.5) are reported in the same JSON. Sweep val before
+choosing an operating point: on D1 no single threshold meets recall >= 0.80,
+false positives <= 0.5, and count error <= 1.0 together (docs/research.md), and
+the test split is never used for threshold selection. A threshold that satisfies
+only the recall floor hides a false positive budget miss, which is what the
+single test run at 0.5 showed.
+
+ Proxy-domain gates
 passing does NOT satisfy Phase 4 acceptance: the frozen self-collected test
 set from US-5 must also be evaluated (see DATASET_CARD.md, "Adding the user's
 own gym photos").

@@ -242,6 +242,40 @@ mAP50, which is consistent with VOC all-point versus COCO 101-point
 interpolation plus NMS details. The reconciliation item in the eval README is
 closed for D1.
 
+### Operating curve on val (2026-10-21)
+
+The frozen test run fixed the operating threshold at 0.5, chosen on val. The full
+val curve shows why no threshold was chosen higher: the acceptance region is
+empty.
+
+| confidence | precision | recall | FP per image | median count error |
+|---|---|---|---|---|
+| 0.50 | 0.9490 | 0.8894 | 1.8393 | 1 |
+| 0.60 | 0.9616 | 0.8757 | 1.3486 | 1 |
+| 0.70 | 0.9751 | 0.8472 | 0.8342 | 2 |
+| 0.75 | 0.9808 | 0.8172 | 0.6176 | 3 |
+| 0.80 | 0.9858 | 0.7603 | 0.4213 | 4 |
+
+Requirements need recall >= 0.80, false positives <= 0.5 per image, and median
+count error <= 1.0 at the same threshold. At 0.75 recall passes (0.8172) but FP
+is 0.62 and count error is 3. At 0.80 FP passes (0.4213) but recall 0.7603 and
+count error 4 fail. Count error stays at 1 only up to 0.60, where FP is 1.35.
+
+Interpolating between 0.75 and 0.80, the lowest threshold that still holds
+recall at 0.80 is about 0.765, where FP per image is about 0.56 and count error
+is about 3. So the best available point misses the FP budget by roughly 12% and
+the count error limit by two holds, while the earlier test figure of 1.8832 FP
+per image was measured at 0.5, well below the recall floor. Read together: no
+re-thresholding of D1 passes, but the gap at the recall floor is small enough to
+be a model quality target rather than a rewrite.
+
+Two consequences for how the frozen test result is read. The 0.5 run assessed
+recall, precision, and mAP at a defensible operating point, and those pass. It
+did not assess the FP budget at a threshold chosen to satisfy the criteria,
+because none exists; the 1.8832 figure is therefore an upper bound at an
+operating point the product would not use. The test run is spent either way, so
+the conclusion has to rest on val.
+
 ### Frozen test result (the single gated run, 2026-10-21)
 
 RF-DETR-Nano, 582 frozen images, 24,141 ground truth holds, operating

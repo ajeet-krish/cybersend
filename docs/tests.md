@@ -140,6 +140,7 @@ UI smoke set: 19 cases, green.
 | ONNX contract plus one dummy inference, both exports | npm run verify -- <model> | PASS (RF-DETR 153 ms, YOLOX 13 ms on Mac CPU) |
 | Torch versus ONNX parity, 5 val images, decision space at 1e-3 | python -m hold_train.parity_check | PASS (RF-DETR score 8.31e-4, box 7.15e-7; YOLOX 1.06e-5, 2.19e-6) |
 | Val comparison, 591 images, confidence 0.5 | npm run eval on val | RF-DETR 0.9490 / 0.8894 / 0.9235; YOLOX 0.9185 / 0.6725 / 0.8101 |
+| Val operating curve, thresholds 0.6, 0.7, 0.75, 0.8 | npm run eval on val with --confidence | recall 0.8757 / 0.8472 / 0.8172 / 0.7603; FP per image 1.3486 / 0.8342 / 0.6176 / 0.4213; count error 1 / 2 / 3 / 4; no threshold meets all three limits |
 | Frozen test run, 582 images, single gated use, RF-DETR | npm run eval -- --gate --i-accept-one-test-run | precision 0.9509, recall 0.8788, mAP@0.5 0.9130, FP/image 1.8832, median count error 1.0 |
 | Phase 4 accuracy criteria | docs/requirements.md section 6 | PASS for precision, recall, mAP, count error; FAIL for FP/image (0.5 limit) |
 | Core ML export, RF-DETR, rfdetr 1.11.2 exporter | PYTHONPATH=src .venv/bin/python -m hold_train.export_coreml | PASS, 104.4 MB float32 package, iOS16 mlprogram, 740 MIL ops, about 5 s |
