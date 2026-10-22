@@ -1,0 +1,5411 @@
+{
+  "report_id": "d1_eval",
+  "label": "Phase 4 D1 RF-DETR-Nano frozen test",
+  "generated_at": "2026-10-22T00:32:06.321Z",
+  "model": {
+    "path": "../../train/artifacts/holds_detector_d1.onnx",
+    "kind": "rfdetr",
+    "preprocess": "imagenet",
+    "manifest": {
+      "id": "holds_detector_d1",
+      "version": "1.0.0",
+      "created_at": "2026-10-22T00:03:59.945450+00:00",
+      "purpose": "Phase 4 D1 baseline: RF-DETR-Nano trained 40 epochs on merged D1 (train 1804, val 591), best-total checkpoint (EMA weights), export for ONNX parity and gated frozen-test eval",
+      "license": {
+        "model_license_id": "Apache-2.0",
+        "framework": "RF-DETR (roboflow/rf-detr)",
+        "framework_license_id": "Apache-2.0",
+        "framework_version": "1.11.2",
+        "torch_version": "2.14.1"
+      },
+      "dataset": {
+        "name": "merged",
+        "license_file": null,
+        "license_summary": "see LICENSE file next to the dataset",
+        "dataset_manifest": "datasets/merged/manifest.json",
+        "dataset_manifest_sha256": "bcaa197e5ccb49071714d8f0208395135bc839e52485baf4ceb45b1f8280f2fa"
+      },
+      "model": {
+        "architecture": "RF-DETR-Nano",
+        "file_bytes": 109222362,
+        "sha256": "4315da6f7f79ea5754e853c87f6dda19d8c2e3f7b3ddd119a4de0735a8641ead",
+        "onnx_opset": 17,
+        "num_parameters": 28906379
+      },
+      "checkpoint": {
+        "source_file": "artifacts/train_rf_detr_d1/checkpoint_best_total.pth",
+        "file_bytes": 122469923,
+        "sha256": "68a0e012612387dd526f552738e8ec2d779d75f88d79d0944dc866175d38f71e",
+        "selected_by": "best validation mAP 50:95 across epochs (checkpoint_best_total = EMA weights, val mAP50:95 0.6915)",
+        "epochs_configured": 40,
+        "pretrained_init": "/Users/ajeet/.roboflow/models/rf-detr-nano.pth",
+        "resolution": 640,
+        "num_classes": 1
+      },
+      "input_spec": {
+        "name": "input",
+        "shape": "1x3x640x640",
+        "layout": "NCHW",
+        "color_space": "RGB",
+        "dtype": "float32",
+        "letterbox": {
+          "size": 640,
+          "pad_value": 114,
+          "alignment": "centered",
+          "resampling": "BICUBIC"
+        },
+        "normalization": {
+          "scale": "value / 255.0",
+          "mean": [
+            0.485,
+            0.456,
+            0.406
+          ],
+          "std": [
+            0.229,
+            0.224,
+            0.225
+          ]
+        },
+        "shared_implementation": "tools/eval/src/preprocess.ts"
+      },
+      "output_spec": {
+        "dets": {
+          "description": "normalized cxcywh boxes in the 640x640 letterboxed frame",
+          "observed_shape": [
+            1,
+            300,
+            4
+          ]
+        },
+        "labels": {
+          "description": "logits with num_classes + 1 channels; channel 0 = hold; independent sigmoid",
+          "observed_shape": [
+            1,
+            300,
+            2
+          ],
+          "num_classes_configured": 1
+        }
+      },
+      "training_config": {
+        "script": "hold-train-d1",
+        "variant": "RF-DETR-Nano",
+        "resolution": 640,
+        "note": "D1 comparison baseline",
+        "config_file": "artifacts/train_rf_detr_d1/training_config.json",
+        "epochs": 40,
+        "batch_size": 2,
+        "lr": 0.0001,
+        "lr_encoder": 0.0001,
+        "seed": 20261019,
+        "weight_decay": 0.0001,
+        "optimizer": "adamw",
+        "lr_scheduler": "step",
+        "num_workers": 0,
+        "num_classes": 1,
+        "class_names": [
+          "hold"
+        ],
+        "pretrained_checkpoint": "/Users/ajeet/.roboflow/models/rf-detr-nano.pth",
+        "encoder": "dinov2_windowed_small"
+      },
+      "build_host": {
+        "platform": "macOS-26.5.2-arm64-arm-64bit",
+        "machine": "arm64"
+      }
+    }
+  },
+  "dataset": {
+    "split_dir": "../../train/datasets/merged/test",
+    "split_kind": "test",
+    "images": 582,
+    "ground_truth_instances": 24141,
+    "note": "see tools/train/DATASET_CARD.md for sources, licenses, and split provenance"
+  },
+  "method": {
+    "preprocess": "letterbox 640x640 pad 114 centered, RGB float32 NCHW, (v/255 - mean)/std ImageNet",
+    "nms": "none (DETR-style set prediction, raw per-query outputs)",
+    "score_floor_for_map": 0.0001,
+    "operating_confidence": 0.5,
+    "iou_threshold": 0.5,
+    "map_definition": "single-class AP at IoU 0.5, VOC 2010+ all-point interpolation over confidence-ranked detections",
+    "matching": "greedy highest-IoU, confidence descending, one GT claimed once"
+  },
+  "metrics": {
+    "precision": 0.9509,
+    "recall": 0.8788,
+    "map05": 0.913,
+    "tp": 21214,
+    "fp": 1096,
+    "fn": 2927,
+    "falsePositivesPerImage": 1.8832,
+    "meanCenterErrorPx": 1.03,
+    "medianCenterErrorPx": 0.76,
+    "medianAbsCountError": 1,
+    "detectionsAboveScoreFloor": 174600
+  },
+  "per_image": [
+    {
+      "file_name": "images/pwals__054220vv48261_jpg.rf.0424a78504c5dd24cc87b634f30f771d.jpg",
+      "gt": 26,
+      "detections": 300,
+      "tp": 26,
+      "fp": 8,
+      "fn": 0,
+      "inference_ms": 150.022167
+    },
+    {
+      "file_name": "images/blackcreed__100_jpg.rf.0678a9bbdccdb61e753c552f98b76883.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 133.89970899999997
+    },
+    {
+      "file_name": "images/blackcreed__104_jpg.rf.695e87ef3e7be7df4f972aeeffaa0fd2.jpg",
+      "gt": 20,
+      "detections": 300,
+      "tp": 20,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 128.67162500000006
+    },
+    {
+      "file_name": "images/blackcreed__111_jpg.rf.0898e53805787469149386c9e31f088e.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 124.89904100000001
+    },
+    {
+      "file_name": "images/climbtag__116799218_1804335746380940_5628926815510339711_o-1536x1025_jpg.rf.a3009fe6c732a08eb7bcf94d0f70feaf.jpg",
+      "gt": 209,
+      "detections": 300,
+      "tp": 148,
+      "fp": 10,
+      "fn": 61,
+      "inference_ms": 128.78112499999997
+    },
+    {
+      "file_name": "images/blackcreed__116_jpg.rf.027e48bee7975a7e4190d370b0c6e1a6.jpg",
+      "gt": 2,
+      "detections": 300,
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 135.59687499999995
+    },
+    {
+      "file_name": "images/climbtag__11_jpg.rf.2538104337130b847c3c893bf2dfd890.jpg",
+      "gt": 10,
+      "detections": 300,
+      "tp": 10,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 130.5649159999998
+    },
+    {
+      "file_name": "images/blackcreed__124_jpg.rf.50b28bad6aaac02309742d0dd24ff423.jpg",
+      "gt": 34,
+      "detections": 300,
+      "tp": 34,
+      "fp": 2,
+      "fn": 0,
+      "inference_ms": 125.8092079999999
+    },
+    {
+      "file_name": "images/climbtag__126_jpg.rf.12ee074645de921333755266a606f68e.jpg",
+      "gt": 10,
+      "detections": 300,
+      "tp": 10,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 133.90325000000007
+    },
+    {
+      "file_name": "images/blackcreed__128_jpg.rf.1354b54b456b1e449edd7712b05dd2ee.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 129.74816699999997
+    },
+    {
+      "file_name": "images/climbtag__128_jpg.rf.8b5cd5caecec2fd40a89b7a57d188e5e.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 126.30991700000004
+    },
+    {
+      "file_name": "images/blackcreed__130_jpg.rf.5955fd7f90b1374f8c29b7e821a564c1.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 128.200875
+    },
+    {
+      "file_name": "images/climbtag__134_jpg.rf.204c7a407a75912365c58fbdd1c6c175.jpg",
+      "gt": 52,
+      "detections": 300,
+      "tp": 42,
+      "fp": 0,
+      "fn": 10,
+      "inference_ms": 125.38612499999977
+    },
+    {
+      "file_name": "images/blackcreed__135_jpg.rf.019c4c2705eea9d650dc0efa89ef0818.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 128.03229199999987
+    },
+    {
+      "file_name": "images/climbtag__135_jpg.rf.21fc15a22f4e435ff661b8b70676f927.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 129.489333
+    },
+    {
+      "file_name": "images/blackcreed__142_jpg.rf.0cd166e3d1bb725d44329f54efc11d40.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 127.48079199999984
+    },
+    {
+      "file_name": "images/climbtag__155225ad-3481-4b15-9f18-803436d420e3_jpg.rf.458ef95a61525063e9897433d1390d72.jpg",
+      "gt": 70,
+      "detections": 300,
+      "tp": 70,
+      "fp": 2,
+      "fn": 0,
+      "inference_ms": 126.35562499999969
+    },
+    {
+      "file_name": "images/climbtag__164_jpg.rf.12c46d4dbad6a62a6bb1f6d355556a8a.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 127.48654199999964
+    },
+    {
+      "file_name": "images/climbtag__168_jpg.rf.038997f4c0fe1dc79508497c27d2cb81.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 126.89133300000003
+    },
+    {
+      "file_name": "images/climbtag__171_jpg.rf.440e8871b67eccff9a9b16a2ede03dce.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 128.58466700000008
+    },
+    {
+      "file_name": "images/climbtag__174_jpg.rf.30906e7e669fe6b3c31c56be683420f2.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 127.79408299999977
+    },
+    {
+      "file_name": "images/climbtag__176_jpg.rf.3ce61322694dd8360cfa34ba8c815e51.jpg",
+      "gt": 10,
+      "detections": 300,
+      "tp": 10,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 130.95049999999992
+    },
+    {
+      "file_name": "images/climbtag__179_jpg.rf.5f23fb07748cc205194aba43b1424f06.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 127.21041699999978
+    },
+    {
+      "file_name": "images/blackcreed__180_jpg.rf.3d828565d67ba9cb360db2d1968eab05.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 126.45575000000008
+    },
+    {
+      "file_name": "images/blackcreed__197_jpg.rf.514b0b98bcd1b84715176009808e6645.jpg",
+      "gt": 25,
+      "detections": 300,
+      "tp": 25,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 124.91866699999991
+    },
+    {
+      "file_name": "images/blackcreed__19_jpg.rf.6c1c0faffbe2c4cb46f6c5d7f5209592.jpg",
+      "gt": 4,
+      "detections": 300,
+      "tp": 4,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 138.69895799999995
+    },
+    {
+      "file_name": "images/blackcreed__1_jpg.rf.440139e97194a5b32104540a41483ca0.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 146.4162080000001
+    },
+    {
+      "file_name": "images/climbtag__1edbf962-8532-4748-a570-12a80fe856af_jpg.rf.831e1869fa479ca85a37a1e56df36f17.jpg",
+      "gt": 52,
+      "detections": 300,
+      "tp": 52,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 137.77579200000037
+    },
+    {
+      "file_name": "images/blackcreed__20180120_092707ls_jpg.rf.155c9cf49a235940425c9b19d9a53101.jpg",
+      "gt": 60,
+      "detections": 300,
+      "tp": 54,
+      "fp": 3,
+      "fn": 6,
+      "inference_ms": 126.0137080000004
+    },
+    {
+      "file_name": "images/climbtag__201_jpg.rf.8234c689093a53a18447e251d1ca17ec.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 126.1407079999999
+    },
+    {
+      "file_name": "images/blackcreed__2022-12-07_16-26-16_UTC_jpg.rf.5cd9a1f6fe572fbfb04fc0950a6318b5.jpg",
+      "gt": 117,
+      "detections": 300,
+      "tp": 90,
+      "fp": 16,
+      "fn": 27,
+      "inference_ms": 124.5997499999994
+    },
+    {
+      "file_name": "images/blackcreed__2022-12-08_11-29-42_UTC_jpg.rf.14576bee94c189966da603ed6817f0b4.jpg",
+      "gt": 74,
+      "detections": 300,
+      "tp": 66,
+      "fp": 16,
+      "fn": 8,
+      "inference_ms": 125.37633300000016
+    },
+    {
+      "file_name": "images/blackcreed__2022-12-08_14-24-03_UTC_jpg.rf.00c749482789d8002459e54adb5a6966.jpg",
+      "gt": 44,
+      "detections": 300,
+      "tp": 37,
+      "fp": 4,
+      "fn": 7,
+      "inference_ms": 125.59037499999977
+    },
+    {
+      "file_name": "images/blackcreed__2022-12-08_14-47-53_UTC_jpg.rf.6d60d11858d4c104cf0f49aa98fd9399.jpg",
+      "gt": 132,
+      "detections": 300,
+      "tp": 123,
+      "fp": 11,
+      "fn": 9,
+      "inference_ms": 124.57858300000044
+    },
+    {
+      "file_name": "images/blackcreed__2022-12-08_15-22-26_UTC_jpg.rf.24f3a35bd63e05e6114d42253f3660df.jpg",
+      "gt": 86,
+      "detections": 300,
+      "tp": 81,
+      "fp": 3,
+      "fn": 5,
+      "inference_ms": 127.77995800000008
+    },
+    {
+      "file_name": "images/blackcreed__2022-12-08_19-53-13_UTC_jpg.rf.cf03e2c4aee5be26da6c10cda1263575.jpg",
+      "gt": 84,
+      "detections": 300,
+      "tp": 83,
+      "fp": 3,
+      "fn": 1,
+      "inference_ms": 124.99462500000027
+    },
+    {
+      "file_name": "images/climbtag__2022-12-09_09-32-26_UTC_jpg.rf.14cb6c5645412934f67a87a65fb0f587.jpg",
+      "gt": 99,
+      "detections": 300,
+      "tp": 94,
+      "fp": 1,
+      "fn": 5,
+      "inference_ms": 125.64537500000006
+    },
+    {
+      "file_name": "images/blackcreed__2022-12-09_12-14-05_UTC_jpg.rf.60b636e942f7d415e395754e00d615f6.jpg",
+      "gt": 72,
+      "detections": 300,
+      "tp": 60,
+      "fp": 3,
+      "fn": 12,
+      "inference_ms": 123.06850000000031
+    },
+    {
+      "file_name": "images/climbtag__2022-12-09_12-27-17_UTC_jpg.rf.103ed226b08fcfe4f5173a2f3de47c31.jpg",
+      "gt": 135,
+      "detections": 300,
+      "tp": 127,
+      "fp": 7,
+      "fn": 8,
+      "inference_ms": 130.41049999999996
+    },
+    {
+      "file_name": "images/climbtag__2022-12-09_14-11-05_UTC_jpg.rf.a3136726812726d37356da4d7a237016.jpg",
+      "gt": 225,
+      "detections": 300,
+      "tp": 194,
+      "fp": 13,
+      "fn": 31,
+      "inference_ms": 128.46741700000075
+    },
+    {
+      "file_name": "images/climbtag__2022-12-09_15-13-02_UTC_jpg.rf.61da54b1243476598f894480e345342f.jpg",
+      "gt": 73,
+      "detections": 300,
+      "tp": 63,
+      "fp": 3,
+      "fn": 10,
+      "inference_ms": 125.31233299999985
+    },
+    {
+      "file_name": "images/climbtag__2022-12-09_15-58-51_UTC_jpg.rf.53ea2b782552b1cfb6a49ca2203ab5ef.jpg",
+      "gt": 98,
+      "detections": 300,
+      "tp": 96,
+      "fp": 1,
+      "fn": 2,
+      "inference_ms": 124.93820899999992
+    },
+    {
+      "file_name": "images/climbtag__2022-12-10_09-14-05_UTC_jpg.rf.290acd7537f6ace80846774c299649ab.jpg",
+      "gt": 66,
+      "detections": 300,
+      "tp": 65,
+      "fp": 0,
+      "fn": 1,
+      "inference_ms": 128.1987079999999
+    },
+    {
+      "file_name": "images/climbtag__2022-12-10_10-41-23_UTC_jpg.rf.1f62c3e16237e5ac4d6747542096d703.jpg",
+      "gt": 141,
+      "detections": 300,
+      "tp": 128,
+      "fp": 11,
+      "fn": 13,
+      "inference_ms": 125.79050000000007
+    },
+    {
+      "file_name": "images/climbtag__2022-12-11_01-29-31_UTC_jpg.rf.2ba54f829c1cd69651fa011a327ca0b7.jpg",
+      "gt": 102,
+      "detections": 300,
+      "tp": 97,
+      "fp": 4,
+      "fn": 5,
+      "inference_ms": 125.22766599999977
+    },
+    {
+      "file_name": "images/climbtag__2022-12-11_09-20-50_UTC_jpg.rf.08a11f69176bef89ef9d22792e0c59d9.jpg",
+      "gt": 97,
+      "detections": 300,
+      "tp": 91,
+      "fp": 4,
+      "fn": 6,
+      "inference_ms": 125.45374999999967
+    },
+    {
+      "file_name": "images/blackcreed__2022-12-11_09-22-02_UTC_jpg.rf.7021c9026bf4284d62d98aaca880d846.jpg",
+      "gt": 24,
+      "detections": 300,
+      "tp": 22,
+      "fp": 2,
+      "fn": 2,
+      "inference_ms": 123.99275000000034
+    },
+    {
+      "file_name": "images/climbtag__2022-12-11_09-51-29_UTC_jpg.rf.e41902b5f965f701054595c18d51a668.jpg",
+      "gt": 215,
+      "detections": 300,
+      "tp": 165,
+      "fp": 16,
+      "fn": 50,
+      "inference_ms": 125.03287500000079
+    },
+    {
+      "file_name": "images/blackcreed__2022-12-11_10-05-56_UTC_jpg.rf.fb6010c8e8cfd20972b39d3ca29630a1.jpg",
+      "gt": 48,
+      "detections": 300,
+      "tp": 47,
+      "fp": 1,
+      "fn": 1,
+      "inference_ms": 129.26195899999948
+    },
+    {
+      "file_name": "images/blackcreed__2022-12-11_10-26-02_UTC_jpg.rf.2e404dc77d1f28209fbcfc0a3d7f8e75.jpg",
+      "gt": 112,
+      "detections": 300,
+      "tp": 104,
+      "fp": 11,
+      "fn": 8,
+      "inference_ms": 155.12783299999955
+    },
+    {
+      "file_name": "images/climbtag__2022-12-11_10-58-10_UTC_jpg.rf.0167dc5d4840010342edce9482fd143f.jpg",
+      "gt": 94,
+      "detections": 300,
+      "tp": 89,
+      "fp": 4,
+      "fn": 5,
+      "inference_ms": 190.42429100000027
+    },
+    {
+      "file_name": "images/blackcreed__2022-12-11_11-29-57_UTC_jpg.rf.2a19ccac3701e318869c4c3bdaa96e06.jpg",
+      "gt": 111,
+      "detections": 300,
+      "tp": 101,
+      "fp": 8,
+      "fn": 10,
+      "inference_ms": 150.95741699999962
+    },
+    {
+      "file_name": "images/climbtag__2022-12-11_11-31-38_UTC_jpg.rf.eb43c6f13494d19a2d1b411b9793cbdc.jpg",
+      "gt": 124,
+      "detections": 300,
+      "tp": 109,
+      "fp": 6,
+      "fn": 15,
+      "inference_ms": 136.9611249999998
+    },
+    {
+      "file_name": "images/climbtag__2022-12-11_11-47-12_UTC_jpg.rf.5611ed1529eccc8c4a394f66ffa981f6.jpg",
+      "gt": 93,
+      "detections": 300,
+      "tp": 90,
+      "fp": 5,
+      "fn": 3,
+      "inference_ms": 129.93783399999938
+    },
+    {
+      "file_name": "images/blackcreed__2022-12-11_11-50-28_UTC_jpg.rf.4744b319f7fd8c8b0ef9ec26b498d4aa.jpg",
+      "gt": 159,
+      "detections": 300,
+      "tp": 128,
+      "fp": 16,
+      "fn": 31,
+      "inference_ms": 145.39324999999917
+    },
+    {
+      "file_name": "images/climbtag__2022-12-11_11-54-27_UTC_jpg.rf.380cce556b9c5e9bdc7b06bfdad57677.jpg",
+      "gt": 142,
+      "detections": 300,
+      "tp": 127,
+      "fp": 18,
+      "fn": 15,
+      "inference_ms": 136.98625000000175
+    },
+    {
+      "file_name": "images/climbtag__2022-12-12_05-23-34_UTC_jpg.rf.7d65587b18d08774a60e17d70f22f0c9.jpg",
+      "gt": 93,
+      "detections": 300,
+      "tp": 90,
+      "fp": 2,
+      "fn": 3,
+      "inference_ms": 133.9513330000009
+    },
+    {
+      "file_name": "images/climbtag__2022-12-12_07-15-02_UTC_jpg.rf.11093490b2de9f478fa68c58426db82a.jpg",
+      "gt": 95,
+      "detections": 300,
+      "tp": 87,
+      "fp": 5,
+      "fn": 8,
+      "inference_ms": 129.91579199999978
+    },
+    {
+      "file_name": "images/climbtag__2022-12-12_11-48-10_UTC_jpg.rf.9bad7e47fccc11ee5d21c673a135f7d9.jpg",
+      "gt": 74,
+      "detections": 300,
+      "tp": 68,
+      "fp": 1,
+      "fn": 6,
+      "inference_ms": 129.87979199999972
+    },
+    {
+      "file_name": "images/climbtag__2024-03-28_09-30-48_UTC_3_jpg.rf.56161a738026844e0104d1ed9ea72214.jpg",
+      "gt": 219,
+      "detections": 300,
+      "tp": 214,
+      "fp": 17,
+      "fn": 5,
+      "inference_ms": 130.80774999999994
+    },
+    {
+      "file_name": "images/climbtag__20240726_172131_png_jpg.rf.451db9059b6bdbfcfb9ef4e74282d377.jpg",
+      "gt": 88,
+      "detections": 300,
+      "tp": 59,
+      "fp": 6,
+      "fn": 29,
+      "inference_ms": 126.5324580000015
+    },
+    {
+      "file_name": "images/climbtag__204_jpg.rf.1434b6042be97329be489106fc72d26e.jpg",
+      "gt": 25,
+      "detections": 300,
+      "tp": 25,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 127.05975000000035
+    },
+    {
+      "file_name": "images/blackcreed__206_jpg.rf.66b2a3705b825c1a9c7b8e2a14c29baa.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 128.01020900000003
+    },
+    {
+      "file_name": "images/climbtag__208_jpg.rf.581dab9aa2b9789ed2484f26a91d52b2.jpg",
+      "gt": 4,
+      "detections": 300,
+      "tp": 4,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 133.59541700000045
+    },
+    {
+      "file_name": "images/climbtag__210_jpg.rf.539b4e1d3be7ad1e19fab61fda7d63f1.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 128.73966699999983
+    },
+    {
+      "file_name": "images/climbtag__212_jpg.rf.3d73b13e871b11618addf934e7ff641f.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 128.49270799999977
+    },
+    {
+      "file_name": "images/climbtag__213_jpg.rf.284e35f9f45ae1cb4f77119001b9df21.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 131.91775000000052
+    },
+    {
+      "file_name": "images/climbtag__217_jpg.rf.042043b2e448f89ad9a3ac55b3cef1fb.jpg",
+      "gt": 29,
+      "detections": 300,
+      "tp": 29,
+      "fp": 1,
+      "fn": 0,
+      "inference_ms": 129.39833399999952
+    },
+    {
+      "file_name": "images/climbtag__21_jpg.rf.03741477c9f0913f3c24564a2955b648.jpg",
+      "gt": 141,
+      "detections": 300,
+      "tp": 128,
+      "fp": 7,
+      "fn": 13,
+      "inference_ms": 130.31604100000004
+    },
+    {
+      "file_name": "images/blackcreed__21_jpg.rf.789ce2ec6c259a0c44a4931ddc028fd4.jpg",
+      "gt": 10,
+      "detections": 300,
+      "tp": 10,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 127.62112500000148
+    },
+    {
+      "file_name": "images/climbtag__223_jpg.rf.552ae669d9b0884f4bb1beb7c531ba15.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 129.37558300000092
+    },
+    {
+      "file_name": "images/blackcreed__224_jpg.rf.adf4494f5cc0cbc71395450592a1245a.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 131.59570800000074
+    },
+    {
+      "file_name": "images/climbtag__2254d419-bf20-46c4-a166-bc5513e306e2_jpg.rf.f7052c56502ade7905eaa8ec51b04828.jpg",
+      "gt": 60,
+      "detections": 300,
+      "tp": 59,
+      "fp": 0,
+      "fn": 1,
+      "inference_ms": 136.3142910000006
+    },
+    {
+      "file_name": "images/blackcreed__226_jpg.rf.9f96723e3a8e25dcea933f8f0c942563.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 196.1671669999996
+    },
+    {
+      "file_name": "images/blackcreed__227_jpg.rf.09f646b8cfb74c1822a51159157ba695.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 135.79804200000035
+    },
+    {
+      "file_name": "images/climbtag__229_jpg.rf.7da71d12d69ba9377bff8a21a4f26d47.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 136.6977910000005
+    },
+    {
+      "file_name": "images/climbtag__22_jpg.rf.471f66b50b09ba053258005804307ef4.jpg",
+      "gt": 10,
+      "detections": 300,
+      "tp": 10,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 126.10583299999962
+    },
+    {
+      "file_name": "images/climbtag__22d26f64-fac5-4b3f-80eb-c801d401686a_jpg.rf.417b576943e7aa8131962fe3693fdcb1.jpg",
+      "gt": 63,
+      "detections": 300,
+      "tp": 63,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 125.96737500000017
+    },
+    {
+      "file_name": "images/blackcreed__231_jpg.rf.0debd448ae4eeda4f9580a0b54c73f75.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 128.07466600000043
+    },
+    {
+      "file_name": "images/climbtag__231_jpg.rf.28c818481cb85e455f4be4b77a5320b4.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 133.71029099999942
+    },
+    {
+      "file_name": "images/blackcreed__232_jpg.rf.2452cc22bbb8e61e48ed39e889f79f95.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 136.2056250000005
+    },
+    {
+      "file_name": "images/climbtag__234_jpg.rf.5f1adb48387f6b78a2d2be2e0fad6a73.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 129.5452499999992
+    },
+    {
+      "file_name": "images/climbtag__238_jpg.rf.0ca19ac52e01e5aa131d95805bc9f689.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 159.8089170000003
+    },
+    {
+      "file_name": "images/blackcreed__23_jpg.rf.1db6a0b32fc34ea94f65172567745172.jpg",
+      "gt": 4,
+      "detections": 300,
+      "tp": 4,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 131.22779099999934
+    },
+    {
+      "file_name": "images/climbtag__23_jpg.rf.27f938c2763285a9e16bfa7e86b23bfd.jpg",
+      "gt": 153,
+      "detections": 300,
+      "tp": 133,
+      "fp": 11,
+      "fn": 20,
+      "inference_ms": 126.56975000000057
+    },
+    {
+      "file_name": "images/climbtag__241_jpg.rf.1003a93764271f5f8c19bd7b02332395.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 133.71379100000013
+    },
+    {
+      "file_name": "images/climbtag__245_jpg.rf.410c1d620be75935acedc691ed134a00.jpg",
+      "gt": 10,
+      "detections": 300,
+      "tp": 10,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 129.11620799999946
+    },
+    {
+      "file_name": "images/climbtag__246_jpg.rf.6e4d567eb3b660d4a87a66a062eb8ba1.jpg",
+      "gt": 10,
+      "detections": 300,
+      "tp": 10,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 127.16899999999987
+    },
+    {
+      "file_name": "images/climbtag__247_jpg.rf.783d72533815a01ffd17c3dca40d7238.jpg",
+      "gt": 10,
+      "detections": 300,
+      "tp": 10,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 128.21491700000115
+    },
+    {
+      "file_name": "images/blackcreed__248_jpg.rf.005ece81de4c5360f3ab7d308dcb61d8.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 128.010542
+    },
+    {
+      "file_name": "images/blackcreed__249_jpg.rf.5a9cb5a56e8a5f18f0ed5f2aefa6431a.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 129.60770799999955
+    },
+    {
+      "file_name": "images/climbtag__249_jpg.rf.6fe05e87d57b6222d5c8fd38bd8d7cb5.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 129.87133300000096
+    },
+    {
+      "file_name": "images/climbtag__251_jpg.rf.13c4a6fa2b8d944b47e2e04c1c9fb99b.jpg",
+      "gt": 3,
+      "detections": 300,
+      "tp": 3,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 128.2102500000001
+    },
+    {
+      "file_name": "images/climbtag__253_jpg.rf.06804abce536b70d30129b7cd8d3ca4f.jpg",
+      "gt": 3,
+      "detections": 300,
+      "tp": 3,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 129.55320800000118
+    },
+    {
+      "file_name": "images/climbtag__254_jpg.rf.70d39203500ba2fab76a5ef1bb3d2d06.jpg",
+      "gt": 3,
+      "detections": 300,
+      "tp": 3,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 129.394542
+    },
+    {
+      "file_name": "images/climbtag__258_jpg.rf.26e1c92522b7ea7c4afc0016a7d38884.jpg",
+      "gt": 21,
+      "detections": 300,
+      "tp": 21,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 126.22704200000044
+    },
+    {
+      "file_name": "images/blackcreed__25N9EDJwDPKcYEBok_jpg.rf.0fecb85207f5480208595a88d8cd4b64.jpg",
+      "gt": 41,
+      "detections": 300,
+      "tp": 37,
+      "fp": 6,
+      "fn": 4,
+      "inference_ms": 127.69362499999988
+    },
+    {
+      "file_name": "images/blackcreed__261_jpg.rf.17ecdef35ac1f560944f743aed364fdc.jpg",
+      "gt": 30,
+      "detections": 300,
+      "tp": 30,
+      "fp": 1,
+      "fn": 0,
+      "inference_ms": 128.94862499999908
+    },
+    {
+      "file_name": "images/blackcreed__267_jpg.rf.96d639b9a55b8c102a9e83ba116120ca.jpg",
+      "gt": 12,
+      "detections": 300,
+      "tp": 12,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 127.4174579999999
+    },
+    {
+      "file_name": "images/blackcreed__268_jpg.rf.26a6d29c6476a37e83e9125acb922f49.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 129.95674999999937
+    },
+    {
+      "file_name": "images/blackcreed__26_jpg.rf.0def0657ced0d089a88720798de93e72.jpg",
+      "gt": 2,
+      "detections": 300,
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 128.0912499999995
+    },
+    {
+      "file_name": "images/climbtag__26_jpg.rf.10226670234dbe99af43423a9567269d.jpg",
+      "gt": 4,
+      "detections": 300,
+      "tp": 4,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 128.97525000000132
+    },
+    {
+      "file_name": "images/blackcreed__270202734_601926264230360_126326253817531170_n_jpg.rf.3f9c430526213d3347135410fc065d51.jpg",
+      "gt": 8,
+      "detections": 300,
+      "tp": 6,
+      "fp": 0,
+      "fn": 2,
+      "inference_ms": 129.6830000000009
+    },
+    {
+      "file_name": "images/climbtag__270_jpg.rf.1af1c79249668e3ccfee2b91cef05fce.jpg",
+      "gt": 21,
+      "detections": 300,
+      "tp": 21,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 131.32424999999967
+    },
+    {
+      "file_name": "images/blackcreed__270_jpg.rf.320d4bae82c9e224b8c0cb1c67779c21.jpg",
+      "gt": 21,
+      "detections": 300,
+      "tp": 21,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 130.32200000000012
+    },
+    {
+      "file_name": "images/blackcreed__276_jpg.rf.177662190b56d6b136a3f8cd804f2ce7.jpg",
+      "gt": 21,
+      "detections": 300,
+      "tp": 21,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 126.19024999999965
+    },
+    {
+      "file_name": "images/blackcreed__277_jpg.rf.2d3d983783a06b49327c7e3203c13682.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 127.35345799999959
+    },
+    {
+      "file_name": "images/climbtag__283_jpg.rf.3b028e46b69e5e68711a7428f86a7153.jpg",
+      "gt": 3,
+      "detections": 300,
+      "tp": 3,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 127.59820800000125
+    },
+    {
+      "file_name": "images/blackcreed__284_jpg.rf.01ff9cfef7d79874854958be3fd2f765.jpg",
+      "gt": 3,
+      "detections": 300,
+      "tp": 3,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 127.13349999999991
+    },
+    {
+      "file_name": "images/climbtag__285_jpg.rf.338ab3add9f4c8941d65a74dbb36f983.jpg",
+      "gt": 22,
+      "detections": 300,
+      "tp": 22,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 131.42112499999712
+    },
+    {
+      "file_name": "images/blackcreed__289_jpg.rf.0569942f564676ec5498558f7bcef84c.jpg",
+      "gt": 42,
+      "detections": 300,
+      "tp": 42,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 130.02300000000105
+    },
+    {
+      "file_name": "images/climbtag__290_jpg.rf.0be1806310b811b43e2208a48ee0eae7.jpg",
+      "gt": 63,
+      "detections": 300,
+      "tp": 63,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 133.0948750000025
+    },
+    {
+      "file_name": "images/blackcreed__293_jpg.rf.1f322d183afd33020d3f8aa9d2d86800.jpg",
+      "gt": 34,
+      "detections": 300,
+      "tp": 34,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 128.11966699999903
+    },
+    {
+      "file_name": "images/climbtag__296_jpg.rf.2baa56d1dcabb7c278de6fb03ea7f37a.jpg",
+      "gt": 35,
+      "detections": 300,
+      "tp": 35,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 127.19045800000094
+    },
+    {
+      "file_name": "images/blackcreed__299_jpg.rf.2c34706b05fe9b4d8520f050cd39d1a2.jpg",
+      "gt": 10,
+      "detections": 300,
+      "tp": 10,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 126.84362500000134
+    },
+    {
+      "file_name": "images/blackcreed__2DmFTXADmybdZh4W3_jpg.rf.0f2c7e37c0ac2348b08112adf4556bf6.jpg",
+      "gt": 42,
+      "detections": 300,
+      "tp": 39,
+      "fp": 0,
+      "fn": 3,
+      "inference_ms": 126.95166700000118
+    },
+    {
+      "file_name": "images/climbtag__2EqDwGLQi4HbWz84d_jpg.rf.096e156e3d89f4c837cc974abc25d951.jpg",
+      "gt": 36,
+      "detections": 300,
+      "tp": 33,
+      "fp": 1,
+      "fn": 3,
+      "inference_ms": 127.4963749999988
+    },
+    {
+      "file_name": "images/climbtag__2FZDrLpsD8gkLudsg_jpg.rf.1e0ce19d65804b76e8e0578154d6ed66.jpg",
+      "gt": 21,
+      "detections": 300,
+      "tp": 19,
+      "fp": 3,
+      "fn": 2,
+      "inference_ms": 128.31974999999875
+    },
+    {
+      "file_name": "images/climbtag__2GFx9tFK3ZqT68KTX_jpg.rf.477ccb03ea6fe100e9be351f6fba019f.jpg",
+      "gt": 48,
+      "detections": 300,
+      "tp": 37,
+      "fp": 3,
+      "fn": 11,
+      "inference_ms": 129.8129169999993
+    },
+    {
+      "file_name": "images/blackcreed__2L6dYctMFQjZqxhAb_jpg.rf.72d4472ded27deb319a21f7c871774bf.jpg",
+      "gt": 38,
+      "detections": 300,
+      "tp": 33,
+      "fp": 0,
+      "fn": 5,
+      "inference_ms": 127.90058300000237
+    },
+    {
+      "file_name": "images/blackcreed__2QkPikMsNBBaEEwic_jpg.rf.1ee563eed0d26f79448b002a8d7bec0d.jpg",
+      "gt": 82,
+      "detections": 300,
+      "tp": 62,
+      "fp": 1,
+      "fn": 20,
+      "inference_ms": 126.95658299999923
+    },
+    {
+      "file_name": "images/climbtag__2QkPikMsNBBaEEwic_jpg.rf.6175572f6f8ced15fd9bad76680e5ea6.jpg",
+      "gt": 77,
+      "detections": 300,
+      "tp": 67,
+      "fp": 2,
+      "fn": 10,
+      "inference_ms": 124.74516699999731
+    },
+    {
+      "file_name": "images/blackcreed__2aLN4287MKmFwRRGH_jpg.rf.5aee73ce177dacdfcc16f91f335b0ef1.jpg",
+      "gt": 43,
+      "detections": 300,
+      "tp": 42,
+      "fp": 0,
+      "fn": 1,
+      "inference_ms": 127.50820799999929
+    },
+    {
+      "file_name": "images/climbtag__2bfDXBZtj6dkzYXyL_jpg.rf.9a2001f6f2726e56a80e86abe99e8d93.jpg",
+      "gt": 58,
+      "detections": 300,
+      "tp": 50,
+      "fp": 2,
+      "fn": 8,
+      "inference_ms": 126.19295799999963
+    },
+    {
+      "file_name": "images/climbtag__2dFwdidqKuDz2LaZh_jpg.rf.002805b2c6c27cbccb39b5f3f6ee042e.jpg",
+      "gt": 33,
+      "detections": 300,
+      "tp": 29,
+      "fp": 3,
+      "fn": 4,
+      "inference_ms": 126.28395900000032
+    },
+    {
+      "file_name": "images/blackcreed__2dFwdidqKuDz2LaZh_jpg.rf.0f5892cdb70fef23c019b15dc028d906.jpg",
+      "gt": 26,
+      "detections": 300,
+      "tp": 24,
+      "fp": 1,
+      "fn": 2,
+      "inference_ms": 126.3791659999988
+    },
+    {
+      "file_name": "images/blackcreed__2fWca6obZaPR54wDf_jpg.rf.04de7535d83220e07b7169ea10bd6302.jpg",
+      "gt": 42,
+      "detections": 300,
+      "tp": 39,
+      "fp": 0,
+      "fn": 3,
+      "inference_ms": 129.8392500000009
+    },
+    {
+      "file_name": "images/blackcreed__2hD7hKDfvxbaRpszm_jpg.rf.3d82534d09a93552f747801df72cfffb.jpg",
+      "gt": 88,
+      "detections": 300,
+      "tp": 71,
+      "fp": 4,
+      "fn": 17,
+      "inference_ms": 128.49645899999814
+    },
+    {
+      "file_name": "images/climbtag__2iALbTfBnroZsAJTG_jpg.rf.52545c0cca7e6c183da585cccb9ee6f5.jpg",
+      "gt": 42,
+      "detections": 300,
+      "tp": 40,
+      "fp": 2,
+      "fn": 2,
+      "inference_ms": 126.82616699999926
+    },
+    {
+      "file_name": "images/blackcreed__2idz8yNkeNo84u8Jw_jpg.rf.03b6bab63eb960f2ddf83027d437fb6a.jpg",
+      "gt": 41,
+      "detections": 300,
+      "tp": 34,
+      "fp": 1,
+      "fn": 7,
+      "inference_ms": 125.98058300000048
+    },
+    {
+      "file_name": "images/blackcreed__2jkKgAnEFRxhSdBtN_jpg.rf.7251429b29e00ff08ef5661e8a4c6988.jpg",
+      "gt": 56,
+      "detections": 300,
+      "tp": 35,
+      "fp": 5,
+      "fn": 21,
+      "inference_ms": 126.41191700000127
+    },
+    {
+      "file_name": "images/blackcreed__2nEA7iaTJX9Bek9zC_jpg.rf.17dca8f8f6bca58669cf49c9435ef97e.jpg",
+      "gt": 56,
+      "detections": 300,
+      "tp": 49,
+      "fp": 2,
+      "fn": 7,
+      "inference_ms": 127.10800000000017
+    },
+    {
+      "file_name": "images/climbtag__2pEZSLw9ZCqX5Ncde_jpg.rf.0cf13de11db42153ffb684e7147a8036.jpg",
+      "gt": 22,
+      "detections": 300,
+      "tp": 22,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 127.11025000000154
+    },
+    {
+      "file_name": "images/blackcreed__2pPp9aP84owjR5kBE_jpg.rf.03d3c15a5cee27401700e7063b240813.jpg",
+      "gt": 27,
+      "detections": 300,
+      "tp": 24,
+      "fp": 4,
+      "fn": 3,
+      "inference_ms": 127.37962499999776
+    },
+    {
+      "file_name": "images/climbtag__2qh5vfcyYKqEPAd7y_jpg.rf.d233add6b7793b38244608bb60a23158.jpg",
+      "gt": 25,
+      "detections": 300,
+      "tp": 24,
+      "fp": 2,
+      "fn": 1,
+      "inference_ms": 140.78295799999978
+    },
+    {
+      "file_name": "images/blackcreed__2tTPiuDBfnHHweQAb_jpg.rf.43a556a801bc2040edfff29f1d573bc5.jpg",
+      "gt": 94,
+      "detections": 300,
+      "tp": 79,
+      "fp": 5,
+      "fn": 15,
+      "inference_ms": 132.15316600000006
+    },
+    {
+      "file_name": "images/blackcreed__2wiG9X2F7ABCaAAwa_jpg.rf.52aed2f8c153586f59957cdc000c9b44.jpg",
+      "gt": 66,
+      "detections": 300,
+      "tp": 60,
+      "fp": 1,
+      "fn": 6,
+      "inference_ms": 127.95495800000208
+    },
+    {
+      "file_name": "images/blackcreed__2xCHfdjBhQeqr6JwP_jpg.rf.c54fa9b1ab48249c6e492cc214def5a6.jpg",
+      "gt": 58,
+      "detections": 300,
+      "tp": 55,
+      "fp": 1,
+      "fn": 3,
+      "inference_ms": 129.413875000002
+    },
+    {
+      "file_name": "images/climbtag__2xbw6YnKHbq7ev35M_jpg.rf.18c1710874b02ec630616840eb08d423.jpg",
+      "gt": 52,
+      "detections": 300,
+      "tp": 46,
+      "fp": 4,
+      "fn": 6,
+      "inference_ms": 127.83645899999829
+    },
+    {
+      "file_name": "images/blackcreed__2xz5LW9AohsayGTCN_jpg.rf.55dba7b96a5d1a5e7426c2c72536a091.jpg",
+      "gt": 35,
+      "detections": 300,
+      "tp": 26,
+      "fp": 1,
+      "fn": 9,
+      "inference_ms": 129.89762500000143
+    },
+    {
+      "file_name": "images/climbtag__2z554ERwSM6wHaRSi_jpg.rf.0f46f7864301d54efde098923fa0b81b.jpg",
+      "gt": 56,
+      "detections": 300,
+      "tp": 49,
+      "fp": 1,
+      "fn": 7,
+      "inference_ms": 123.73708299999998
+    },
+    {
+      "file_name": "images/climbtag__301439_ComfySize5SloperJugs__AltImage1_TopDown_600x_jpg.rf.1edd8549df3e3b8d0b6f16f9bdec8044.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 126.75237500000003
+    },
+    {
+      "file_name": "images/climbtag__307_jpg.rf.0cad009fdd88b7d0e22eb3929b39efc6.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 126.48924999999872
+    },
+    {
+      "file_name": "images/climbtag__308_jpg.rf.2410f36be3644f2398c31ecc119a4f9a.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 129.57166700000016
+    },
+    {
+      "file_name": "images/blackcreed__308_jpg.rf.298007b3fdbe8425e2e4788da02fa430.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 126.99295799999891
+    },
+    {
+      "file_name": "images/climbtag__309_jpg.rf.ac0737ad28ba64bec690fef549a49b25.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 125.89300000000003
+    },
+    {
+      "file_name": "images/pwals__30ad11871fdf9a742794a681242e96e4_jpg.rf.12569242f2489ab6a784a56e04c615fc.jpg",
+      "gt": 16,
+      "detections": 300,
+      "tp": 15,
+      "fp": 3,
+      "fn": 1,
+      "inference_ms": 124.75924999999916
+    },
+    {
+      "file_name": "images/blackcreed__311_jpg.rf.1ca5057fc8cfda0df857536a21a1e725.jpg",
+      "gt": 98,
+      "detections": 300,
+      "tp": 98,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 126.37691700000141
+    },
+    {
+      "file_name": "images/blackcreed__31_jpg.rf.068ac1c39369d8675ec3b1774ee95159.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 144.03670799999963
+    },
+    {
+      "file_name": "images/climbtag__321_jpg.rf.0bdedc091611d156595611d4ae89062d.jpg",
+      "gt": 35,
+      "detections": 300,
+      "tp": 35,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 131.01033299999835
+    },
+    {
+      "file_name": "images/climbtag__327_jpg.rf.197e6e3e5defad9de78868f26948b513.jpg",
+      "gt": 85,
+      "detections": 300,
+      "tp": 85,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 127.72183399999994
+    },
+    {
+      "file_name": "images/blackcreed__329_jpg.rf.b486f7a475403f393435bfa6f2e4d84f.jpg",
+      "gt": 114,
+      "detections": 300,
+      "tp": 114,
+      "fp": 1,
+      "fn": 0,
+      "inference_ms": 128.5584170000002
+    },
+    {
+      "file_name": "images/blackcreed__32YtEoWiX7p4PuxCi_jpg.rf.88d9e9a9cd97a8b7532d6fdf987d4a03.jpg",
+      "gt": 56,
+      "detections": 300,
+      "tp": 48,
+      "fp": 2,
+      "fn": 8,
+      "inference_ms": 127.79162499999802
+    },
+    {
+      "file_name": "images/climbtag__32inmmFSBKk9uNjZX_jpg.rf.0bdafd03ee53df6241a6f9be31caf7c2.jpg",
+      "gt": 46,
+      "detections": 300,
+      "tp": 42,
+      "fp": 1,
+      "fn": 4,
+      "inference_ms": 128.70912500000122
+    },
+    {
+      "file_name": "images/blackcreed__331_jpg.rf.073414b20e64b8564a818c00bb8bd985.jpg",
+      "gt": 90,
+      "detections": 300,
+      "tp": 89,
+      "fp": 1,
+      "fn": 1,
+      "inference_ms": 128.25329200000124
+    },
+    {
+      "file_name": "images/climbtag__33_jpg.rf.0b7e23959abe429149ac408d3dc00cfd.jpg",
+      "gt": 10,
+      "detections": 300,
+      "tp": 10,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 125.9251660000009
+    },
+    {
+      "file_name": "images/climbtag__342_jpg.rf.b329eb6de74b42e08f11e7b675c9d554.jpg",
+      "gt": 15,
+      "detections": 300,
+      "tp": 15,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 125.41083299999809
+    },
+    {
+      "file_name": "images/climbtag__345_jpg.rf.5a352117277def7260347e9fde1ecfa5.jpg",
+      "gt": 101,
+      "detections": 300,
+      "tp": 100,
+      "fp": 0,
+      "fn": 1,
+      "inference_ms": 125.84820899999977
+    },
+    {
+      "file_name": "images/climbtag__346_jpg.rf.c235c1343158b55f419c143286dfd6eb.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 125.9887920000001
+    },
+    {
+      "file_name": "images/blackcreed__348_jpg.rf.30bcd9e166c3bcba957c873c0a65ebce.jpg",
+      "gt": 63,
+      "detections": 300,
+      "tp": 63,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 127.8467079999973
+    },
+    {
+      "file_name": "images/climbtag__34_jpg.rf.00b7b79d7969118e866bd8c120e283c6.jpg",
+      "gt": 87,
+      "detections": 300,
+      "tp": 82,
+      "fp": 17,
+      "fn": 5,
+      "inference_ms": 128.06941599999845
+    },
+    {
+      "file_name": "images/climbtag__350_jpg.rf.7be7c1ce1633c5bcaf8fa7bcd6f23f94.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 132.41079099999843
+    },
+    {
+      "file_name": "images/climbtag__352_jpg.rf.3e492c921e5bf7fbf114cfa67e9d2aba.jpg",
+      "gt": 24,
+      "detections": 300,
+      "tp": 24,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 127.00479199999972
+    },
+    {
+      "file_name": "images/blackcreed__354_jpg.rf.23e41674483fc430fdc5120bfafb56c2.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 128.62695800000074
+    },
+    {
+      "file_name": "images/blackcreed__357_jpg.rf.29e5414d888e097d9efc46bc9599bc7d.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 159.15441700000156
+    },
+    {
+      "file_name": "images/blackcreed__362_jpg.rf.028f1186617a7d6448398c7deb53b7e3.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 154.56758400000035
+    },
+    {
+      "file_name": "images/climbtag__362_jpg.rf.e7a6b1fe50d61f6817cd0c3ce4fbe6de.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 148.7189580000013
+    },
+    {
+      "file_name": "images/climbtag__364_jpg.rf.bb3bc8d74acf0715b0159b5f92086544.jpg",
+      "gt": 10,
+      "detections": 300,
+      "tp": 10,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 148.9181669999998
+    },
+    {
+      "file_name": "images/blackcreed__378y4DgoYijEuEGyQ_jpg.rf.438979c034982205630d1a721d695939.jpg",
+      "gt": 99,
+      "detections": 300,
+      "tp": 74,
+      "fp": 4,
+      "fn": 25,
+      "inference_ms": 138.51908299999923
+    },
+    {
+      "file_name": "images/blackcreed__382_jpg.rf.4e288aa604de8f446495775ac561476e.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 128.95979200000147
+    },
+    {
+      "file_name": "images/blackcreed__384_jpg.rf.0f90af3c806d77bd51d7bd9e0af2b6a4.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 130.6919999999991
+    },
+    {
+      "file_name": "images/climbtag__384_jpg.rf.141c8eb2ff9c2f33d63eea7a338fd3fc.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 129.02245799999946
+    },
+    {
+      "file_name": "images/climbtag__3B3jA7ATwR5oMrTqM_jpg.rf.3131e23ab080c1cd76bf3ab7ca119ed8.jpg",
+      "gt": 59,
+      "detections": 300,
+      "tp": 54,
+      "fp": 2,
+      "fn": 5,
+      "inference_ms": 127.08699999999953
+    },
+    {
+      "file_name": "images/blackcreed__3FGfNfriyjnyvS9ro_jpg.rf.f63814840d34501e4058e6720746e433.jpg",
+      "gt": 61,
+      "detections": 300,
+      "tp": 60,
+      "fp": 1,
+      "fn": 1,
+      "inference_ms": 127.91004199999952
+    },
+    {
+      "file_name": "images/blackcreed__3FpdCceKhosj2oPtx_jpg.rf.ebe987408452634dc2b87d2294e08534.jpg",
+      "gt": 60,
+      "detections": 300,
+      "tp": 58,
+      "fp": 2,
+      "fn": 2,
+      "inference_ms": 127.43491600000198
+    },
+    {
+      "file_name": "images/blackcreed__3GQyvXWw22Smkhvnm_jpg.rf.99eea756e98512f0056a72c289ac1454.jpg",
+      "gt": 65,
+      "detections": 300,
+      "tp": 44,
+      "fp": 6,
+      "fn": 21,
+      "inference_ms": 139.85233399999925
+    },
+    {
+      "file_name": "images/climbtag__3GiyKKPybhykF75XE_jpg.rf.471432bd01129cc7ee04e06c9477416c.jpg",
+      "gt": 47,
+      "detections": 300,
+      "tp": 43,
+      "fp": 1,
+      "fn": 4,
+      "inference_ms": 127.13175000000047
+    },
+    {
+      "file_name": "images/blackcreed__3GiyKKPybhykF75XE_jpg.rf.66c693d9ce70ca6bceba98011dc113e1.jpg",
+      "gt": 48,
+      "detections": 300,
+      "tp": 43,
+      "fp": 0,
+      "fn": 5,
+      "inference_ms": 135.39329200000066
+    },
+    {
+      "file_name": "images/climbtag__3HE3E4sBAbHkbTdnX_jpg.rf.40f93bc57ab8713ac087c52c8ed35c61.jpg",
+      "gt": 43,
+      "detections": 300,
+      "tp": 34,
+      "fp": 6,
+      "fn": 9,
+      "inference_ms": 127.52204200000051
+    },
+    {
+      "file_name": "images/climbtag__3JTpto5T4rbYSbds9_jpg.rf.2db09b93ed735263f3663c27afe814e3.jpg",
+      "gt": 52,
+      "detections": 300,
+      "tp": 46,
+      "fp": 3,
+      "fn": 6,
+      "inference_ms": 129.82312499999898
+    },
+    {
+      "file_name": "images/climbtag__3JphY3ekmCGgk6pqw_jpg.rf.7d3ec5ebda71f033abdc650c465b5f94.jpg",
+      "gt": 48,
+      "detections": 300,
+      "tp": 47,
+      "fp": 1,
+      "fn": 1,
+      "inference_ms": 126.54520899999989
+    },
+    {
+      "file_name": "images/climbtag__3JzLfLm5ey9fAA6km_jpg.rf.610f97e7165801d7a5f07fa8af007c09.jpg",
+      "gt": 42,
+      "detections": 300,
+      "tp": 32,
+      "fp": 1,
+      "fn": 10,
+      "inference_ms": 127.20475000000079
+    },
+    {
+      "file_name": "images/climbtag__3NHcfw8z5GuMikgSy_jpg.rf.1d3706e446d041b04bc1d27f77fbde58.jpg",
+      "gt": 42,
+      "detections": 300,
+      "tp": 33,
+      "fp": 1,
+      "fn": 9,
+      "inference_ms": 127.96262500000012
+    },
+    {
+      "file_name": "images/blackcreed__3NHcfw8z5GuMikgSy_jpg.rf.fdcb25fe875c6c4f44b0ed9310308d97.jpg",
+      "gt": 42,
+      "detections": 300,
+      "tp": 36,
+      "fp": 1,
+      "fn": 6,
+      "inference_ms": 131.7516250000008
+    },
+    {
+      "file_name": "images/climbtag__3PJYKGXpZHR3fLCXa_jpg.rf.5083f847b5586a13f70107fdec8f194b.jpg",
+      "gt": 75,
+      "detections": 300,
+      "tp": 66,
+      "fp": 3,
+      "fn": 9,
+      "inference_ms": 129.24745800000164
+    },
+    {
+      "file_name": "images/blackcreed__3Wgy23skc35cQYrEG_jpg.rf.6fcc28ca3b02bb0217695dbade38ba4a.jpg",
+      "gt": 70,
+      "detections": 300,
+      "tp": 58,
+      "fp": 9,
+      "fn": 12,
+      "inference_ms": 127.7463749999988
+    },
+    {
+      "file_name": "images/blackcreed__3ZyZzd98PsfKwxkHs_jpg.rf.0c56765a0a46d63b4f43559f9f800dad.jpg",
+      "gt": 62,
+      "detections": 300,
+      "tp": 58,
+      "fp": 1,
+      "fn": 4,
+      "inference_ms": 128.24454200000037
+    },
+    {
+      "file_name": "images/blackcreed__3bj5C5bWpYufTSPRj_jpg.rf.163caae0bf073703385a8c7be9d6a064.jpg",
+      "gt": 37,
+      "detections": 300,
+      "tp": 26,
+      "fp": 2,
+      "fn": 11,
+      "inference_ms": 127.5635829999992
+    },
+    {
+      "file_name": "images/climbtag__3es7M5MxxBWxxrxRt_jpg.rf.1944606ffc0be9c1197342dcca16e49f.jpg",
+      "gt": 59,
+      "detections": 300,
+      "tp": 56,
+      "fp": 3,
+      "fn": 3,
+      "inference_ms": 125.70487500000309
+    },
+    {
+      "file_name": "images/climbtag__3ikNpAPJg9DKHPyeq_jpg.rf.1f4317b629c6a41347661402a8465698.jpg",
+      "gt": 37,
+      "detections": 300,
+      "tp": 34,
+      "fp": 2,
+      "fn": 3,
+      "inference_ms": 129.26837499999965
+    },
+    {
+      "file_name": "images/climbtag__3mBe7vy48x4EznqTM_jpg.rf.43b6d715e387979987cf6673af3515d9.jpg",
+      "gt": 30,
+      "detections": 300,
+      "tp": 26,
+      "fp": 0,
+      "fn": 4,
+      "inference_ms": 130.35554200000115
+    },
+    {
+      "file_name": "images/blackcreed__3mwcGLBdoBbWW3XJ5_jpg.rf.20a8399725b3637671882f6fc8964d18.jpg",
+      "gt": 41,
+      "detections": 300,
+      "tp": 33,
+      "fp": 2,
+      "fn": 8,
+      "inference_ms": 133.73570800000016
+    },
+    {
+      "file_name": "images/blackcreed__3nvGmAZadBMQoEZwi_jpg.rf.18204ce93706063243480329ca8229e3.jpg",
+      "gt": 77,
+      "detections": 300,
+      "tp": 64,
+      "fp": 3,
+      "fn": 13,
+      "inference_ms": 125.89041700000234
+    },
+    {
+      "file_name": "images/climbtag__3rwhEiKSmngMdAD6S_jpg.rf.378bf3020278801c90ab3f28be25f3ed.jpg",
+      "gt": 42,
+      "detections": 300,
+      "tp": 39,
+      "fp": 2,
+      "fn": 3,
+      "inference_ms": 126.20891699999993
+    },
+    {
+      "file_name": "images/climbtag__3szahsP5YhCiZqeto_jpg.rf.08e0b76034421629df1066699b09a1b5.jpg",
+      "gt": 43,
+      "detections": 300,
+      "tp": 41,
+      "fp": 1,
+      "fn": 2,
+      "inference_ms": 126.38824999999997
+    },
+    {
+      "file_name": "images/blackcreed__3tSZQriZLrunGtBx6_jpg.rf.2404a0e32c9ac11d83aee598c4de5968.jpg",
+      "gt": 35,
+      "detections": 300,
+      "tp": 34,
+      "fp": 1,
+      "fn": 1,
+      "inference_ms": 128.6210420000025
+    },
+    {
+      "file_name": "images/climbtag__3x7YkgRHLQwsTCPJ7_jpg.rf.36d43005babb76f46344e16596f5a1e6.jpg",
+      "gt": 39,
+      "detections": 300,
+      "tp": 35,
+      "fp": 2,
+      "fn": 4,
+      "inference_ms": 126.93545799999993
+    },
+    {
+      "file_name": "images/blackcreed__3xEmTZ9H7hLmaA8bs_jpg.rf.e5c217746e48e13697c42bb1cc7c78e3.jpg",
+      "gt": 57,
+      "detections": 300,
+      "tp": 44,
+      "fp": 2,
+      "fn": 13,
+      "inference_ms": 124.169332999998
+    },
+    {
+      "file_name": "images/blackcreed__401_jpg.rf.115149028b1d68ff134e9091fe5190ad.jpg",
+      "gt": 25,
+      "detections": 300,
+      "tp": 25,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 133.56433300000208
+    },
+    {
+      "file_name": "images/climbtag__405_jpg.rf.399decda3d9acdf4e99273f458d3d7f4.jpg",
+      "gt": 21,
+      "detections": 300,
+      "tp": 21,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 128.48754199999894
+    },
+    {
+      "file_name": "images/climbtag__410_jpg.rf.40c3a61f63474cf4943a77c49f08d1a7.jpg",
+      "gt": 30,
+      "detections": 300,
+      "tp": 30,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 131.0674590000017
+    },
+    {
+      "file_name": "images/blackcreed__410_jpg.rf.4f663e37baa06212912060a607a58012.jpg",
+      "gt": 30,
+      "detections": 300,
+      "tp": 30,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 127.77916600000026
+    },
+    {
+      "file_name": "images/blackcreed__416_jpg.rf.627a157e1dbc6cc0d5fffacbd65b4bcf.jpg",
+      "gt": 115,
+      "detections": 300,
+      "tp": 115,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 126.96704200000022
+    },
+    {
+      "file_name": "images/blackcreed__417_jpg.rf.1d9874cef31ae147819d3e1f91c7a642.jpg",
+      "gt": 120,
+      "detections": 300,
+      "tp": 120,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 130.3357079999987
+    },
+    {
+      "file_name": "images/climbtag__41_jpg.rf.05759246de9feacee90d0b3fff2aa2db.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 131.7428749999999
+    },
+    {
+      "file_name": "images/climbtag__423_jpg.rf.291e1d9114955b5e18d362f3b99192f5.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 129.50374999999985
+    },
+    {
+      "file_name": "images/blackcreed__425_jpg.rf.73ba6712b1e2bcf94bb8cfc7e0f8047b.jpg",
+      "gt": 65,
+      "detections": 300,
+      "tp": 65,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 127.97825000000012
+    },
+    {
+      "file_name": "images/blackcreed__426_jpg.rf.351baeaa7d45b38c0c26c29398d5fcd7.jpg",
+      "gt": 50,
+      "detections": 300,
+      "tp": 50,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 128.04454199999964
+    },
+    {
+      "file_name": "images/blackcreed__427_jpg.rf.0c097d9680ba473ffef480e1a38bfc48.jpg",
+      "gt": 102,
+      "detections": 300,
+      "tp": 99,
+      "fp": 2,
+      "fn": 3,
+      "inference_ms": 128.17433399999936
+    },
+    {
+      "file_name": "images/blackcreed__431_jpg.rf.1ecfa8718607d5b157f7951cb7b73e47.jpg",
+      "gt": 24,
+      "detections": 300,
+      "tp": 24,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 129.0419580000016
+    },
+    {
+      "file_name": "images/blackcreed__433_jpg.rf.2fe64388012d58e8b6f36f9144dc18f4.jpg",
+      "gt": 65,
+      "detections": 300,
+      "tp": 65,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 129.74916600000142
+    },
+    {
+      "file_name": "images/climbtag__446_jpg.rf.1b4fb64ea9cf51f420c0e24b46db8ab9.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 138.684874999999
+    },
+    {
+      "file_name": "images/climbtag__44_jpg.rf.2b65a655f899f0be399c03ce3cc14165.jpg",
+      "gt": 2,
+      "detections": 300,
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 127.86229200000162
+    },
+    {
+      "file_name": "images/climbtag__452_jpg.rf.2f188bc990da3b064d53e34af20108c9.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 133.34245799999917
+    },
+    {
+      "file_name": "images/climbtag__455_jpg.rf.4cc7dab0168e3a598eee137ee6f697a5.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 130.70462500000212
+    },
+    {
+      "file_name": "images/climbtag__466_jpg.rf.0d84ea43b59dc1f0966fb08ae2309a0d.jpg",
+      "gt": 30,
+      "detections": 300,
+      "tp": 30,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 127.61012499999924
+    },
+    {
+      "file_name": "images/climbtag__475_jpg.rf.18e83952085b3ce561de1c0bbbe09108.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 135.23033300000316
+    },
+    {
+      "file_name": "images/blackcreed__475_jpg.rf.bdceca24d26ef33b8d41218ad0ca4728.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 126.91745900000024
+    },
+    {
+      "file_name": "images/blackcreed__477_jpg.rf.1a0523dd8e2bdcd3c1a4eb4c2e7efd0c.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 129.1909160000032
+    },
+    {
+      "file_name": "images/blackcreed__478_jpg.rf.2956295beeab1adafd39332b2be67a8f.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 126.52466699999786
+    },
+    {
+      "file_name": "images/climbtag__478_jpg.rf.5fd666a8815dd4d06b6c7b20229d9166.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 125.80537500000355
+    },
+    {
+      "file_name": "images/climbtag__479_jpg.rf.91862cf4bb99ad3930edd53d5b96fe37.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 132.11058299999422
+    },
+    {
+      "file_name": "images/blackcreed__483AMiF7vaMcDWAME_jpg.rf.16b0e61fce3bd8a94dcd280be5081fc2.jpg",
+      "gt": 54,
+      "detections": 300,
+      "tp": 49,
+      "fp": 6,
+      "fn": 5,
+      "inference_ms": 136.75162500000442
+    },
+    {
+      "file_name": "images/climbtag__485_jpg.rf.36592e8d8774001276120503063270cb.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 127.91229100000055
+    },
+    {
+      "file_name": "images/blackcreed__486_jpg.rf.0935e0957226dd990c410992a9704ec1.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 128.52641699999367
+    },
+    {
+      "file_name": "images/climbtag__495_jpg.rf.8cb85496758dc0684ea26f44bc4c1153.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 1,
+      "fn": 0,
+      "inference_ms": 129.11929099999543
+    },
+    {
+      "file_name": "images/blackcreed__497_jpg.rf.33217ad0ffacef2297a966b1105fec33.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 126.96820800000569
+    },
+    {
+      "file_name": "images/climbtag__499_jpg.rf.24bac9570318cb2ec2791d830de4b9d6.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 128.06254200000694
+    },
+    {
+      "file_name": "images/blackcreed__4CxHbNBoFdYmsXqNr_jpg.rf.44f314b0db7532fcfbfe65d8356545e8.jpg",
+      "gt": 37,
+      "detections": 300,
+      "tp": 35,
+      "fp": 3,
+      "fn": 2,
+      "inference_ms": 126.89474999999948
+    },
+    {
+      "file_name": "images/climbtag__4JWL3fseostiZu7AB_jpg.rf.a44af5ef1b57dc0c424dd49c6fa0cb70.jpg",
+      "gt": 55,
+      "detections": 300,
+      "tp": 42,
+      "fp": 2,
+      "fn": 13,
+      "inference_ms": 127.99987500000134
+    },
+    {
+      "file_name": "images/climbtag__4KHNwLvnLk52efoYG_jpg.rf.2184b0e90f0dfd107db566a1f2b1790e.jpg",
+      "gt": 40,
+      "detections": 300,
+      "tp": 38,
+      "fp": 1,
+      "fn": 2,
+      "inference_ms": 131.65024999999878
+    },
+    {
+      "file_name": "images/blackcreed__4KrwDMkLJ4cCQDQEa_jpg.rf.840626d54702f9b33989597769476708.jpg",
+      "gt": 53,
+      "detections": 300,
+      "tp": 43,
+      "fp": 8,
+      "fn": 10,
+      "inference_ms": 124.22833299999911
+    },
+    {
+      "file_name": "images/climbtag__4LdnAMptWBNb9XmQQ_jpg.rf.1cf8c5ef354b1e1ab187479d1ecad511.jpg",
+      "gt": 40,
+      "detections": 300,
+      "tp": 34,
+      "fp": 2,
+      "fn": 6,
+      "inference_ms": 128.4508330000026
+    },
+    {
+      "file_name": "images/climbtag__4Nd8xTKsxzRaEf7r7_jpg.rf.28c8db3b921fa01e1b29137454f80b55.jpg",
+      "gt": 24,
+      "detections": 300,
+      "tp": 23,
+      "fp": 0,
+      "fn": 1,
+      "inference_ms": 130.42129199999908
+    },
+    {
+      "file_name": "images/blackcreed__4R4cXbyd853oArvCA_jpg.rf.59a9a2e6411b696c7e30642ed8fb4426.jpg",
+      "gt": 43,
+      "detections": 300,
+      "tp": 37,
+      "fp": 5,
+      "fn": 6,
+      "inference_ms": 130.044332999998
+    },
+    {
+      "file_name": "images/blackcreed__4SrsiN8TtvBWzx9jF_jpg.rf.00b80d5de3e4e5637319c3493b8e5bbd.jpg",
+      "gt": 59,
+      "detections": 300,
+      "tp": 50,
+      "fp": 3,
+      "fn": 9,
+      "inference_ms": 125.11091699999815
+    },
+    {
+      "file_name": "images/climbtag__4SrsiN8TtvBWzx9jF_jpg.rf.63561ffe6bfaaa5f01fd386c9866f85f.jpg",
+      "gt": 59,
+      "detections": 300,
+      "tp": 49,
+      "fp": 4,
+      "fn": 10,
+      "inference_ms": 132.84491700000217
+    },
+    {
+      "file_name": "images/climbtag__4TvGwvkjY7uZZndP6_jpg.rf.201105530f22eab9bcb1953744d87a6d.jpg",
+      "gt": 58,
+      "detections": 300,
+      "tp": 54,
+      "fp": 0,
+      "fn": 4,
+      "inference_ms": 130.81858300000022
+    },
+    {
+      "file_name": "images/blackcreed__4X2eaKJvfJztFwhR4_jpg.rf.229eeed1d3944fbebd07bed21102bf63.jpg",
+      "gt": 48,
+      "detections": 300,
+      "tp": 40,
+      "fp": 7,
+      "fn": 8,
+      "inference_ms": 133.49837499999558
+    },
+    {
+      "file_name": "images/climbtag__4YGvJ7cr2pYcNMpoX_jpg.rf.7790ad0caa8c0aafa1fedce47995abf2.jpg",
+      "gt": 47,
+      "detections": 300,
+      "tp": 43,
+      "fp": 3,
+      "fn": 4,
+      "inference_ms": 132.11558399999922
+    },
+    {
+      "file_name": "images/blackcreed__4ZZKzTb3kbvw2YhxJ_jpg.rf.360bec3cd19183e46a88a40c5730da3a.jpg",
+      "gt": 54,
+      "detections": 300,
+      "tp": 41,
+      "fp": 5,
+      "fn": 13,
+      "inference_ms": 129.79591699999582
+    },
+    {
+      "file_name": "images/climbtag__4dQDJR7YquNPMn9Kr_jpg.rf.8fd0fcb8022aff3d46585efe155e6b4c.jpg",
+      "gt": 54,
+      "detections": 300,
+      "tp": 53,
+      "fp": 0,
+      "fn": 1,
+      "inference_ms": 130.64624999999796
+    },
+    {
+      "file_name": "images/blackcreed__4i6E2jZc69arKL9pG_jpg.rf.44187b4c86fcfa2bc75b1f10ebe00ea4.jpg",
+      "gt": 70,
+      "detections": 300,
+      "tp": 48,
+      "fp": 9,
+      "fn": 22,
+      "inference_ms": 128.78216699999757
+    },
+    {
+      "file_name": "images/blackcreed__4oQRf9sznNBPyuS23_jpg.rf.9a385077e673206ceb8c497626851f2b.jpg",
+      "gt": 40,
+      "detections": 300,
+      "tp": 36,
+      "fp": 1,
+      "fn": 4,
+      "inference_ms": 133.73995800000557
+    },
+    {
+      "file_name": "images/blackcreed__4oeW6gKnhJGNoqHzp_jpg.rf.0dfb78e4ca3d1d5d28e15c154b71a3e2.jpg",
+      "gt": 38,
+      "detections": 300,
+      "tp": 36,
+      "fp": 2,
+      "fn": 2,
+      "inference_ms": 129.42670799999905
+    },
+    {
+      "file_name": "images/climbtag__4p3E5GKEQKagT5QuL_jpg.rf.527cd97b3e9c3ea726b75b66008b5fd4.jpg",
+      "gt": 44,
+      "detections": 300,
+      "tp": 41,
+      "fp": 0,
+      "fn": 3,
+      "inference_ms": 129.61262500000157
+    },
+    {
+      "file_name": "images/climbtag__4pLASGPxcbunY4e95_jpg.rf.5484136dadcd50095f0d22d02f4ed32e.jpg",
+      "gt": 38,
+      "detections": 300,
+      "tp": 37,
+      "fp": 0,
+      "fn": 1,
+      "inference_ms": 127.65699999999924
+    },
+    {
+      "file_name": "images/climbtag__4qR9cQ7pmyqWcTeoA_jpg.rf.bc98d5e86458824ad1bfdbbf315583e8.jpg",
+      "gt": 41,
+      "detections": 300,
+      "tp": 41,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 128.14629199999763
+    },
+    {
+      "file_name": "images/climbtag__4s7zDEY4DbqZTNDhP_jpg.rf.1154ff4ba285df8a5a9f9ea749fcb04e.jpg",
+      "gt": 51,
+      "detections": 300,
+      "tp": 50,
+      "fp": 1,
+      "fn": 1,
+      "inference_ms": 129.986834000003
+    },
+    {
+      "file_name": "images/blackcreed__4thuk7bcdxbcjwjPd_jpg.rf.b55daf3cb8f26c4fa830840425121f0b.jpg",
+      "gt": 39,
+      "detections": 300,
+      "tp": 32,
+      "fp": 5,
+      "fn": 7,
+      "inference_ms": 130.54787500000384
+    },
+    {
+      "file_name": "images/climbtag__4tqm5dmHMXddBGzg2_jpg.rf.03e3c7292b9fbcb923236e7335cc1de7.jpg",
+      "gt": 37,
+      "detections": 300,
+      "tp": 36,
+      "fp": 3,
+      "fn": 1,
+      "inference_ms": 129.33733300000313
+    },
+    {
+      "file_name": "images/climbtag__4uXPtdS97NjKEL6e8_jpg.rf.12a1b0f288a84365fef735319334950f.jpg",
+      "gt": 60,
+      "detections": 300,
+      "tp": 55,
+      "fp": 0,
+      "fn": 5,
+      "inference_ms": 129.8023749999993
+    },
+    {
+      "file_name": "images/blackcreed__4uXPtdS97NjKEL6e8_jpg.rf.534384b022542e213a9700cff2d5a259.jpg",
+      "gt": 62,
+      "detections": 300,
+      "tp": 57,
+      "fp": 1,
+      "fn": 5,
+      "inference_ms": 133.65308299999742
+    },
+    {
+      "file_name": "images/climbtag__4v6usJKz8FYyokjBv_jpg.rf.52e3ab42ff274b47d5bea84b3155cce2.jpg",
+      "gt": 40,
+      "detections": 300,
+      "tp": 31,
+      "fp": 4,
+      "fn": 9,
+      "inference_ms": 129.9462080000012
+    },
+    {
+      "file_name": "images/climbtag__4vhmKzLzJJxyTmaC4_jpg.rf.83a833406b4c0a10d58e0dea19a1fa29.jpg",
+      "gt": 41,
+      "detections": 300,
+      "tp": 39,
+      "fp": 2,
+      "fn": 2,
+      "inference_ms": 129.68454100000235
+    },
+    {
+      "file_name": "images/climbtag__4y36mbAtkidHEmrbe_jpg.rf.41fa7e3a8b84b7bf549fef795e47c3f1.jpg",
+      "gt": 36,
+      "detections": 300,
+      "tp": 35,
+      "fp": 0,
+      "fn": 1,
+      "inference_ms": 135.61145899999974
+    },
+    {
+      "file_name": "images/climbtag__4z3yDMChSAzNBgFKe_jpg.rf.30ab9a9a33a98a81d848dded7908fac2.jpg",
+      "gt": 33,
+      "detections": 300,
+      "tp": 29,
+      "fp": 1,
+      "fn": 4,
+      "inference_ms": 130.8551660000012
+    },
+    {
+      "file_name": "images/blackcreed__501_jpg.rf.0528783f9c38e706b22f1791e81da80d.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 129.75804100000096
+    },
+    {
+      "file_name": "images/blackcreed__508_jpg.rf.811d0709ad3d7f07e3e8bcb611d3b021.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 129.35429200000362
+    },
+    {
+      "file_name": "images/blackcreed__509_jpg.rf.a87bd024627657d81318c1a4c645643f.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 129.27341700000397
+    },
+    {
+      "file_name": "images/climbtag__511_jpg.rf.52a6289b15f7ba8c6021455244345f45.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 132.83570899999904
+    },
+    {
+      "file_name": "images/climbtag__513_jpg.rf.07ecfdef4f4804344a33bfa68f28bdad.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 133.98866600000474
+    },
+    {
+      "file_name": "images/blackcreed__516_jpg.rf.00b38a59a72cf1e2e3a6d590259e246e.jpg",
+      "gt": 10,
+      "detections": 300,
+      "tp": 10,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 127.1193329999951
+    },
+    {
+      "file_name": "images/climbtag__519_jpg.rf.0555b36aa15d4ae6db18bcbdc760e88e.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 137.5584170000002
+    },
+    {
+      "file_name": "images/climbtag__523_jpg.rf.01c657456797b6d0cf60351ab0e6b8e5.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 150.98187499999767
+    },
+    {
+      "file_name": "images/climbtag__529_jpg.rf.2c4d63505a30e9339479ca406bd018ad.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 142.93349999999919
+    },
+    {
+      "file_name": "images/blackcreed__532ivNTvatnKJf5ZR_jpg.rf.7cea8fc103244824755e6275e0129621.jpg",
+      "gt": 51,
+      "detections": 300,
+      "tp": 48,
+      "fp": 4,
+      "fn": 3,
+      "inference_ms": 129.57237500000338
+    },
+    {
+      "file_name": "images/blackcreed__535_jpg.rf.23e76fcc15b7d36e27c3d7347284aa29.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 128.28745800000615
+    },
+    {
+      "file_name": "images/blackcreed__539_jpg.rf.05c403a73c9b6d73a719ba380c5fc966.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 135.41320899999846
+    },
+    {
+      "file_name": "images/climbtag__539_jpg.rf.8940ac64cb93f35f379e3abe58986c77.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 164.09775000000081
+    },
+    {
+      "file_name": "images/climbtag__540_jpeg.rf.09d504c0357160eadaf7c340574d60ad.jpg",
+      "gt": 3,
+      "detections": 300,
+      "tp": 3,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 150.07162500000413
+    },
+    {
+      "file_name": "images/blackcreed__541_jpeg.rf.308a2681940328c55294136dbd1be230.jpg",
+      "gt": 4,
+      "detections": 300,
+      "tp": 4,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 137.17050000000017
+    },
+    {
+      "file_name": "images/climbtag__543_jpeg.rf.4c9917f5944d4af11cf8be3fa128a86e.jpg",
+      "gt": 3,
+      "detections": 300,
+      "tp": 3,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 141.31091700000252
+    },
+    {
+      "file_name": "images/climbtag__555_jpeg.rf.65ca8dff01d194f1c9ff1f392e9b806d.jpg",
+      "gt": 21,
+      "detections": 300,
+      "tp": 19,
+      "fp": 2,
+      "fn": 2,
+      "inference_ms": 135.84645799999998
+    },
+    {
+      "file_name": "images/blackcreed__556_jpeg.rf.8aed3b2df178a83345f16acc5e193def.jpg",
+      "gt": 14,
+      "detections": 300,
+      "tp": 9,
+      "fp": 2,
+      "fn": 5,
+      "inference_ms": 131.8515830000033
+    },
+    {
+      "file_name": "images/climbtag__556_jpeg.rf.c568210884ac6c40a0802de88d070551.jpg",
+      "gt": 21,
+      "detections": 300,
+      "tp": 20,
+      "fp": 0,
+      "fn": 1,
+      "inference_ms": 129.72387499999604
+    },
+    {
+      "file_name": "images/blackcreed__557_jpeg.rf.be2d4f29abba7bd9bdbd264c2a9c2e3a.jpg",
+      "gt": 15,
+      "detections": 300,
+      "tp": 10,
+      "fp": 1,
+      "fn": 5,
+      "inference_ms": 130.62625000000116
+    },
+    {
+      "file_name": "images/climbtag__558_jpeg.rf.04d7f778aeff985089146b34e1c65225.jpg",
+      "gt": 21,
+      "detections": 300,
+      "tp": 21,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 129.0769999999975
+    },
+    {
+      "file_name": "images/climbtag__561_jpeg.rf.45703e9c0b8163df2833281e5726618a.jpg",
+      "gt": 2,
+      "detections": 300,
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 130.4944170000017
+    },
+    {
+      "file_name": "images/blackcreed__565_jpg.rf.6eb16eaa02bac3f47c426b2ca8d92b8e.jpg",
+      "gt": 6,
+      "detections": 300,
+      "tp": 5,
+      "fp": 1,
+      "fn": 1,
+      "inference_ms": 129.68479099999968
+    },
+    {
+      "file_name": "images/climbtag__567_jpg.rf.241910cd086a2e3077953e14c8e4dddd.jpg",
+      "gt": 94,
+      "detections": 300,
+      "tp": 85,
+      "fp": 6,
+      "fn": 9,
+      "inference_ms": 131.325791999996
+    },
+    {
+      "file_name": "images/climbtag__570_jpg.rf.337ec423ad7bc3d5ac85264bf30da81d.jpg",
+      "gt": 85,
+      "detections": 300,
+      "tp": 79,
+      "fp": 0,
+      "fn": 6,
+      "inference_ms": 127.01329100000294
+    },
+    {
+      "file_name": "images/blackcreed__57KzJpiT2gmFQrXYD_jpg.rf.66cc7cde5d038a262a9ee337c8c3dcd0.jpg",
+      "gt": 43,
+      "detections": 300,
+      "tp": 40,
+      "fp": 6,
+      "fn": 3,
+      "inference_ms": 131.20020800000202
+    },
+    {
+      "file_name": "images/blackcreed__585_jpg.rf.a2a19f2909738e4a78245cc3cd42eb6f.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 133.97470899999462
+    },
+    {
+      "file_name": "images/blackcreed__588_jpg.rf.337143244c6b9cf20e473c47cc807d85.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 130.1594580000019
+    },
+    {
+      "file_name": "images/climbtag__58_jpg.rf.2ab9a9be75ad45ae70fb3ec6f28fe71d.jpg",
+      "gt": 10,
+      "detections": 300,
+      "tp": 10,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 133.8533329999991
+    },
+    {
+      "file_name": "images/blackcreed__5A3GexLxosYDY4xwe_jpg.rf.d26b0026372fde884b4790248814e78c.jpg",
+      "gt": 78,
+      "detections": 300,
+      "tp": 68,
+      "fp": 2,
+      "fn": 10,
+      "inference_ms": 136.88175000000047
+    },
+    {
+      "file_name": "images/climbtag__5DNSuJ8gARsEzsfYn_jpg.rf.0bd869b79e77a9a4c16dba7fa97570cb.jpg",
+      "gt": 42,
+      "detections": 300,
+      "tp": 38,
+      "fp": 0,
+      "fn": 4,
+      "inference_ms": 130.0375419999982
+    },
+    {
+      "file_name": "images/climbtag__5Depp4PbN53MJNNdd_jpg.rf.41ac57f6e15f0f39acf725ed305eb7ef.jpg",
+      "gt": 54,
+      "detections": 300,
+      "tp": 46,
+      "fp": 1,
+      "fn": 8,
+      "inference_ms": 131.41791700000613
+    },
+    {
+      "file_name": "images/blackcreed__5EzhQKXDehuKwohv4_jpg.rf.4da69d8121a663d73b645308ef08ca17.jpg",
+      "gt": 68,
+      "detections": 300,
+      "tp": 54,
+      "fp": 5,
+      "fn": 14,
+      "inference_ms": 133.23920799999905
+    },
+    {
+      "file_name": "images/climbtag__5Kxa4anG6TpmC5XEr_jpg.rf.029b7f802f0949979ffaf94292dfd052.jpg",
+      "gt": 44,
+      "detections": 300,
+      "tp": 41,
+      "fp": 0,
+      "fn": 3,
+      "inference_ms": 132.47995799999626
+    },
+    {
+      "file_name": "images/climbtag__5NfimEQNEHeAaA9fr_jpg.rf.11a52db04ba7f6bcbc90d2b61fd305b4.jpg",
+      "gt": 56,
+      "detections": 300,
+      "tp": 54,
+      "fp": 2,
+      "fn": 2,
+      "inference_ms": 132.67404199999874
+    },
+    {
+      "file_name": "images/blackcreed__5NwCNu8QPRmhTgJwe_jpg.rf.f5f4b9a990fb4c9ef95bba46631596b6.jpg",
+      "gt": 22,
+      "detections": 300,
+      "tp": 22,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 129.54158300000563
+    },
+    {
+      "file_name": "images/blackcreed__5QYK6wnmC4zPwru2Q_jpg.rf.8dedb134589828b299724103db923a16.jpg",
+      "gt": 21,
+      "detections": 300,
+      "tp": 15,
+      "fp": 1,
+      "fn": 6,
+      "inference_ms": 132.44174999999814
+    },
+    {
+      "file_name": "images/climbtag__5QiuHG6Yd7DrQS5Yu_jpg.rf.1e584ce866bb6775c48e8ae87252b54b.jpg",
+      "gt": 79,
+      "detections": 300,
+      "tp": 67,
+      "fp": 1,
+      "fn": 12,
+      "inference_ms": 129.9591670000009
+    },
+    {
+      "file_name": "images/blackcreed__5RCSd3ZYhtk3G5p7w_jpg.rf.1c272973b0dace9accd086c71512dab9.jpg",
+      "gt": 49,
+      "detections": 300,
+      "tp": 39,
+      "fp": 4,
+      "fn": 10,
+      "inference_ms": 128.36399999999412
+    },
+    {
+      "file_name": "images/blackcreed__5S8PjATyCZucsXhE4_jpg.rf.4d9d9be87e23dab316e5c25eeb09870f.jpg",
+      "gt": 33,
+      "detections": 300,
+      "tp": 31,
+      "fp": 1,
+      "fn": 2,
+      "inference_ms": 127.22154199999932
+    },
+    {
+      "file_name": "images/climbtag__5Whxq8uoDCx44qaHH_jpg.rf.3db930aa4d322635c51dbc37bdb712f2.jpg",
+      "gt": 51,
+      "detections": 300,
+      "tp": 48,
+      "fp": 2,
+      "fn": 3,
+      "inference_ms": 138.10370800000237
+    },
+    {
+      "file_name": "images/blackcreed__5ZCfcDtQyfDjpYw6Q_jpg.rf.a1d0ce32b651f875c62584ff6a279771.jpg",
+      "gt": 74,
+      "detections": 300,
+      "tp": 65,
+      "fp": 3,
+      "fn": 9,
+      "inference_ms": 131.64274999999907
+    },
+    {
+      "file_name": "images/climbtag__5_jpg.rf.212e733f321c665f934df529c956ee53.jpg",
+      "gt": 162,
+      "detections": 300,
+      "tp": 147,
+      "fp": 15,
+      "fn": 15,
+      "inference_ms": 132.049208000004
+    },
+    {
+      "file_name": "images/climbtag__5bK3SqkZovBteeuH5_jpg.rf.19c96e52f9d555311ee96b8e5f7aa04a.jpg",
+      "gt": 69,
+      "detections": 300,
+      "tp": 60,
+      "fp": 3,
+      "fn": 9,
+      "inference_ms": 128.12070900000253
+    },
+    {
+      "file_name": "images/blackcreed__5fY7tki4brrRXsQt9_jpg.rf.17697657e76542a2652360e390326319.jpg",
+      "gt": 43,
+      "detections": 300,
+      "tp": 29,
+      "fp": 5,
+      "fn": 14,
+      "inference_ms": 137.51120900000387
+    },
+    {
+      "file_name": "images/climbtag__5gxQpn7F3xR595maj_jpg.rf.06f68b611badd3d5be96cce0d0507f0c.jpg",
+      "gt": 55,
+      "detections": 300,
+      "tp": 49,
+      "fp": 3,
+      "fn": 6,
+      "inference_ms": 132.2881669999988
+    },
+    {
+      "file_name": "images/climbtag__5hLxXZdXzvRgRCg74_jpg.rf.3ed60234b019057c3293aa930c4d463a.jpg",
+      "gt": 45,
+      "detections": 300,
+      "tp": 45,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 133.02799999999843
+    },
+    {
+      "file_name": "images/climbtag__5obLe2SwkmWxKtMsR_jpg.rf.2c2b8189e3f4d057e8ff645511bc8b1b.jpg",
+      "gt": 51,
+      "detections": 300,
+      "tp": 50,
+      "fp": 0,
+      "fn": 1,
+      "inference_ms": 129.29149999999936
+    },
+    {
+      "file_name": "images/climbtag__5p8G7HJwmgqEMJ6a7_jpg.rf.27f317fdd79d1689372ace209b9439bb.jpg",
+      "gt": 40,
+      "detections": 300,
+      "tp": 40,
+      "fp": 1,
+      "fn": 0,
+      "inference_ms": 131.35437500000262
+    },
+    {
+      "file_name": "images/blackcreed__5qsBS9MkpFZi3jCXD_jpg.rf.2e581533b9da30627fb300ecb0c1e077.jpg",
+      "gt": 49,
+      "detections": 300,
+      "tp": 40,
+      "fp": 1,
+      "fn": 9,
+      "inference_ms": 128.38462499999878
+    },
+    {
+      "file_name": "images/blackcreed__5v6n2GcNmdmisYdu9_jpg.rf.171a97197739e7526156e59398bdb63f.jpg",
+      "gt": 40,
+      "detections": 300,
+      "tp": 39,
+      "fp": 0,
+      "fn": 1,
+      "inference_ms": 133.74416600000404
+    },
+    {
+      "file_name": "images/blackcreed__5xAWpY3Si37Ri5zEa_jpg.rf.5a7eeebd2df880144e5cdfb6b1a2ae59.jpg",
+      "gt": 58,
+      "detections": 300,
+      "tp": 57,
+      "fp": 3,
+      "fn": 1,
+      "inference_ms": 131.0674169999984
+    },
+    {
+      "file_name": "images/climbtag__5xyukk3KuyZ6W7hxv_jpg.rf.5d5c08fc4a8c62b1fc780bfa54c85ff2.jpg",
+      "gt": 40,
+      "detections": 300,
+      "tp": 36,
+      "fp": 5,
+      "fn": 4,
+      "inference_ms": 132.05462499999703
+    },
+    {
+      "file_name": "images/blackcreed__606_jpg.rf.1e93fe4af592bf7284dee8db7f5da84d.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 134.66562500000146
+    },
+    {
+      "file_name": "images/blackcreed__610_jpg.rf.e181b8d0d1414f1c289463fcbfd776c0.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 130.20595799999865
+    },
+    {
+      "file_name": "images/climbtag__615_jpg.rf.393844802dd35fefcbfb7c892919604e.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 127.52429200000188
+    },
+    {
+      "file_name": "images/blackcreed__615_jpg.rf.8baa2ea6bcc1807f499b520d7a2a86aa.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 128.0712910000002
+    },
+    {
+      "file_name": "images/blackcreed__616_jpg.rf.2fb7624a931d2753ba4a10cab51310a1.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 135.40837499999907
+    },
+    {
+      "file_name": "images/climbtag__617_jpg.rf.0ac451ec7953e7ef25bc7d9c18b0d658.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 129.48329199999716
+    },
+    {
+      "file_name": "images/climbtag__619_jpg.rf.29c8eb8d276f1f4f11bb7ebb0f4e91f6.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 131.54745900000125
+    },
+    {
+      "file_name": "images/blackcreed__621_jpg.rf.58d98088d7d90a32437c15d336f62c3e.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 136.67579100000148
+    },
+    {
+      "file_name": "images/climbtag__621_jpg.rf.bfcbac0904ddf3f1be5f6e73a0eb39a6.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 130.08566699999938
+    },
+    {
+      "file_name": "images/climbtag__62XMC4uoR3o6QFdRh_jpg.rf.92c9d81d5abcabc0291b8db15306f654.jpg",
+      "gt": 55,
+      "detections": 300,
+      "tp": 51,
+      "fp": 1,
+      "fn": 4,
+      "inference_ms": 135.2033750000046
+    },
+    {
+      "file_name": "images/climbtag__630_jpg.rf.1d51d2dfa5405d45dd030e40938bc25f.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 133.30475000000297
+    },
+    {
+      "file_name": "images/climbtag__632_jpg.rf.72fb00bb30c5871b0b124b77b05805bb.jpg",
+      "gt": 2,
+      "detections": 300,
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 130.7290839999987
+    },
+    {
+      "file_name": "images/climbtag__640_jpg.rf.7590d2a1c2e98695127fe44d427b20ea.jpg",
+      "gt": 3,
+      "detections": 300,
+      "tp": 3,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 128.64454199999454
+    },
+    {
+      "file_name": "images/climbtag__647_jpg.rf.00ee5a062f3c4a3b552bbe3bd8a47cb1.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 130.78616700000566
+    },
+    {
+      "file_name": "images/climbtag__650_jpg.rf.ceaf541520f391e29a0fb2a6d178b443.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 126.72187499999563
+    },
+    {
+      "file_name": "images/climbtag__655_jpg.rf.0013e2ad5d25c3614485c838cc3501b9.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 137.03583400000207
+    },
+    {
+      "file_name": "images/blackcreed__65ohKf7tKnjKnpx3h_jpg.rf.c9d101de33de7e0b19910f42f980077d.jpg",
+      "gt": 41,
+      "detections": 300,
+      "tp": 39,
+      "fp": 1,
+      "fn": 2,
+      "inference_ms": 135.11616700000013
+    },
+    {
+      "file_name": "images/blackcreed__662_jpg.rf.1592dcf984a51b53e1aee544388e1833.jpg",
+      "gt": 2,
+      "detections": 300,
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 134.88324999999895
+    },
+    {
+      "file_name": "images/blackcreed__664_jpg.rf.064c2833bb6e139632058fe64d84f375.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 132.91625000000204
+    },
+    {
+      "file_name": "images/climbtag__665_jpg.rf.4813ae791a1b723668a35ed8a05a5f7d.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 129.42633399999613
+    },
+    {
+      "file_name": "images/blackcreed__679_jpg.rf.1d187da6b6c709da954aa89e58b7a317.jpg",
+      "gt": 2,
+      "detections": 300,
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 131.6655829999945
+    },
+    {
+      "file_name": "images/blackcreed__67RuebNxCRgqBBEAu_jpg.rf.e2f5dae0be1c69e2596d2ba7b8aa0ea1.jpg",
+      "gt": 62,
+      "detections": 300,
+      "tp": 41,
+      "fp": 6,
+      "fn": 21,
+      "inference_ms": 135.62241600000561
+    },
+    {
+      "file_name": "images/blackcreed__67SRhazs8eB8YoKPw_jpg.rf.09bf52ed2f93ccc5499ecc2e32b0ef24.jpg",
+      "gt": 48,
+      "detections": 300,
+      "tp": 46,
+      "fp": 1,
+      "fn": 2,
+      "inference_ms": 133.28420899999765
+    },
+    {
+      "file_name": "images/climbtag__685_jpg.rf.0da89282d86356b8c7ab7dfc1301454b.jpg",
+      "gt": 3,
+      "detections": 300,
+      "tp": 3,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 139.31441699999414
+    },
+    {
+      "file_name": "images/climbtag__696_jpg.rf.44d7373ebf905ea342299e14dae2806e.jpg",
+      "gt": 2,
+      "detections": 300,
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 145.34958400000323
+    },
+    {
+      "file_name": "images/climbtag__6DwFQcJEviWbkNW2h_jpg.rf.203025e0e2c362b48fdf4c15529742cf.jpg",
+      "gt": 76,
+      "detections": 300,
+      "tp": 70,
+      "fp": 8,
+      "fn": 6,
+      "inference_ms": 130.6772920000003
+    },
+    {
+      "file_name": "images/blackcreed__6EgpmqjXq8ePyqd2N_jpg.rf.260d1ee5b3b1250563bbfdc003ad7e64.jpg",
+      "gt": 52,
+      "detections": 300,
+      "tp": 42,
+      "fp": 3,
+      "fn": 10,
+      "inference_ms": 134.6508329999997
+    },
+    {
+      "file_name": "images/climbtag__6Zxc2Mz6twXEQAYdw_jpg.rf.1e1c7f020f71460d054339b2f3ac6e58.jpg",
+      "gt": 62,
+      "detections": 300,
+      "tp": 61,
+      "fp": 2,
+      "fn": 1,
+      "inference_ms": 130.78925000000163
+    },
+    {
+      "file_name": "images/blackcreed__6Zxc2Mz6twXEQAYdw_jpg.rf.dd23fae99a72735f216a81c2680b1a80.jpg",
+      "gt": 68,
+      "detections": 300,
+      "tp": 62,
+      "fp": 4,
+      "fn": 6,
+      "inference_ms": 137.3172080000004
+    },
+    {
+      "file_name": "images/blackcreed__6e7QhTCkhqMexyX6b_jpg.rf.48de9fe40bc0bf96a821d438b669c5c4.jpg",
+      "gt": 35,
+      "detections": 300,
+      "tp": 32,
+      "fp": 1,
+      "fn": 3,
+      "inference_ms": 138.41362499999377
+    },
+    {
+      "file_name": "images/climbtag__6oofqkqKEGDrC8fhD_jpg.rf.71ecd65501764dffdbc30cfac21c2e53.jpg",
+      "gt": 71,
+      "detections": 300,
+      "tp": 66,
+      "fp": 3,
+      "fn": 5,
+      "inference_ms": 138.04662500000268
+    },
+    {
+      "file_name": "images/blackcreed__6oofqkqKEGDrC8fhD_jpg.rf.863a0bb76da94ad657178c00c9855822.jpg",
+      "gt": 72,
+      "detections": 300,
+      "tp": 66,
+      "fp": 2,
+      "fn": 6,
+      "inference_ms": 139.23037499999919
+    },
+    {
+      "file_name": "images/blackcreed__6s6GsertTxcdFZLEg_jpg.rf.b589d1800c7261bc526eaf50c896d01a.jpg",
+      "gt": 29,
+      "detections": 300,
+      "tp": 27,
+      "fp": 5,
+      "fn": 2,
+      "inference_ms": 134.96233300000313
+    },
+    {
+      "file_name": "images/blackcreed__70404390_2107987392638568_8076399267383809036_n_jpg.rf.7ecaa9b2a99085644c71c7de73471b25.jpg",
+      "gt": 14,
+      "detections": 300,
+      "tp": 12,
+      "fp": 0,
+      "fn": 2,
+      "inference_ms": 134.9900420000049
+    },
+    {
+      "file_name": "images/climbtag__705_jpg.rf.21c8915378a30ff3da572b1e4b42705e.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 132.48799999999756
+    },
+    {
+      "file_name": "images/climbtag__707_jpg.rf.1b1032916f8a03790b7101d39ba965ad.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 135.3293330000015
+    },
+    {
+      "file_name": "images/blackcreed__70_jpg.rf.1c7f3bb5aa3186fa1fcf8c0c9edf7020.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 126.7880839999998
+    },
+    {
+      "file_name": "images/climbtag__711_jpg.rf.67aef50b0ff4fbc87b818f1f3e7be9e9.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 132.5072500000024
+    },
+    {
+      "file_name": "images/climbtag__715_jpg.rf.1803343bfb2ebf76f3d53521f2f0feb2.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 133.98620800000208
+    },
+    {
+      "file_name": "images/climbtag__723_jpg.rf.77d139d0f90cf25a61eb54e85023047a.jpg",
+      "gt": 2,
+      "detections": 300,
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 132.54933299999539
+    },
+    {
+      "file_name": "images/climbtag__727_jpg.rf.0a81829308fc36facfe2920861189762.jpg",
+      "gt": 2,
+      "detections": 300,
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 135.24674999999843
+    },
+    {
+      "file_name": "images/climbtag__729_jpg.rf.72dd5b847966f3ed27e9a74639094f1a.jpg",
+      "gt": 2,
+      "detections": 300,
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 135.08958300000086
+    },
+    {
+      "file_name": "images/climbtag__72C74BQ8H3d3aKb2Z_jpg.rf.6120afc7cc3f90298d32bdcedc582d20.jpg",
+      "gt": 58,
+      "detections": 300,
+      "tp": 52,
+      "fp": 5,
+      "fn": 6,
+      "inference_ms": 138.00849999999627
+    },
+    {
+      "file_name": "images/blackcreed__742_jpg.rf.021834f55c9e5195e9bd6dae8f327f7a.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 136.06237500000134
+    },
+    {
+      "file_name": "images/climbtag__745_jpg.rf.b942048379feca00df7d7701c0988357.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 131.69150000000081
+    },
+    {
+      "file_name": "images/climbtag__748_jpg.rf.570159e1f6593df7c8c7174187c0964d.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 130.49254199999996
+    },
+    {
+      "file_name": "images/climbtag__765_jpg.rf.29ca4652ad4500c0ed527f2c28b98368.jpg",
+      "gt": 14,
+      "detections": 300,
+      "tp": 14,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 132.8523750000022
+    },
+    {
+      "file_name": "images/blackcreed__76_jpg.rf.77e136421e78d834ea09660096befecd.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 132.38220799999544
+    },
+    {
+      "file_name": "images/blackcreed__77GNxkgjRZ4hQt65P_jpg.rf.6b8012c557625f76b5e4f61fbcee31fc.jpg",
+      "gt": 59,
+      "detections": 300,
+      "tp": 49,
+      "fp": 1,
+      "fn": 10,
+      "inference_ms": 127.24933299999975
+    },
+    {
+      "file_name": "images/climbtag__780_jpg.rf.1a89d521a994017c83496455d420cf56.jpg",
+      "gt": 10,
+      "detections": 300,
+      "tp": 10,
+      "fp": 1,
+      "fn": 0,
+      "inference_ms": 134.91529200000514
+    },
+    {
+      "file_name": "images/blackcreed__783_jpg.rf.029376b7442daefe25e20926e35f35a9.jpg",
+      "gt": 9,
+      "detections": 300,
+      "tp": 6,
+      "fp": 1,
+      "fn": 3,
+      "inference_ms": 130.15383299999667
+    },
+    {
+      "file_name": "images/climbtag__783_jpg.rf.2754b787c78905eb675c27d543a085ac.jpg",
+      "gt": 6,
+      "detections": 300,
+      "tp": 5,
+      "fp": 3,
+      "fn": 1,
+      "inference_ms": 131.46074999999837
+    },
+    {
+      "file_name": "images/blackcreed__784_jpg.rf.125a6f2f9a60d9b89c26eacd88404017.jpg",
+      "gt": 3,
+      "detections": 300,
+      "tp": 3,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 128.25099999999657
+    },
+    {
+      "file_name": "images/blackcreed__785_jpg.rf.50a9d618cf467b8f353440aec88aba43.jpg",
+      "gt": 28,
+      "detections": 300,
+      "tp": 17,
+      "fp": 4,
+      "fn": 11,
+      "inference_ms": 133.17233300000225
+    },
+    {
+      "file_name": "images/blackcreed__788_jpg.rf.77386159d717613b9a3171757a444b83.jpg",
+      "gt": 25,
+      "detections": 300,
+      "tp": 22,
+      "fp": 0,
+      "fn": 3,
+      "inference_ms": 132.77358399999503
+    },
+    {
+      "file_name": "images/climbtag__789_jpg.rf.41dd45b23b888f60a5c78e3a24f4da21.jpg",
+      "gt": 2,
+      "detections": 300,
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 125.37154200000077
+    },
+    {
+      "file_name": "images/climbtag__78Pfbpgthusab5bEq_jpg.rf.8683047413c49fe020053d9505fda33b.jpg",
+      "gt": 30,
+      "detections": 300,
+      "tp": 30,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 134.10641699999542
+    },
+    {
+      "file_name": "images/blackcreed__7AwyJBZdcgCSH6rDK_jpg.rf.0034260b25e01eecd603c39c2190bd6b.jpg",
+      "gt": 46,
+      "detections": 300,
+      "tp": 43,
+      "fp": 2,
+      "fn": 3,
+      "inference_ms": 129.58045799999672
+    },
+    {
+      "file_name": "images/climbtag__7BBkG5ro7sAWGL8FQ_jpg.rf.3a9ab7c73f4db38f35cf4c891fae1aba.jpg",
+      "gt": 38,
+      "detections": 300,
+      "tp": 37,
+      "fp": 0,
+      "fn": 1,
+      "inference_ms": 133.46833300000435
+    },
+    {
+      "file_name": "images/climbtag__7BDLuC4gd6K6ZZ93d_jpg.rf.4bcd22e3e7b64837a53c483b1529d967.jpg",
+      "gt": 59,
+      "detections": 300,
+      "tp": 58,
+      "fp": 1,
+      "fn": 1,
+      "inference_ms": 130.70375000000058
+    },
+    {
+      "file_name": "images/blackcreed__7CXRoF93ceXrwK82F_jpg.rf.f1f026d004b10005daa3ab32ff3982d6.jpg",
+      "gt": 65,
+      "detections": 300,
+      "tp": 47,
+      "fp": 7,
+      "fn": 18,
+      "inference_ms": 146.65320899999642
+    },
+    {
+      "file_name": "images/blackcreed__7EtyHwzFs8XrYiqzN_jpg.rf.6e4323dfce728954818d7c1c09316501.jpg",
+      "gt": 55,
+      "detections": 300,
+      "tp": 45,
+      "fp": 5,
+      "fn": 10,
+      "inference_ms": 131.48954200000298
+    },
+    {
+      "file_name": "images/blackcreed__7GGdYL8Td8CHXmTWk_jpg.rf.6aec2135a3951b7b58c607c064b76af9.jpg",
+      "gt": 54,
+      "detections": 300,
+      "tp": 40,
+      "fp": 9,
+      "fn": 14,
+      "inference_ms": 129.68562499999825
+    },
+    {
+      "file_name": "images/blackcreed__7GbMSR9itJytEEuta_jpg.rf.40887e82f7539e51bed73193347fa2a5.jpg",
+      "gt": 53,
+      "detections": 300,
+      "tp": 48,
+      "fp": 0,
+      "fn": 5,
+      "inference_ms": 128.08174999999756
+    },
+    {
+      "file_name": "images/climbtag__7GpfJgHDt6EKZuMSz_jpg.rf.3387ab6e39db11ea613461cced1232ae.jpg",
+      "gt": 24,
+      "detections": 300,
+      "tp": 17,
+      "fp": 2,
+      "fn": 7,
+      "inference_ms": 134.34529199999815
+    },
+    {
+      "file_name": "images/blackcreed__7JcPMAckSmMzKfP3o_jpg.rf.ebcdb76c52fef9eed2a7fe3b984d6c79.jpg",
+      "gt": 37,
+      "detections": 300,
+      "tp": 34,
+      "fp": 2,
+      "fn": 3,
+      "inference_ms": 132.24925000000076
+    },
+    {
+      "file_name": "images/blackcreed__7K49DSSR3DztgEPTZ_jpg.rf.35fabd9c3f2cdd591df67e40ef56ec66.jpg",
+      "gt": 53,
+      "detections": 300,
+      "tp": 43,
+      "fp": 2,
+      "fn": 10,
+      "inference_ms": 130.84620799999539
+    },
+    {
+      "file_name": "images/blackcreed__7KvgfgvW3otbf5TQ5_jpg.rf.75115469abec22e7cfc83a4b5c3536ac.jpg",
+      "gt": 41,
+      "detections": 300,
+      "tp": 35,
+      "fp": 1,
+      "fn": 6,
+      "inference_ms": 130.94000000000233
+    },
+    {
+      "file_name": "images/blackcreed__7LdujxavP78heZ6dg_jpg.rf.08026ef74cf79d4dd76319c329531b53.jpg",
+      "gt": 60,
+      "detections": 300,
+      "tp": 55,
+      "fp": 3,
+      "fn": 5,
+      "inference_ms": 128.95166599999357
+    },
+    {
+      "file_name": "images/climbtag__7LdujxavP78heZ6dg_jpg.rf.45b457ff0ca24cc37ef4726f7a650143.jpg",
+      "gt": 60,
+      "detections": 300,
+      "tp": 56,
+      "fp": 2,
+      "fn": 4,
+      "inference_ms": 139.02845800000068
+    },
+    {
+      "file_name": "images/climbtag__7W8Woj8jRT2QFqvha_jpg.rf.3376db7b88a28d286200b6ef9b15d96e.jpg",
+      "gt": 48,
+      "detections": 300,
+      "tp": 42,
+      "fp": 2,
+      "fn": 6,
+      "inference_ms": 135.60599999999977
+    },
+    {
+      "file_name": "images/blackcreed__7W8Woj8jRT2QFqvha_jpg.rf.6708670b2e9449c71e2d2b7dab66a046.jpg",
+      "gt": 50,
+      "detections": 300,
+      "tp": 44,
+      "fp": 4,
+      "fn": 6,
+      "inference_ms": 132.99925000000076
+    },
+    {
+      "file_name": "images/climbtag__7XiH6XgM3xieXjADJ_jpg.rf.281d37c60c323f9f6ec2f3df17a35448.jpg",
+      "gt": 23,
+      "detections": 300,
+      "tp": 23,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 131.4888340000034
+    },
+    {
+      "file_name": "images/climbtag__7Y4oerZBbm28DBrSk_jpg.rf.6a654533b12de33a992ee6cfcfd785e5.jpg",
+      "gt": 34,
+      "detections": 300,
+      "tp": 30,
+      "fp": 1,
+      "fn": 4,
+      "inference_ms": 131.0353329999998
+    },
+    {
+      "file_name": "images/blackcreed__7Y4oerZBbm28DBrSk_jpg.rf.6b2b36aa1a5ad8fb0a7963546010d852.jpg",
+      "gt": 34,
+      "detections": 300,
+      "tp": 30,
+      "fp": 0,
+      "fn": 4,
+      "inference_ms": 131.71237499999552
+    },
+    {
+      "file_name": "images/blackcreed__7Z6wpTxpB4Z9ooajj_jpg.rf.1e8a8d8ae47d4bf0ded293e216464caa.jpg",
+      "gt": 44,
+      "detections": 300,
+      "tp": 39,
+      "fp": 1,
+      "fn": 5,
+      "inference_ms": 129.2068750000035
+    },
+    {
+      "file_name": "images/climbtag__7_jpg.rf.25c4baf522dbb496aeaa1f60dd1d68da.jpg",
+      "gt": 4,
+      "detections": 300,
+      "tp": 4,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 142.90416600000026
+    },
+    {
+      "file_name": "images/blackcreed__7a6RG8rzczwqCmrne_jpg.rf.e9e4f9348ab2187213afce2da6a74cf2.jpg",
+      "gt": 78,
+      "detections": 300,
+      "tp": 65,
+      "fp": 7,
+      "fn": 13,
+      "inference_ms": 141.8266250000015
+    },
+    {
+      "file_name": "images/climbtag__7gYY92qda5fcT79Y3_jpg.rf.6fc18baa07d0168b71be9b86efc94eca.jpg",
+      "gt": 37,
+      "detections": 300,
+      "tp": 27,
+      "fp": 5,
+      "fn": 10,
+      "inference_ms": 139.8499159999992
+    },
+    {
+      "file_name": "images/blackcreed__7gYY92qda5fcT79Y3_jpg.rf.b89c26c4370f16b1e0599f91c9780eee.jpg",
+      "gt": 42,
+      "detections": 300,
+      "tp": 34,
+      "fp": 5,
+      "fn": 8,
+      "inference_ms": 139.90616699999373
+    },
+    {
+      "file_name": "images/climbtag__7hntB2SvrkE58bFvG_jpg.rf.354ae03d1f3d18b0323e055cbd1f3237.jpg",
+      "gt": 47,
+      "detections": 300,
+      "tp": 45,
+      "fp": 1,
+      "fn": 2,
+      "inference_ms": 133.1410410000026
+    },
+    {
+      "file_name": "images/climbtag__7iLMohCHrNYvQrPdf_jpg.rf.1da00a9b9718822c566674626eafe00e.jpg",
+      "gt": 54,
+      "detections": 300,
+      "tp": 50,
+      "fp": 2,
+      "fn": 4,
+      "inference_ms": 135.7062500000029
+    },
+    {
+      "file_name": "images/blackcreed__7jT6KJJXgxHY9bddF_jpg.rf.2faa86a19487f2eb23103ff6287714c9.jpg",
+      "gt": 36,
+      "detections": 300,
+      "tp": 35,
+      "fp": 2,
+      "fn": 1,
+      "inference_ms": 146.34412499999598
+    },
+    {
+      "file_name": "images/climbtag__7jT6KJJXgxHY9bddF_jpg.rf.3daa97401a49ea088c73cc82d2b64669.jpg",
+      "gt": 36,
+      "detections": 300,
+      "tp": 35,
+      "fp": 1,
+      "fn": 1,
+      "inference_ms": 135.98612500000309
+    },
+    {
+      "file_name": "images/blackcreed__7kavc4f76pm3KHovX_jpg.rf.2d9bacf69879a4fc25232d56e039cbaf.jpg",
+      "gt": 37,
+      "detections": 300,
+      "tp": 32,
+      "fp": 4,
+      "fn": 5,
+      "inference_ms": 131.18108300000313
+    },
+    {
+      "file_name": "images/blackcreed__7mgsL96FswbFLpeag_jpg.rf.05dcc856668859c6b8224d081ad6f77d.jpg",
+      "gt": 51,
+      "detections": 300,
+      "tp": 51,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 130.08120799999597
+    },
+    {
+      "file_name": "images/climbtag__7thd675AYrZSjkpHy_jpg.rf.19a265e2207ccf2f694efab4d1e3b452.jpg",
+      "gt": 22,
+      "detections": 300,
+      "tp": 17,
+      "fp": 3,
+      "fn": 5,
+      "inference_ms": 134.67162500000268
+    },
+    {
+      "file_name": "images/blackcreed__7wp5hNwMj36A4QRgy_jpg.rf.509222fcbf396b44cc464598b6184ab2.jpg",
+      "gt": 60,
+      "detections": 300,
+      "tp": 54,
+      "fp": 5,
+      "fn": 6,
+      "inference_ms": 130.13858299999993
+    },
+    {
+      "file_name": "images/blackcreed__7xShKPvuDhBqeQEdA_jpg.rf.da546f97f46b5336fe2c76c389e8d13f.jpg",
+      "gt": 37,
+      "detections": 300,
+      "tp": 33,
+      "fp": 1,
+      "fn": 4,
+      "inference_ms": 131.68424999999843
+    },
+    {
+      "file_name": "images/climbtag__7xsWJCZqvBXu87vwK_jpg.rf.cdeb8379d00e907fc55b9c2414970775.jpg",
+      "gt": 29,
+      "detections": 300,
+      "tp": 26,
+      "fp": 0,
+      "fn": 3,
+      "inference_ms": 134.43920799999614
+    },
+    {
+      "file_name": "images/blackcreed__7yCLSpY4SF8zSTRnz_jpg.rf.1d39144e1fb317f2e35d6b9e0b705273.jpg",
+      "gt": 36,
+      "detections": 300,
+      "tp": 34,
+      "fp": 0,
+      "fn": 2,
+      "inference_ms": 141.78037499999482
+    },
+    {
+      "file_name": "images/blackcreed__7z5PpkoBKyFYkjuai_jpg.rf.05e883480e756c4dfee74509aa200c1b.jpg",
+      "gt": 39,
+      "detections": 300,
+      "tp": 37,
+      "fp": 1,
+      "fn": 2,
+      "inference_ms": 132.47983300000487
+    },
+    {
+      "file_name": "images/climbtag__84_jpg.rf.19691ff2d4ad0939b409ff6594e60543.jpg",
+      "gt": 15,
+      "detections": 300,
+      "tp": 15,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 139.3481660000034
+    },
+    {
+      "file_name": "images/climbtag__85_jpg.rf.218dd850d0ff88537fe1ccf1936efaad.jpg",
+      "gt": 50,
+      "detections": 300,
+      "tp": 48,
+      "fp": 8,
+      "fn": 2,
+      "inference_ms": 133.88733299999876
+    },
+    {
+      "file_name": "images/blackcreed__88tZ9hwEwk25FW6Zv_jpg.rf.07d98bccccc45b3216b901db905bbd00.jpg",
+      "gt": 17,
+      "detections": 300,
+      "tp": 16,
+      "fp": 0,
+      "fn": 1,
+      "inference_ms": 134.0850419999988
+    },
+    {
+      "file_name": "images/blackcreed__88vRrMSfEzvXs6e8e_jpg.rf.6249f6edb197362383301a60be8ee83c.jpg",
+      "gt": 66,
+      "detections": 300,
+      "tp": 59,
+      "fp": 1,
+      "fn": 7,
+      "inference_ms": 136.90987499999756
+    },
+    {
+      "file_name": "images/blackcreed__89_jpg.rf.237e57d3f7d3684152c2c81e803f257a.jpg",
+      "gt": 22,
+      "detections": 300,
+      "tp": 22,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 141.8843330000018
+    },
+    {
+      "file_name": "images/blackcreed__8F8h7ZijjaictJLcj_jpg.rf.dcff561d0dc61fdfda47ba4319a650d9.jpg",
+      "gt": 34,
+      "detections": 300,
+      "tp": 34,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 136.6358340000006
+    },
+    {
+      "file_name": "images/climbtag__8Mr7R53MsATEd64Yw_jpg.rf.8672edc641b96b66debfb2ea7a492969.jpg",
+      "gt": 88,
+      "detections": 300,
+      "tp": 73,
+      "fp": 2,
+      "fn": 15,
+      "inference_ms": 137.55275000000256
+    },
+    {
+      "file_name": "images/blackcreed__8RQ4GLMWmpMDbxzgw_jpg.rf.97a8f9bf623c472337e36556caca80fc.jpg",
+      "gt": 52,
+      "detections": 300,
+      "tp": 52,
+      "fp": 2,
+      "fn": 0,
+      "inference_ms": 143.1741669999974
+    },
+    {
+      "file_name": "images/blackcreed__8TcCuJBSwkuTtf7h4_jpg.rf.837f2f23eb457b3ff5c8431649008181.jpg",
+      "gt": 55,
+      "detections": 300,
+      "tp": 38,
+      "fp": 5,
+      "fn": 17,
+      "inference_ms": 140.7042500000025
+    },
+    {
+      "file_name": "images/blackcreed__8WqxisshwXiG48EyD_jpg.rf.57c0fc521519e03ab76761932b2fa94e.jpg",
+      "gt": 44,
+      "detections": 300,
+      "tp": 41,
+      "fp": 2,
+      "fn": 3,
+      "inference_ms": 139.56295800000225
+    },
+    {
+      "file_name": "images/climbtag__8Xe6TEx98Hj5bhxNC_jpg.rf.2345948bd14b3009b88509c360adc1b0.jpg",
+      "gt": 55,
+      "detections": 300,
+      "tp": 48,
+      "fp": 1,
+      "fn": 7,
+      "inference_ms": 139.622749999995
+    },
+    {
+      "file_name": "images/climbtag__8Ycm9ADfsmXnEMeZs_jpg.rf.7dc7f51a5103afd80f21a5e8ae57f675.jpg",
+      "gt": 14,
+      "detections": 300,
+      "tp": 12,
+      "fp": 0,
+      "fn": 2,
+      "inference_ms": 150.23220800000126
+    },
+    {
+      "file_name": "images/blackcreed__8Z4g5qQJY65Gu5TeP_jpg.rf.547161cff01e7f6271050542fa39e6be.jpg",
+      "gt": 51,
+      "detections": 300,
+      "tp": 34,
+      "fp": 5,
+      "fn": 17,
+      "inference_ms": 138.3920419999995
+    },
+    {
+      "file_name": "images/climbtag__8Zf3NgPEe9NwtS3kv_jpg.rf.2476330a2fb2161112da13d20f0d5290.jpg",
+      "gt": 40,
+      "detections": 300,
+      "tp": 40,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 137.63433400000213
+    },
+    {
+      "file_name": "images/blackcreed__8brPfPWaxBxJunt7W_jpg.rf.3add2e8e3ffec61addee518b7efdb4f7.jpg",
+      "gt": 60,
+      "detections": 300,
+      "tp": 56,
+      "fp": 2,
+      "fn": 4,
+      "inference_ms": 141.0925000000061
+    },
+    {
+      "file_name": "images/climbtag__8cMrWAZbGN9z36dDh_jpg.rf.9f779450b6c85c920925b6c5ff3a3e4a.jpg",
+      "gt": 51,
+      "detections": 300,
+      "tp": 46,
+      "fp": 2,
+      "fn": 5,
+      "inference_ms": 138.84070800000336
+    },
+    {
+      "file_name": "images/climbtag__8fbQikFH9ywSuPo7z_jpg.rf.1e1cccfb4e58998a0c39501e9c23e5fe.jpg",
+      "gt": 58,
+      "detections": 300,
+      "tp": 52,
+      "fp": 1,
+      "fn": 6,
+      "inference_ms": 142.8987500000003
+    },
+    {
+      "file_name": "images/blackcreed__8m8zirYdXJpWG56qQ_jpg.rf.594c0b360654b7c93a44f3a89a7a5dc8.jpg",
+      "gt": 35,
+      "detections": 300,
+      "tp": 33,
+      "fp": 0,
+      "fn": 2,
+      "inference_ms": 143.98266700000386
+    },
+    {
+      "file_name": "images/blackcreed__8oJmowWC6x2EEoXFd_jpg.rf.8c6cfda830c9467d405b6f5f156f292e.jpg",
+      "gt": 42,
+      "detections": 300,
+      "tp": 40,
+      "fp": 1,
+      "fn": 2,
+      "inference_ms": 138.77791699999943
+    },
+    {
+      "file_name": "images/blackcreed__8tLT7mhxKMzuq2tnw_jpg.rf.192e3e88b96062def1828ccb1e75c7fc.jpg",
+      "gt": 44,
+      "detections": 300,
+      "tp": 40,
+      "fp": 2,
+      "fn": 4,
+      "inference_ms": 131.87541699999565
+    },
+    {
+      "file_name": "images/climbtag__8uLuQroHXXYBLsbMh_jpg.rf.1682d43d945e71c5914c6fe2a7342b44.jpg",
+      "gt": 39,
+      "detections": 300,
+      "tp": 36,
+      "fp": 4,
+      "fn": 3,
+      "inference_ms": 132.44079200000124
+    },
+    {
+      "file_name": "images/blackcreed__8uLuQroHXXYBLsbMh_jpg.rf.e1dbbe6f85f7474ea62ca7436f75381d.jpg",
+      "gt": 39,
+      "detections": 300,
+      "tp": 37,
+      "fp": 3,
+      "fn": 2,
+      "inference_ms": 134.51900000000023
+    },
+    {
+      "file_name": "images/blackcreed__8wxWBAyLdZ5Bx5sqd_jpg.rf.a58246456d1913be91d91957a35de793.jpg",
+      "gt": 67,
+      "detections": 300,
+      "tp": 55,
+      "fp": 2,
+      "fn": 12,
+      "inference_ms": 142.1834170000002
+    },
+    {
+      "file_name": "images/blackcreed__8yB3EyY9sSHs9N98Z_jpg.rf.3a90ba50ad0402029e37e72720379668.jpg",
+      "gt": 37,
+      "detections": 300,
+      "tp": 36,
+      "fp": 1,
+      "fn": 1,
+      "inference_ms": 136.40970799999923
+    },
+    {
+      "file_name": "images/blackcreed__8yfRGoWgMzTyqAJWg_jpg.rf.0dab4e9bb5154992b46fd2149e9a804e.jpg",
+      "gt": 41,
+      "detections": 300,
+      "tp": 37,
+      "fp": 4,
+      "fn": 4,
+      "inference_ms": 137.1219590000037
+    },
+    {
+      "file_name": "images/climbtag__8yfRGoWgMzTyqAJWg_jpg.rf.5f06442de5b7426b99f8d043e0f90c75.jpg",
+      "gt": 41,
+      "detections": 300,
+      "tp": 36,
+      "fp": 0,
+      "fn": 5,
+      "inference_ms": 133.54833299999882
+    },
+    {
+      "file_name": "images/blackcreed__95_jpg.rf.9bc45033b3d605749cd774d87edf6eeb.jpg",
+      "gt": 2,
+      "detections": 300,
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 130.80204200000298
+    },
+    {
+      "file_name": "images/blackcreed__95nY8BTWwAHjucci4_jpg.rf.bc6c54a8a69dcdc6fa56e45b94595d38.jpg",
+      "gt": 30,
+      "detections": 300,
+      "tp": 30,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 133.2792499999996
+    },
+    {
+      "file_name": "images/climbtag__97_jpg.rf.1b7a69343ba75055e2e28c95d75a4ed8.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 136.04558299999917
+    },
+    {
+      "file_name": "images/blackcreed__97_jpg.rf.4d931db542422c1e4548cf34accd65c9.jpg",
+      "gt": 1,
+      "detections": 300,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 133.5167500000025
+    },
+    {
+      "file_name": "images/blackcreed__99_jpg.rf.e23d162861138adfd62cef36d5ecedd2.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 137.63241700000071
+    },
+    {
+      "file_name": "images/climbtag__9FeSnraSw4QJS3DQw_jpg.rf.3725978c2d281582ece3a61b8474028c.jpg",
+      "gt": 51,
+      "detections": 300,
+      "tp": 41,
+      "fp": 4,
+      "fn": 10,
+      "inference_ms": 132.09487499999523
+    },
+    {
+      "file_name": "images/climbtag__9FmPJnrBrHFJuiP52_jpg.rf.2bc71ae67b7991ffa9d7913438f82bd4.jpg",
+      "gt": 45,
+      "detections": 300,
+      "tp": 40,
+      "fp": 2,
+      "fn": 5,
+      "inference_ms": 142.47833299999184
+    },
+    {
+      "file_name": "images/blackcreed__9LY5rqiuzkoAXpHjb_jpg.rf.0859cbb7f208d40a4b140eb23b71eae9.jpg",
+      "gt": 49,
+      "detections": 300,
+      "tp": 37,
+      "fp": 1,
+      "fn": 12,
+      "inference_ms": 133.90529199999582
+    },
+    {
+      "file_name": "images/climbtag__9LY5rqiuzkoAXpHjb_jpg.rf.2ad33a644124f9936a14a2905fa820b3.jpg",
+      "gt": 46,
+      "detections": 300,
+      "tp": 39,
+      "fp": 3,
+      "fn": 7,
+      "inference_ms": 144.11908399999083
+    },
+    {
+      "file_name": "images/blackcreed__9_jpg.rf.0bbc0a402bf467950f011baaf85a5129.jpg",
+      "gt": 10,
+      "detections": 300,
+      "tp": 10,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 145.15783300000476
+    },
+    {
+      "file_name": "images/blackcreed__9xJehqSjjb622iGff_jpg.rf.3d691ba279d4c4d118c7f1d3c3ec9d53.jpg",
+      "gt": 63,
+      "detections": 300,
+      "tp": 47,
+      "fp": 2,
+      "fn": 16,
+      "inference_ms": 140.83816699999443
+    },
+    {
+      "file_name": "images/climbtag__9xZCASPheHAQw7Gyi_jpg.rf.03e3e955d9476eca25a660d1da31940d.jpg",
+      "gt": 45,
+      "detections": 300,
+      "tp": 43,
+      "fp": 2,
+      "fn": 2,
+      "inference_ms": 136.3885420000006
+    },
+    {
+      "file_name": "images/blackcreed__A3LepFLfTiL28v7Dj_jpg.rf.4c1a40fcb1ad0460f9ac050cc8eeac20.jpg",
+      "gt": 46,
+      "detections": 300,
+      "tp": 44,
+      "fp": 2,
+      "fn": 2,
+      "inference_ms": 134.11545800000022
+    },
+    {
+      "file_name": "images/climbtag__A8k8CKeCnFQcQyYae_jpg.rf.ecbe702c0e98513fa11c58300511a5b7.jpg",
+      "gt": 68,
+      "detections": 300,
+      "tp": 51,
+      "fp": 5,
+      "fn": 17,
+      "inference_ms": 133.27716599999985
+    },
+    {
+      "file_name": "images/blackcreed__A9yRjEJHo4x7Fbi4s_jpg.rf.1b415dbee557b29684cdf3946c3eef4a.jpg",
+      "gt": 38,
+      "detections": 300,
+      "tp": 38,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 134.4994580000057
+    },
+    {
+      "file_name": "images/climbtag__AAX4K9YKEApEEoRkB_jpg.rf.dd39d249aacbdeecfc543c4fc09b71c7.jpg",
+      "gt": 39,
+      "detections": 300,
+      "tp": 36,
+      "fp": 1,
+      "fn": 3,
+      "inference_ms": 140.9090409999917
+    },
+    {
+      "file_name": "images/climbtag__ACPLFv8gDDk2sns5D_jpg.rf.026ac5a9fec89d6c28d409b4f456f53f.jpg",
+      "gt": 42,
+      "detections": 300,
+      "tp": 40,
+      "fp": 1,
+      "fn": 2,
+      "inference_ms": 135.1382500000036
+    },
+    {
+      "file_name": "images/climbtag__AGJNe4bvjfZNo7P4q_jpg.rf.3f63a087a4e2a13b90dc0b6149f6502d.jpg",
+      "gt": 50,
+      "detections": 300,
+      "tp": 41,
+      "fp": 4,
+      "fn": 9,
+      "inference_ms": 135.36687500000698
+    },
+    {
+      "file_name": "images/climbtag__AJHX22ikidAon9Myt_jpg.rf.417d2311fcafa599985abfbfbccbf57e.jpg",
+      "gt": 74,
+      "detections": 300,
+      "tp": 69,
+      "fp": 0,
+      "fn": 5,
+      "inference_ms": 140.79366700000537
+    },
+    {
+      "file_name": "images/climbtag__AMW5cxoa8DhMRS3DR_jpg.rf.16e165ad7a710754fb5eb224f834ae2f.jpg",
+      "gt": 48,
+      "detections": 300,
+      "tp": 39,
+      "fp": 2,
+      "fn": 9,
+      "inference_ms": 140.61491699999897
+    },
+    {
+      "file_name": "images/climbtag__APNZFkyrbkvH2XeAi_jpg.rf.05626b150fa64c7bb703d78c187addb6.jpg",
+      "gt": 60,
+      "detections": 300,
+      "tp": 46,
+      "fp": 1,
+      "fn": 14,
+      "inference_ms": 140.56620900001144
+    },
+    {
+      "file_name": "images/blackcreed__AYo5LrAFu7KFKrzDL_jpg.rf.c666a2b894141565b087d52cd8a2b3ed.jpg",
+      "gt": 51,
+      "detections": 300,
+      "tp": 47,
+      "fp": 0,
+      "fn": 4,
+      "inference_ms": 133.76337500000955
+    },
+    {
+      "file_name": "images/climbtag__Abj39yr5MAJTWELau_jpg.rf.a4119959006348846571159d8897604d.jpg",
+      "gt": 54,
+      "detections": 300,
+      "tp": 52,
+      "fp": 1,
+      "fn": 2,
+      "inference_ms": 134.21074999999837
+    },
+    {
+      "file_name": "images/blackcreed__AdWBP8EJeEZpv4hxc_jpg.rf.9390f2150de6dff00e670419f5234175.jpg",
+      "gt": 41,
+      "detections": 300,
+      "tp": 38,
+      "fp": 2,
+      "fn": 3,
+      "inference_ms": 134.2802500000107
+    },
+    {
+      "file_name": "images/climbtag__Aqt2ptF7BmzwaskGN_jpg.rf.333c0968dbfec43a7a015468acc2df9c.jpg",
+      "gt": 31,
+      "detections": 300,
+      "tp": 30,
+      "fp": 1,
+      "fn": 1,
+      "inference_ms": 135.89295900000434
+    },
+    {
+      "file_name": "images/blackcreed__B4SXDBqECAbz7fM3H_jpg.rf.46cb998c731b657a3e3ed1ee11bd107e.jpg",
+      "gt": 56,
+      "detections": 300,
+      "tp": 43,
+      "fp": 1,
+      "fn": 13,
+      "inference_ms": 133.97324999999546
+    },
+    {
+      "file_name": "images/climbtag__BSSNu9Yqr3xCSLTkG_jpg.rf.1158693894d68f0d63fb9f2b17d479e6.jpg",
+      "gt": 50,
+      "detections": 300,
+      "tp": 50,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 134.24641699998756
+    },
+    {
+      "file_name": "images/blackcreed__BgcGiqEJ6SfYEDdCM_jpg.rf.cf1b3b7edc354d1875d6f9d7adc51ae0.jpg",
+      "gt": 61,
+      "detections": 300,
+      "tp": 44,
+      "fp": 4,
+      "fn": 17,
+      "inference_ms": 131.77654200000688
+    },
+    {
+      "file_name": "images/blackcreed__Bi9Yk9iDkSsxKkwFE_jpg.rf.26839a58e6006b6e4019d919ba13cd21.jpg",
+      "gt": 39,
+      "detections": 300,
+      "tp": 32,
+      "fp": 4,
+      "fn": 7,
+      "inference_ms": 133.74320799999987
+    },
+    {
+      "file_name": "images/climbtag__Bj9reWQgdiAsC4f4Q_jpg.rf.9645ddc8145b3144965ccd36a2c48ff6.jpg",
+      "gt": 60,
+      "detections": 300,
+      "tp": 58,
+      "fp": 0,
+      "fn": 2,
+      "inference_ms": 141.40654100000393
+    },
+    {
+      "file_name": "images/blackcreed__BjjYCCDAz44CFGT5w_jpg.rf.8837cac173fa87f2d980bb5cfa36cad2.jpg",
+      "gt": 61,
+      "detections": 300,
+      "tp": 46,
+      "fp": 7,
+      "fn": 15,
+      "inference_ms": 134.6574999999866
+    },
+    {
+      "file_name": "images/climbtag__Bww5yquozeYnjkhrS_jpg.rf.1b3ebf50aa0cce357d0113f26c313fd2.jpg",
+      "gt": 54,
+      "detections": 300,
+      "tp": 41,
+      "fp": 3,
+      "fn": 13,
+      "inference_ms": 132.9345830000093
+    },
+    {
+      "file_name": "images/blackcreed__ByJNjLRAder3iTaJz_jpg.rf.086f95a192434d0b0c07addbce9238b8.jpg",
+      "gt": 47,
+      "detections": 300,
+      "tp": 36,
+      "fp": 2,
+      "fn": 11,
+      "inference_ms": 140.46058300000732
+    },
+    {
+      "file_name": "images/climbtag__ByY6nw2ku45Wz73uY_jpg.rf.6584b3bec3cf345d861f7f00dcd07bcb.jpg",
+      "gt": 35,
+      "detections": 300,
+      "tp": 32,
+      "fp": 3,
+      "fn": 3,
+      "inference_ms": 134.75274999999965
+    },
+    {
+      "file_name": "images/blackcreed__C5wzW7ya3ohd8ysNZ_jpg.rf.6b2c6c6863ee69f6e67bd7783c737aa5.jpg",
+      "gt": 51,
+      "detections": 300,
+      "tp": 46,
+      "fp": 0,
+      "fn": 5,
+      "inference_ms": 140.75824999999895
+    },
+    {
+      "file_name": "images/pwals__CC-Images7_jpg.rf.889c47613b98056c1f7c420ea1d10770.jpg",
+      "gt": 6,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 1,
+      "inference_ms": 180.1755409999896
+    },
+    {
+      "file_name": "images/climbtag__Camille-Kurtz-eatplaysweat-2021Pitchproject-KidsRockClimbingWall-23_jpg.rf.97870c5870aaa80f49df08cc7ce4d862.jpg",
+      "gt": 17,
+      "detections": 300,
+      "tp": 16,
+      "fp": 1,
+      "fn": 1,
+      "inference_ms": 145.17391599999974
+    },
+    {
+      "file_name": "images/blackcreed__Climbing-Sloper-grip-2_jpg.rf.00768052be4bb8b6e880ccc75b49056b.jpg",
+      "gt": 6,
+      "detections": 300,
+      "tp": 5,
+      "fp": 2,
+      "fn": 1,
+      "inference_ms": 138.02037499999278
+    },
+    {
+      "file_name": "images/climbtag__DqzhSWEzykF3bG3on_jpg.rf.355b7610f25a588b5d52cc5c3b0bcaae.jpg",
+      "gt": 48,
+      "detections": 300,
+      "tp": 44,
+      "fp": 4,
+      "fn": 4,
+      "inference_ms": 131.31333299999824
+    },
+    {
+      "file_name": "images/climbtag__File_003-5-_jpg.rf.40956a229234a6d457b31e2f12165904.jpg",
+      "gt": 25,
+      "detections": 300,
+      "tp": 25,
+      "fp": 1,
+      "fn": 0,
+      "inference_ms": 133.43354199999885
+    },
+    {
+      "file_name": "images/climbtag__GMfuAePpjCT2jnK55_jpg.rf.0f14dd017745c22eb877e240dc89f6a8.jpg",
+      "gt": 44,
+      "detections": 300,
+      "tp": 43,
+      "fp": 2,
+      "fn": 1,
+      "inference_ms": 133.42712500000198
+    },
+    {
+      "file_name": "images/climbtag__GhzR2BtgykMGfdgAi_jpg.rf.2306cbcb0149d1edf7e3e3b356b5f98b.jpg",
+      "gt": 52,
+      "detections": 300,
+      "tp": 47,
+      "fp": 1,
+      "fn": 5,
+      "inference_ms": 137.33183299998927
+    },
+    {
+      "file_name": "images/blackcreed__IMG_0381_jpg.rf.115818d29bc75398712c2ceee5d57f5d.jpg",
+      "gt": 253,
+      "detections": 300,
+      "tp": 87,
+      "fp": 11,
+      "fn": 166,
+      "inference_ms": 149.45124999999825
+    },
+    {
+      "file_name": "images/blackcreed__IMG_8444_jpg.rf.2e725452cde9ef71ba6f8211f271bce9.jpg",
+      "gt": 164,
+      "detections": 300,
+      "tp": 119,
+      "fp": 13,
+      "fn": 45,
+      "inference_ms": 135.9481250000099
+    },
+    {
+      "file_name": "images/climbtag__IMG_8444_jpg.rf.8b08e273725bc2be59482fc678ec7e75.jpg",
+      "gt": 158,
+      "detections": 300,
+      "tp": 139,
+      "fp": 7,
+      "fn": 19,
+      "inference_ms": 138.41337499998917
+    },
+    {
+      "file_name": "images/blackcreed__IMG_8993_jpg.rf.6f7cfcd7e80a16660b2277483ca32093.jpg",
+      "gt": 116,
+      "detections": 300,
+      "tp": 0,
+      "fp": 0,
+      "fn": 116,
+      "inference_ms": 134.71812499999942
+    },
+    {
+      "file_name": "images/blackcreed__IMG_8994_jpg.rf.6ea7d311fd4d40e887b40a8e126536b3.jpg",
+      "gt": 117,
+      "detections": 300,
+      "tp": 1,
+      "fp": 1,
+      "fn": 116,
+      "inference_ms": 134.42054199999257
+    },
+    {
+      "file_name": "images/blackcreed__IMG_8995_jpg.rf.cf26b470f04039b47fbfc9b2370a36bf.jpg",
+      "gt": 81,
+      "detections": 300,
+      "tp": 0,
+      "fp": 0,
+      "fn": 81,
+      "inference_ms": 135.64483299999847
+    },
+    {
+      "file_name": "images/climbtag__IMG_9002_jpg.rf.cca09a7d8c392e18f00144044183edec.jpg",
+      "gt": 84,
+      "detections": 300,
+      "tp": 82,
+      "fp": 1,
+      "fn": 2,
+      "inference_ms": 153.04483299999265
+    },
+    {
+      "file_name": "images/blackcreed__K8Buj3PM7iAb6zoPw_jpg.rf.2c31c9c890f5ad6656755a4b2a8a02cb.jpg",
+      "gt": 23,
+      "detections": 300,
+      "tp": 22,
+      "fp": 2,
+      "fn": 1,
+      "inference_ms": 139.07762500000536
+    },
+    {
+      "file_name": "images/climbtag__LRM_EXPORT_145606406707308_20181107_102028313_jpeg.rf.9e953467d644200b07baf61c4af1f1fa.jpg",
+      "gt": 22,
+      "detections": 300,
+      "tp": 21,
+      "fp": 0,
+      "fn": 1,
+      "inference_ms": 139.50241699999606
+    },
+    {
+      "file_name": "images/blackcreed__M9F7YMCiexcGpvaGE_jpg.rf.060d189d57e49f5b674087a852032957.jpg",
+      "gt": 70,
+      "detections": 300,
+      "tp": 64,
+      "fp": 2,
+      "fn": 6,
+      "inference_ms": 133.55091700000048
+    },
+    {
+      "file_name": "images/blackcreed__MURUS-Edit-51_jpg.rf.6b007cd74e194bf7cfe8553a1dc2757d.jpg",
+      "gt": 27,
+      "detections": 300,
+      "tp": 12,
+      "fp": 5,
+      "fn": 15,
+      "inference_ms": 140.72770799999125
+    },
+    {
+      "file_name": "images/blackcreed__PWLNZdTrr4QMX3qAR_jpg.rf.056271e1676cac97dc85cfadc766efd3.jpg",
+      "gt": 66,
+      "detections": 300,
+      "tp": 50,
+      "fp": 12,
+      "fn": 16,
+      "inference_ms": 139.5242500000022
+    },
+    {
+      "file_name": "images/pwals__PXL_20231007_001512817_jpg.rf.72e930de6fc0ba5e4a048f500c61e071.jpg",
+      "gt": 20,
+      "detections": 300,
+      "tp": 18,
+      "fp": 0,
+      "fn": 2,
+      "inference_ms": 136.7083330000023
+    },
+    {
+      "file_name": "images/climbtag__PXL_20231016_224348431_jpg.rf.763e512cdda90911b3f5e72372b7ecdb.jpg",
+      "gt": 92,
+      "detections": 300,
+      "tp": 85,
+      "fp": 3,
+      "fn": 7,
+      "inference_ms": 134.30574999999953
+    },
+    {
+      "file_name": "images/pwals__PXL_20231016_231841697_jpg.rf.202372e8828d46a91ac329efe0c872e8.jpg",
+      "gt": 46,
+      "detections": 300,
+      "tp": 28,
+      "fp": 2,
+      "fn": 18,
+      "inference_ms": 143.61229099999764
+    },
+    {
+      "file_name": "images/pwals__PXL_20231019_201704090_jpg.rf.832a1dd2cc136811eb4cc00a562ecc13.jpg",
+      "gt": 24,
+      "detections": 300,
+      "tp": 24,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 135.68774999999732
+    },
+    {
+      "file_name": "images/climbtag__PXL_20231019_210418684_jpg.rf.21edd8b7f2deb104258a52630b31e60d.jpg",
+      "gt": 71,
+      "detections": 300,
+      "tp": 70,
+      "fp": 4,
+      "fn": 1,
+      "inference_ms": 139.67254099999263
+    },
+    {
+      "file_name": "images/pwals__PXL_20231019_210418684_jpg.rf.4b8e14f031805139d40b4eda8f4f11c8.jpg",
+      "gt": 27,
+      "detections": 300,
+      "tp": 23,
+      "fp": 5,
+      "fn": 4,
+      "inference_ms": 153.1460839999927
+    },
+    {
+      "file_name": "images/climbtag__PXL_20260217_152359975_jpg.rf.4d52f9cf9799f41db6b0b9e77f7b63dd.jpg",
+      "gt": 84,
+      "detections": 300,
+      "tp": 82,
+      "fp": 2,
+      "fn": 2,
+      "inference_ms": 142.18137500000012
+    },
+    {
+      "file_name": "images/climbtag__PXL_20260217_152427153_jpg.rf.502e5933fb5a6f2f9ea42d7316eddde5.jpg",
+      "gt": 97,
+      "detections": 300,
+      "tp": 96,
+      "fp": 1,
+      "fn": 1,
+      "inference_ms": 139.65995800000383
+    },
+    {
+      "file_name": "images/climbtag__PXL_20260217_152509014_jpg.rf.072683c431a27ef6fef221f94033c651.jpg",
+      "gt": 33,
+      "detections": 300,
+      "tp": 31,
+      "fp": 1,
+      "fn": 2,
+      "inference_ms": 140.03162500000326
+    },
+    {
+      "file_name": "images/climbtag__PXL_20260217_152551428_jpg.rf.0d9cb89c0844694ad59ebb2b4665a954.jpg",
+      "gt": 32,
+      "detections": 300,
+      "tp": 29,
+      "fp": 0,
+      "fn": 3,
+      "inference_ms": 152.88466600001266
+    },
+    {
+      "file_name": "images/climbtag__PXL_20260217_152626550_jpg.rf.2028ecbe222ec13cc36bee2426bc6890.jpg",
+      "gt": 49,
+      "detections": 300,
+      "tp": 49,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 133.69787499999802
+    },
+    {
+      "file_name": "images/climbtag__PXL_20260217_152806898_jpg.rf.03a3ec49b2e684be7c0f5911b58ebf37.jpg",
+      "gt": 10,
+      "detections": 300,
+      "tp": 9,
+      "fp": 0,
+      "fn": 1,
+      "inference_ms": 133.9277080000029
+    },
+    {
+      "file_name": "images/climbtag__PXL_20260217_153803160_jpg.rf.ba55a1fb699a8ea1206edc2b19af01b6.jpg",
+      "gt": 72,
+      "detections": 300,
+      "tp": 68,
+      "fp": 4,
+      "fn": 4,
+      "inference_ms": 134.00070800000685
+    },
+    {
+      "file_name": "images/climbtag__PXL_20260217_153825676_jpg.rf.7b0147707cbbc2a6cada0039189b7f83.jpg",
+      "gt": 92,
+      "detections": 300,
+      "tp": 85,
+      "fp": 5,
+      "fn": 7,
+      "inference_ms": 140.4854580000101
+    },
+    {
+      "file_name": "images/climbtag__PXL_20260217_153837907_jpg.rf.9be553022f0d9eeca68bc9c1e7d85878.jpg",
+      "gt": 108,
+      "detections": 300,
+      "tp": 105,
+      "fp": 1,
+      "fn": 3,
+      "inference_ms": 133.50720900000306
+    },
+    {
+      "file_name": "images/climbtag__PXL_20260217_160547079_jpg.rf.1ffc73f4302c8bb372aa3c79e1392d02.jpg",
+      "gt": 160,
+      "detections": 300,
+      "tp": 148,
+      "fp": 3,
+      "fn": 12,
+      "inference_ms": 132.85133400000632
+    },
+    {
+      "file_name": "images/climbtag__PXL_20260217_160632424_jpg.rf.9f69e901ce5b862f84f91c0a58f481ca.jpg",
+      "gt": 61,
+      "detections": 300,
+      "tp": 58,
+      "fp": 1,
+      "fn": 3,
+      "inference_ms": 129.03966700000456
+    },
+    {
+      "file_name": "images/blackcreed__PuHjmZjzqkKZGQi8q_jpg.rf.232081577ec4f0e792228c04011d4eb9.jpg",
+      "gt": 36,
+      "detections": 300,
+      "tp": 31,
+      "fp": 6,
+      "fn": 5,
+      "inference_ms": 132.23249999999825
+    },
+    {
+      "file_name": "images/climbtag__Rockwerx_Rock_Climbing_Wall_Volumes_jpg.rf.becf5a2c28e9b30e5a86573fbb8e8adb.jpg",
+      "gt": 7,
+      "detections": 300,
+      "tp": 6,
+      "fp": 0,
+      "fn": 1,
+      "inference_ms": 135.39708300000348
+    },
+    {
+      "file_name": "images/climbtag__S8Zz97NdLyb4rjGkm_jpg.rf.1dac3ecabe029320a816d8ad68baa892.jpg",
+      "gt": 47,
+      "detections": 300,
+      "tp": 47,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 145.56395900000643
+    },
+    {
+      "file_name": "images/climbtag__Screen-Shot-2022-06-02-at-3-50-43-AM_png_jpg.rf.215cf78beab66a55384ee3e658181fe0.jpg",
+      "gt": 15,
+      "detections": 300,
+      "tp": 15,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 137.87608299999556
+    },
+    {
+      "file_name": "images/climbtag__Screen_Shot_2022-06-02_at_10-05-39_PM_png_jpg.rf.609ff8039266b94038951c54b6e25616.jpg",
+      "gt": 106,
+      "detections": 300,
+      "tp": 92,
+      "fp": 1,
+      "fn": 14,
+      "inference_ms": 131.50841599999694
+    },
+    {
+      "file_name": "images/blackcreed__Screen_Shot_2022-06-02_at_10-05-39_PM_png_jpg.rf.a73b1b463fb027b2d314dcc57f5a9850.jpg",
+      "gt": 106,
+      "detections": 300,
+      "tp": 94,
+      "fp": 1,
+      "fn": 12,
+      "inference_ms": 133.8464590000076
+    },
+    {
+      "file_name": "images/climbtag__Screen_Shot_2022-06-02_at_10-24-12_PM_png_jpg.rf.580a2ebe0c2ed094f411ba6287b7b259.jpg",
+      "gt": 29,
+      "detections": 300,
+      "tp": 28,
+      "fp": 1,
+      "fn": 1,
+      "inference_ms": 136.5
+    },
+    {
+      "file_name": "images/blackcreed__Screen_Shot_2022-06-02_at_9-55-28_PM_png_jpg.rf.3c619549b3dec3393ad1beeab9c51731.jpg",
+      "gt": 48,
+      "detections": 300,
+      "tp": 48,
+      "fp": 1,
+      "fn": 0,
+      "inference_ms": 133.44704100000672
+    },
+    {
+      "file_name": "images/blackcreed__Sick-33-4-3_jpg.rf.4ccb85958663f0b8b56a9b1e30801c2a.jpg",
+      "gt": 4,
+      "detections": 300,
+      "tp": 4,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 132.08087499999965
+    },
+    {
+      "file_name": "images/blackcreed__TbDJ9umqu5qyRkwLZ_jpg.rf.599ea0df52933bb30032335d7bb3e94b.jpg",
+      "gt": 62,
+      "detections": 300,
+      "tp": 56,
+      "fp": 2,
+      "fn": 6,
+      "inference_ms": 131.57204199999978
+    },
+    {
+      "file_name": "images/blackcreed__YktwGqrRgi2GD6bnr_jpg.rf.3f91a44b461944996fdf00f36caf17b6.jpg",
+      "gt": 31,
+      "detections": 300,
+      "tp": 31,
+      "fp": 1,
+      "fn": 0,
+      "inference_ms": 144.99899999999616
+    },
+    {
+      "file_name": "images/blackcreed__ZTJ3j66qLBqMN2S7W_jpg.rf.128ea931c261667119de94727789c2b1.jpg",
+      "gt": 42,
+      "detections": 300,
+      "tp": 37,
+      "fp": 1,
+      "fn": 5,
+      "inference_ms": 138.76770899999246
+    },
+    {
+      "file_name": "images/climbtag___120594440_hero_nataliagrossman_getty_jpg.rf.decdb11fcc4ab61fa368a903cb39cd16.jpg",
+      "gt": 12,
+      "detections": 300,
+      "tp": 7,
+      "fp": 0,
+      "fn": 5,
+      "inference_ms": 132.64316699998744
+    },
+    {
+      "file_name": "images/blackcreed__aC6xbmNbXqbDaRDNf_jpg.rf.180cc4ef1c9eed46d252041e8415888c.jpg",
+      "gt": 41,
+      "detections": 300,
+      "tp": 37,
+      "fp": 2,
+      "fn": 4,
+      "inference_ms": 134.48654100000567
+    },
+    {
+      "file_name": "images/climbtag__aCX2NEmB9qYNrsLBw_jpg.rf.25a956b884b65d4e3e488d23fc4b98da.jpg",
+      "gt": 45,
+      "detections": 300,
+      "tp": 38,
+      "fp": 2,
+      "fn": 7,
+      "inference_ms": 130.12662500000442
+    },
+    {
+      "file_name": "images/blackcreed__acRH7Ta9wcDo8Hk3Z_jpg.rf.00d889aa40e3a838fe2241c2e8736cc9.jpg",
+      "gt": 59,
+      "detections": 300,
+      "tp": 50,
+      "fp": 3,
+      "fn": 9,
+      "inference_ms": 129.89741700000013
+    },
+    {
+      "file_name": "images/blackcreed__ahGFTBWhwd2y3AQKT_jpg.rf.0314671a5ddae2532b38ecbc4997a189.jpg",
+      "gt": 39,
+      "detections": 300,
+      "tp": 32,
+      "fp": 1,
+      "fn": 7,
+      "inference_ms": 129.72879199999443
+    },
+    {
+      "file_name": "images/climbtag__avwWvtAYrubegezmh_jpg.rf.374cca1ad2a928a3f89cd248dc3b15c0.jpg",
+      "gt": 16,
+      "detections": 300,
+      "tp": 14,
+      "fp": 0,
+      "fn": 2,
+      "inference_ms": 135.54075000000012
+    },
+    {
+      "file_name": "images/climbtag__bD8Hz7nC7hPFqMuxd_jpg.rf.85dd01a954a509e1a9ed54ed3b68c409.jpg",
+      "gt": 59,
+      "detections": 300,
+      "tp": 55,
+      "fp": 1,
+      "fn": 4,
+      "inference_ms": 132.08362500001385
+    },
+    {
+      "file_name": "images/climbtag__bKoZNXLNuKQNEN4DL_jpg.rf.0ada0a02a6243869065e60e340796aac.jpg",
+      "gt": 37,
+      "detections": 300,
+      "tp": 35,
+      "fp": 1,
+      "fn": 2,
+      "inference_ms": 133.6692500000063
+    },
+    {
+      "file_name": "images/climbtag__bWyT3b5Qtfd6uHefX_jpg.rf.60539d0d5724f9b42cf158d1334d1bd0.jpg",
+      "gt": 58,
+      "detections": 300,
+      "tp": 50,
+      "fp": 3,
+      "fn": 8,
+      "inference_ms": 131.65062499999476
+    },
+    {
+      "file_name": "images/climbtag__biT2P4mjgtzjHeu8Y_jpg.rf.5401b88e2f4e49f92ff6faf6db804971.jpg",
+      "gt": 32,
+      "detections": 300,
+      "tp": 32,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 145.73533300000418
+    },
+    {
+      "file_name": "images/blackcreed__bncKjfzR29GtTR3ss_jpg.rf.ecb364a7fe050ca278b147d7ea1cd918.jpg",
+      "gt": 52,
+      "detections": 300,
+      "tp": 48,
+      "fp": 1,
+      "fn": 4,
+      "inference_ms": 137.93637500000477
+    },
+    {
+      "file_name": "images/climbtag__boulder-images_032cde97-222c-409a-94b9-e73c67db316d_jpg.rf.12a0cb88c133e74624f43923e590f3ce.jpg",
+      "gt": 66,
+      "detections": 300,
+      "tp": 66,
+      "fp": 1,
+      "fn": 0,
+      "inference_ms": 135.11525000000256
+    },
+    {
+      "file_name": "images/climbtag__boulder-images_06d5f619-45de-429e-89df-7c2ab0371233_jpg.rf.901cc58a4407a79db5ee93be37aaa46a.jpg",
+      "gt": 54,
+      "detections": 300,
+      "tp": 49,
+      "fp": 6,
+      "fn": 5,
+      "inference_ms": 138.65116700000362
+    },
+    {
+      "file_name": "images/climbtag__boulder-images_18abbad4-20dd-488f-b5d0-d3b861d5e890_jpg.rf.3e06b2c029cafd0b945295305e59a2d0.jpg",
+      "gt": 50,
+      "detections": 300,
+      "tp": 47,
+      "fp": 6,
+      "fn": 3,
+      "inference_ms": 141.48608299999614
+    },
+    {
+      "file_name": "images/climbtag__boulder-images_49e0c38f-292e-4998-9e8c-59f350e50742_jpg.rf.a14524f707e07c7ff276f7460427213d.jpg",
+      "gt": 51,
+      "detections": 300,
+      "tp": 51,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 137.09599999999045
+    },
+    {
+      "file_name": "images/climbtag__boulder-images_6977709e-a387-442d-8686-ad7ce2546dfd_jpg.rf.290e631646af39406471b7c6e928d623.jpg",
+      "gt": 66,
+      "detections": 300,
+      "tp": 63,
+      "fp": 3,
+      "fn": 3,
+      "inference_ms": 135.98895800000173
+    },
+    {
+      "file_name": "images/climbtag__boulder-images_6e16a3b4-aa8d-46a6-888b-ae8878e275e9_jpg.rf.933746c223af1e8a884b171b7d956025.jpg",
+      "gt": 64,
+      "detections": 300,
+      "tp": 59,
+      "fp": 3,
+      "fn": 5,
+      "inference_ms": 133.9083329999994
+    },
+    {
+      "file_name": "images/climbtag__boulder-images_8119bf03-b5f9-45e7-8276-7b362fbe2dc6_jpg.rf.ae8260520780deebfeeb0b2cab7cd60f.jpg",
+      "gt": 87,
+      "detections": 300,
+      "tp": 85,
+      "fp": 1,
+      "fn": 2,
+      "inference_ms": 139.72062500000175
+    },
+    {
+      "file_name": "images/climbtag__boulder-images_885b780a-8441-4a99-8f9b-9a09ec6990aa_jpg.rf.4f15972b8a911eade934ac094400afd9.jpg",
+      "gt": 50,
+      "detections": 300,
+      "tp": 48,
+      "fp": 1,
+      "fn": 2,
+      "inference_ms": 136.6687920000113
+    },
+    {
+      "file_name": "images/climbtag__boulder-images_8d011f7e-d2f3-4f2f-9511-651e31555fdd_jpg.rf.f894eaf4813a39a764b1c26cc256d27b.jpg",
+      "gt": 17,
+      "detections": 300,
+      "tp": 17,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 146.0163329999923
+    },
+    {
+      "file_name": "images/climbtag__boulder-images_8e156c97-5e75-42b4-87ed-aeb4aa679b6e_jpg.rf.0813b1499efad82670e5cfdc2b668406.jpg",
+      "gt": 40,
+      "detections": 300,
+      "tp": 40,
+      "fp": 2,
+      "fn": 0,
+      "inference_ms": 143.3202500000043
+    },
+    {
+      "file_name": "images/climbtag__boulder-images_c8966746-04da-4f68-a1f9-9c976b261e3f_jpg.rf.055ce93c9d3d0014d34efe4ba5c23de8.jpg",
+      "gt": 32,
+      "detections": 300,
+      "tp": 31,
+      "fp": 1,
+      "fn": 1,
+      "inference_ms": 131.5080420000013
+    },
+    {
+      "file_name": "images/pwals__bouldering-compressed-2_jpg.rf.075ccd05a0df765c8be25d052673ee91.jpg",
+      "gt": 65,
+      "detections": 300,
+      "tp": 56,
+      "fp": 50,
+      "fn": 9,
+      "inference_ms": 138.33695799999987
+    },
+    {
+      "file_name": "images/climbtag__bouldering-summertime-sweat-leadjpg_jpg.rf.6a3c836f2e8346aa5fc967c9b94288ef.jpg",
+      "gt": 34,
+      "detections": 300,
+      "tp": 30,
+      "fp": 3,
+      "fn": 4,
+      "inference_ms": 131.71124999999302
+    },
+    {
+      "file_name": "images/climbtag__cw6n3vC38kyqrB9Ds_jpg.rf.47e9414b48b8cfa2545a6efb5def740b.jpg",
+      "gt": 31,
+      "detections": 300,
+      "tp": 31,
+      "fp": 1,
+      "fn": 0,
+      "inference_ms": 139.4479999999894
+    },
+    {
+      "file_name": "images/climbtag__download-2-_jpeg.rf.761afdfb0608e11cc1bc5efefba9dd29.jpg",
+      "gt": 15,
+      "detections": 300,
+      "tp": 15,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 132.73291600000812
+    },
+    {
+      "file_name": "images/climbtag__emQbdvoj2soMahz8Y_jpg.rf.815bd927d0914dd3c9a4bf919d0a314c.jpg",
+      "gt": 48,
+      "detections": 300,
+      "tp": 45,
+      "fp": 3,
+      "fn": 3,
+      "inference_ms": 135.26233300000604
+    },
+    {
+      "file_name": "images/climbtag__first_v6_mp4-0000_jpg.rf.5f82c0d2dfb444fa2ef3748f307445bd.jpg",
+      "gt": 376,
+      "detections": 300,
+      "tp": 200,
+      "fp": 13,
+      "fn": 176,
+      "inference_ms": 142.93504199999734
+    },
+    {
+      "file_name": "images/blackcreed__gDP8kbbntXzGJ8CLJ_jpg.rf.85302626f4b680f3955a7f28e5a03418.jpg",
+      "gt": 50,
+      "detections": 300,
+      "tp": 47,
+      "fp": 0,
+      "fn": 3,
+      "inference_ms": 134.7800419999985
+    },
+    {
+      "file_name": "images/climbtag__ghHmc8xAe87iLATrs_jpg.rf.12f8b048cc81bd450978d661f731334b.jpg",
+      "gt": 46,
+      "detections": 300,
+      "tp": 46,
+      "fp": 3,
+      "fn": 0,
+      "inference_ms": 130.7062500000029
+    },
+    {
+      "file_name": "images/climbtag__hYAEPvvY6CQ7AmfpT_jpg.rf.167d3bbc6830a8a2c8a0eb628a34a10e.jpg",
+      "gt": 63,
+      "detections": 300,
+      "tp": 62,
+      "fp": 1,
+      "fn": 1,
+      "inference_ms": 133.50875000000815
+    },
+    {
+      "file_name": "images/blackcreed__i-img900x1200-1658023560ein5dq109209_jpg.rf.0d2375e15334d95bc5a42657f42629c6.jpg",
+      "gt": 4,
+      "detections": 300,
+      "tp": 4,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 130.8964580000029
+    },
+    {
+      "file_name": "images/climbtag__il_1000x794-5885558240_ke22_webp.rf.1ddf2a04466c2da19635a4587a21637f.jpg",
+      "gt": 10,
+      "detections": 300,
+      "tp": 10,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 130.4169580000016
+    },
+    {
+      "file_name": "images/blackcreed__image-asset_jpg.rf.02ccab576754825122bb08117cff8d43.jpg",
+      "gt": 204,
+      "detections": 300,
+      "tp": 172,
+      "fp": 13,
+      "fn": 32,
+      "inference_ms": 136.24104100000113
+    },
+    {
+      "file_name": "images/climbtag__images-3-_jpg.rf.83468863bbc8c01d6e7f490af2309341.jpg",
+      "gt": 6,
+      "detections": 300,
+      "tp": 6,
+      "fp": 1,
+      "fn": 0,
+      "inference_ms": 129.18774999999732
+    },
+    {
+      "file_name": "images/blackcreed__images-4-_jpg.rf.31b4cf5e1e9c093302f4ab16a291efc3.jpg",
+      "gt": 10,
+      "detections": 300,
+      "tp": 10,
+      "fp": 1,
+      "fn": 0,
+      "inference_ms": 131.5559169999906
+    },
+    {
+      "file_name": "images/climbtag__images_jpg.rf.294d1e27df75c58d19169f309a360138.jpg",
+      "gt": 28,
+      "detections": 300,
+      "tp": 28,
+      "fp": 3,
+      "fn": 0,
+      "inference_ms": 131.35495799999626
+    },
+    {
+      "file_name": "images/climbtag__img10_jpg.rf.49bb627b95aae0fb2b59e6014b136a0c.jpg",
+      "gt": 40,
+      "detections": 300,
+      "tp": 38,
+      "fp": 0,
+      "fn": 2,
+      "inference_ms": 131.5460829999938
+    },
+    {
+      "file_name": "images/blackcreed__img16_jpg.rf.77555313a790a13bcb58e9d23fbb6d16.jpg",
+      "gt": 33,
+      "detections": 300,
+      "tp": 32,
+      "fp": 1,
+      "fn": 1,
+      "inference_ms": 143.7409170000028
+    },
+    {
+      "file_name": "images/blackcreed__img17_jpg.rf.02330f250aa26ac96de8138813ea9594.jpg",
+      "gt": 85,
+      "detections": 300,
+      "tp": 71,
+      "fp": 6,
+      "fn": 14,
+      "inference_ms": 141.44316699999035
+    },
+    {
+      "file_name": "images/climbtag__img1_jpg.rf.12f04260843f5415ba59c1101f5893a2.jpg",
+      "gt": 25,
+      "detections": 300,
+      "tp": 24,
+      "fp": 1,
+      "fn": 1,
+      "inference_ms": 143.33299999999872
+    },
+    {
+      "file_name": "images/blackcreed__img4_jpg.rf.3b164f73ebc6bf54a07ca67495a6146c.jpg",
+      "gt": 29,
+      "detections": 300,
+      "tp": 24,
+      "fp": 4,
+      "fn": 5,
+      "inference_ms": 146.13195899999118
+    },
+    {
+      "file_name": "images/blackcreed__img6_jpg.rf.036ee617be93220f05e7ddc9a7cf7833.jpg",
+      "gt": 24,
+      "detections": 300,
+      "tp": 22,
+      "fp": 0,
+      "fn": 2,
+      "inference_ms": 139.84300000000803
+    },
+    {
+      "file_name": "images/climbtag__jhgnqro7bv611_jpg.rf.758a00a8e1a530b946514b404242494a.jpg",
+      "gt": 176,
+      "detections": 300,
+      "tp": 165,
+      "fp": 0,
+      "fn": 11,
+      "inference_ms": 141.72670900000958
+    },
+    {
+      "file_name": "images/climbtag__kTGbbo4QWzjtD8EGY_jpg.rf.304e26dc42a30d07f07d20b74f1e2c3c.jpg",
+      "gt": 51,
+      "detections": 300,
+      "tp": 45,
+      "fp": 6,
+      "fn": 6,
+      "inference_ms": 136.17637499999546
+    },
+    {
+      "file_name": "images/blackcreed__kyraC_jpg.rf.85693beb148e2877e542cbfa3af64b3c.jpg",
+      "gt": 7,
+      "detections": 300,
+      "tp": 3,
+      "fp": 1,
+      "fn": 4,
+      "inference_ms": 137.03483300001244
+    },
+    {
+      "file_name": "images/blackcreed__markus-spiske-VQpOgh5R68I-unsplash-800x533_jpg.rf.2034b3cd7f43e9af8bd83b700018ae2d.jpg",
+      "gt": 14,
+      "detections": 300,
+      "tp": 14,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 140.5119590000104
+    },
+    {
+      "file_name": "images/climbtag__pack-macro-square_jpg.rf.029b246851430038d3e18ab33c4604a9.jpg",
+      "gt": 4,
+      "detections": 300,
+      "tp": 4,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 143.2803750000021
+    },
+    {
+      "file_name": "images/blackcreed__q4cNj5uRHcZcXKAmQ_jpg.rf.5d9c6554f11222f9758b6081a57998ef.jpg",
+      "gt": 59,
+      "detections": 300,
+      "tp": 55,
+      "fp": 1,
+      "fn": 4,
+      "inference_ms": 137.8399999999965
+    },
+    {
+      "file_name": "images/climbtag__sABKN9fvD6u4Z8dzK_jpg.rf.07000e8d7e52cdb1e50e9190170ff147.jpg",
+      "gt": 58,
+      "detections": 300,
+      "tp": 56,
+      "fp": 2,
+      "fn": 2,
+      "inference_ms": 132.62675000001036
+    },
+    {
+      "file_name": "images/climbtag__set-of-115-holds-evolution-up-to-size-xl-3-_jpg.rf.1cac14e03f059c56aeb3719db94b5e51.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 131.73404100000334
+    },
+    {
+      "file_name": "images/climbtag__set-of-115-holds-evolution-up-to-size-xl-4-_jpg.rf.329183cb12f6626ab1402611952e43b1.jpg",
+      "gt": 3,
+      "detections": 300,
+      "tp": 3,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 137.3687920000084
+    },
+    {
+      "file_name": "images/climbtag__set-of-115-holds-evolution-up-to-size-xl-6-_jpg.rf.383ea3c80409d49a552687e8e1a29f69.jpg",
+      "gt": 5,
+      "detections": 300,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 137.53320800000802
+    },
+    {
+      "file_name": "images/blackcreed__sloperhold_jpg.rf.8cf6fe032ce2e61d5c914fd8997cc7d0.jpg",
+      "gt": 12,
+      "detections": 300,
+      "tp": 11,
+      "fp": 0,
+      "fn": 1,
+      "inference_ms": 138.9747919999936
+    },
+    {
+      "file_name": "images/climbtag__swall_12_png_jpg.rf.54e3dcc5e74759540025925378e76f0e.jpg",
+      "gt": 65,
+      "detections": 300,
+      "tp": 59,
+      "fp": 1,
+      "fn": 6,
+      "inference_ms": 135.8975000000064
+    },
+    {
+      "file_name": "images/blackcreed__swall_13_png_jpg.rf.1a428ed9ae4b51e395df527c02d47c4f.jpg",
+      "gt": 56,
+      "detections": 300,
+      "tp": 50,
+      "fp": 1,
+      "fn": 6,
+      "inference_ms": 131.57091699999
+    },
+    {
+      "file_name": "images/climbtag__swall_6_png_jpg.rf.3525b040d78afd3eb2a3e3bb2bb407c0.jpg",
+      "gt": 82,
+      "detections": 300,
+      "tp": 79,
+      "fp": 1,
+      "fn": 3,
+      "inference_ms": 131.86137500000768
+    },
+    {
+      "file_name": "images/blackcreed__swall_6_png_jpg.rf.5491b5f9e0bd45dd254ecb719a608a84.jpg",
+      "gt": 83,
+      "detections": 300,
+      "tp": 83,
+      "fp": 1,
+      "fn": 0,
+      "inference_ms": 130.54112499998882
+    },
+    {
+      "file_name": "images/climbtag__test-3_jpg.rf.58ea15e49c8a95839c624b1d08ec9d70.jpg",
+      "gt": 28,
+      "detections": 300,
+      "tp": 17,
+      "fp": 6,
+      "fn": 11,
+      "inference_ms": 132.11466599999403
+    },
+    {
+      "file_name": "images/climbtag__v3_jpg.rf.aa0502941b297720846a70428a496415.jpg",
+      "gt": 27,
+      "detections": 300,
+      "tp": 27,
+      "fp": 1,
+      "fn": 0,
+      "inference_ms": 146.87104099999124
+    },
+    {
+      "file_name": "images/climbtag__valid-volume_jpg.rf.617bedae5ea199537540ba096a5b7282.jpg",
+      "gt": 56,
+      "detections": 300,
+      "tp": 52,
+      "fp": 0,
+      "fn": 4,
+      "inference_ms": 134.51379199999792
+    },
+    {
+      "file_name": "images/blackcreed__wall_img_16_jpg.rf.573e93750b02e5351ebb7c6348484394.jpg",
+      "gt": 83,
+      "detections": 300,
+      "tp": 81,
+      "fp": 0,
+      "fn": 2,
+      "inference_ms": 137.52687500001048
+    },
+    {
+      "file_name": "images/climbtag__wall_img_18_jpg.rf.3a730c7f03bff1d89e22982f6155d3a3.jpg",
+      "gt": 98,
+      "detections": 300,
+      "tp": 87,
+      "fp": 8,
+      "fn": 11,
+      "inference_ms": 133.7101249999978
+    },
+    {
+      "file_name": "images/blackcreed__wall_img_18_jpg.rf.b5509a5c7ca3be80514382931ab7c9f7.jpg",
+      "gt": 101,
+      "detections": 300,
+      "tp": 100,
+      "fp": 1,
+      "fn": 1,
+      "inference_ms": 138.37354200000118
+    },
+    {
+      "file_name": "images/blackcreed__wall_img_1_jpg.rf.0d370a1de3da027c23b6f22ae9d57c6b.jpg",
+      "gt": 60,
+      "detections": 300,
+      "tp": 54,
+      "fp": 1,
+      "fn": 6,
+      "inference_ms": 134.60925000000861
+    },
+    {
+      "file_name": "images/climbtag__wall_img_26_jpg.rf.01e751946d10200886ac2578b996cbed.jpg",
+      "gt": 98,
+      "detections": 300,
+      "tp": 98,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 135.5989580000023
+    },
+    {
+      "file_name": "images/climbtag__wall_img_4_jpg.rf.32b4ad040dae48c8d0f80f8b6978cee0.jpg",
+      "gt": 63,
+      "detections": 300,
+      "tp": 59,
+      "fp": 5,
+      "fn": 4,
+      "inference_ms": 141.6822919999977
+    },
+    {
+      "file_name": "images/blackcreed__x5hDWtb5bAATukDLN_jpg.rf.30518901c36611b1f4811353c13775ef.jpg",
+      "gt": 22,
+      "detections": 300,
+      "tp": 16,
+      "fp": 2,
+      "fn": 6,
+      "inference_ms": 133.69345899998734
+    },
+    {
+      "file_name": "images/climbtag__xxl-size-triangle-climbing-holds-1-_jpg.rf.19b42f694bbc757c43eea0ae3f89ceef.jpg",
+      "gt": 4,
+      "detections": 300,
+      "tp": 4,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 131.04337499999383
+    },
+    {
+      "file_name": "images/climbtag__xxl-size-triangle-climbing-holds-3-_jpg.rf.223c9b5de6185c1008629f9965f8c78a.jpg",
+      "gt": 4,
+      "detections": 300,
+      "tp": 4,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 133.23670800001128
+    },
+    {
+      "file_name": "images/climbtag__xxl-size-triangle-climbing-holds_jpg.rf.9526bfe453096fb63655d5fd28a6c109.jpg",
+      "gt": 4,
+      "detections": 300,
+      "tp": 4,
+      "fp": 0,
+      "fn": 0,
+      "inference_ms": 131.36345799999253
+    }
+  ],
+  "phase_4_gates": {
+    "note": "docs/requirements.md section 6. The operating threshold must be chosen on the val split, not test.",
+    "gates": {
+      "precision": {
+        "value": 0.9509,
+        "min": 0.85
+      },
+      "recall": {
+        "value": 0.8788,
+        "min": 0.8
+      },
+      "map_at_iou_0_5": {
+        "value": 0.913,
+        "min": 0.75
+      }
+    },
+    "passed": {
+      "precision": true,
+      "recall": true,
+      "map_at_iou_0_5": true
+    },
+    "all_passed": true
+  }
+}

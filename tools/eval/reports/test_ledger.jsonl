@@ -1,0 +1,1 @@
+{"timestamp":"2026-10-22T00:30:37.053Z","model_id":"holds_detector_d1","model_path":"tools/train/artifacts/holds_detector_d1.onnx","report_path":"tools/eval/reports/d1_test_eval.json","split_dir":"tools/train/datasets/merged/test","git_describe":"98ede5c-dirty","gate":true,"confidence":0.5,"policy":"one gated test run","accepted_one_test_run":true}

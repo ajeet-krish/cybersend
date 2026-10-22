@@ -223,22 +223,65 @@ harness trusted it (mean best IoU 0.79 as cxcywh, 0.00 as xyxy).
 
 Val results at confidence 0.5, 591 images, no test split involved:
 
-| Model | precision | recall | mAP@0.5 | Phase 4 gate (0.85 / 0.80 / 0.75) |
+| Model | precision | recall | mAP@0.5 | Accuracy thresholds (0.85 / 0.80 / 0.75) |
 |---|---|---|---|---|
-| RF-DETR-Nano | 0.9490 | 0.8894 | 0.9235 | PASS |
+| RF-DETR-Nano | 0.9490 | 0.8894 | 0.9235 | PASS (three of three) |
 | YOLOX-Nano | 0.9185 | 0.6725 | 0.8101 | FAIL (recall) |
 
-YOLOX cannot clear the gate at any single threshold. Recall reaches 0.80 only at
-confidence 0.2, where precision is 0.7168; the pair at 0.4 is 0.8671 / 0.7294;
-at 0.3 it is 0.8033 / 0.7699. Precision and recall trade monotonically, so no
-threshold satisfies both floors. This decides the Phase 4 model on val alone,
-before any test-split spend.
+YOLOX cannot clear the recall floor at any single threshold. Recall reaches 0.80
+only at confidence 0.2, where precision is 0.7168; the pair at 0.4 is
+0.8671 / 0.7294; at 0.3 it is 0.8033 / 0.7699. Precision and recall trade
+monotonically, so no threshold satisfies both floors. This decides the accuracy
+comparison on val alone, before any test-split spend. It does not settle the
+deployment criteria, which both models miss for different reasons (see the
+frozen test section).
 
 The harness-versus-in-loop mAP gap also collapsed at D1: RF-DETR scores 0.9235
 here against 0.9204 in-loop (0.0031 apart), and YOLOX 0.8101 against 0.781 COCO
 mAP50, which is consistent with VOC all-point versus COCO 101-point
 interpolation plus NMS details. The reconciliation item in the eval README is
 closed for D1.
+
+### Frozen test result (the single gated run, 2026-10-21)
+
+RF-DETR-Nano, 582 frozen images, 24,141 ground truth holds, operating
+confidence 0.5, model `holds_detector_d1` version 1.0.0. Recorded in
+`tools/eval/reports/d1_test_eval.json` and `reports/test_ledger.jsonl`; the run
+consumed the one-run allowance.
+
+Accuracy criteria, docs/requirements.md section 6:
+
+| Criterion | Value | Limit | Result |
+|---|---|---|---|
+| precision@IoU0.5 | 0.9509 | >= 0.85 | PASS |
+| recall@IoU0.5 | 0.8788 | >= 0.80 | PASS |
+| mAP@0.5 | 0.9130 | >= 0.75 | PASS |
+| median per-image hold-count error | 1.0 | <= 1.0 | PASS (boundary) |
+| false positives per image | 1.8832 | <= 0.5 | FAIL, 3.8x over |
+
+Val to test movement is small and in both directions: mAP@0.5 0.9235 to 0.9130,
+precision 0.9490 to 0.9509, recall 0.8894 to 0.8788. A gap that size after
+threshold selection on val means the operating point did not overfit the val
+split.
+
+Deployment criteria, same section, are not met or not yet measured:
+
+| Criterion | Value | Limit | Result |
+|---|---|---|---|
+| int8 model size bundled | 109.2 MB float32; about 29 MB as int8 (28.9M parameters) | <= 15 MB | FAIL by parameter count alone |
+| latency p50 / p95 at 2048 px | 153 ms at 640 px on Mac CPU; no device run | <= 500 / 1500 ms | UNMEASURED |
+| peak memory delta | not measured | <= 300 MB | UNMEASURED |
+| thermals, battery, 5 s ceiling | not measured | section 6 | UNMEASURED |
+
+Consequence: neither D1 model satisfies Phase 4 as written. RF-DETR-Nano clears
+four of five accuracy criteria but cannot reach the 15 MB int8 budget, because
+its 28.9M parameters alone exceed 15 MB at one byte each. YOLOX-Nano reaches
+about 1 MB as int8 but fails recall at every threshold on val. The false
+positive rate is also 3.8x over budget for RF-DETR, and that is independent of
+the size problem. Phase 4 therefore needs a decision (rescale or retrain YOLOX,
+or formally revise a budget with justification recorded in docs/decisions.md)
+before any model can be declared shippable. The Core ML conversion work below is
+a feasibility check on RF-DETR, not a shipment path.
 
 ### Core ML conversion risk, updated
 

@@ -191,6 +191,14 @@ US-36 to US-40 of the original PM draft (board-provider abstraction, offline cat
 - False positives <= 0.5 per image at operating threshold.
 - Color-family classification (optional): top-1 accuracy >= 0.80; below threshold ship hidden behind dev flag.
 
+**Status (D1, 2026-10-21, the single frozen test run).** Precision 0.9509,
+recall 0.8788, and mAP@0.5 0.9130 pass. Median absolute hold-count error is 1.0
+and passes at the boundary. False positives are 1.8832 per image and fail the
+0.5 limit. RF-DETR-Nano is 109.2 MB float32 and about 29 MB at int8, so the
+15 MB deployment budget cannot be met at 28.9M parameters; YOLOX-Nano meets the
+size budget but fails recall at every threshold. No Phase 4 model is shippable
+under this section yet, and the decision is recorded in docs/decisions.md.
+
 ### Phase 4: Inference performance and thermals (iPhone 11 / A13 class minimum)
 - Model: YOLOX-Nano or RF-DETR-Nano, int8 quantized, <= 15 MB bundled; cold model load <= 2 s.
 - Latency: p50 <= 500 ms, p95 <= 1500 ms per photo (2048 px working resolution).

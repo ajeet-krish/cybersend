@@ -437,9 +437,19 @@ Two traps to avoid:
   weights_only loader rejects. The file is a trusted local artifact, so
   disabling the weights-only check is safe here.
 
-Comparison protocol: export both models to ONNX, evaluate both on the same
-frozen test split with the same harness, and record precision, recall, mAP@0.5,
-latency, and export size in docs/research.md before picking the Phase 4 model.
+Comparison protocol and outcome: export both models to ONNX, score both on val
+with the same harness, then spend the single frozen test run on whichever model
+clears the accuracy thresholds. That happened on 2026-10-21. RF-DETR-Nano
+cleared precision 0.9509, recall 0.8788, and mAP@0.5 0.9130 on the test split
+(582 images, 24,141 holds, confidence 0.5). YOLOX-Nano fails the recall floor at
+every threshold on val (0.80 recall needs confidence 0.2, where precision is
+0.7168), so it was not spent on.
+
+The full Phase 4 criteria are stricter than those three numbers. RF-DETR also
+fails the false positive budget (1.88 per image versus 0.5) and cannot meet the
+15 MB int8 size budget (28.9M parameters), while YOLOX meets size but not
+recall. No D1 model is shippable as specified; see the gate table in
+docs/research.md and the decision record in docs/decisions.md.
 
 ## ONNX export and torch parity (D1, 2026-10-21)
 
@@ -537,10 +547,12 @@ Val results at confidence 0.5 (591 images, harness, no test split involved):
 | RF-DETR-Nano | 0.9490 | 0.8894 | 0.9235 |
 | YOLOX-Nano | 0.9185 | 0.6725 | 0.8101 |
 
-RF-DETR clears the Phase 4 gates on val (0.85 / 0.80 / 0.75). YOLOX cannot
-clear them at any single threshold: recall reaches 0.80 only at confidence 0.2,
-where precision is 0.7168, and at 0.4 the pair is 0.8671 / 0.7294. The gate
-therefore decides the model choice without spending the test run on YOLOX.
+RF-DETR clears the three accuracy thresholds on val (0.85 / 0.80 / 0.75), while
+YOLOX cannot clear the recall floor at any single threshold: recall reaches 0.80
+only at confidence 0.2, where precision is 0.7168, and at 0.4 the pair is
+0.8671 / 0.7294. The accuracy comparison therefore settles without spending the
+test run on YOLOX. The deployment criteria (false positive rate, int8 size) are
+not met by either model and are recorded in docs/research.md.
 
 The harness-versus-in-loop mAP gap also shrank to noise at D1: RF-DETR scores
 0.9235 here versus 0.9204 in-loop (0.0031 apart), and YOLOX 0.8101 versus 0.781

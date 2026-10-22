@@ -118,8 +118,9 @@ and `npm run eval:stub` never touch the ledger.
   yolox_decode.test.ts (cxcywh decode, clipping, NMS, raw preprocess mode).
 - reports/: committed eval reports (stub_eval.json is labeled STUB and proves
   the harness only; smoke_eval.json is a historical Phase 0 record whose model
-  artifact was deleted; test_ledger.jsonl grows by one line per accepted test
-  split run).
+  artifact was deleted; val_rfdetr_d1.json and val_yolox_d1.json are the D1 val
+  comparisons; d1_test_eval.json is the single gated frozen-test run;
+  test_ledger.jsonl grows by one line per accepted test split run).
 
 ## Preprocess parity
 

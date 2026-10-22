@@ -104,7 +104,9 @@ Gates: M2 quick-log at most 5 taps (3 when the climb is already selected) and at
 
 ## ML Pipeline
 
-Unchanged: ONNX canonical, .mlmodel deployment copy behind a parity gate, VNCoreMLRequest with .cpuAndNeuralEngine, NMS in Swift, pose via the Phase 0 spike. Capability gate and eval harness unchanged. M3 prepares the coordinate contract the detector output will map through (letterboxToSourceBox then normalized).
+ONNX is the canonical artifact and the `.mlmodel` deployment copy sits behind two gates: decision-space parity against PyTorch (hold scores and active-query boxes within 1e-3) and the frozen-split quality gate. tools/eval declares per-model contracts: RF-DETR uses ImageNet normalization, normalized cxcywh output, and no NMS; YOLOX uses raw 0..255 input, cxcywh pixels, and harness-side NMS at IoU 0.65. Both D1 exports run end to end through that harness.
+
+D1 status: RF-DETR-Nano passes the three accuracy thresholds on the frozen test split (0.9509 precision, 0.8788 recall, 0.9130 mAP@0.5) but fails the false positive budget (1.88 per image versus 0.5) and cannot meet the 15 MB int8 size budget at 28.9M parameters. YOLOX-Nano fits the size budget but fails recall at every threshold. Core ML conversion of RF-DETR is the open feasibility question, with two GridSample nodes in the decoder cross attention. The app path stays VNCoreMLRequest with .cpuAndNeuralEngine, NMS in Swift, and the letterboxToSourceBox coordinate contract, all unchanged until a model is shippable.
 
 ## Feature Flags
 
