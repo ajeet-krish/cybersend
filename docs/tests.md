@@ -295,7 +295,7 @@ run exists.
 | Item | Command | Result |
 |------|---------|--------|
 | Full package suite, 346 tests in 56 suites | cd ios && swift test | PASS |
-| App unit tests, 25 tests | xcodebuild test -only-testing:CyberSendAppTests | PASS |
+| App unit tests, 25 tests, and the whole UI test target | xcodebuild test -only-testing:CyberSendAppTests -only-testing:CyberSendUITests | PASS |
 | Session media UI smoke still passes with the pose flag off | xcodebuild test -only-testing:CyberSendUITests/SessionMediaSmokeTests | PASS |
 | With the pose flag on, the clip row opens the review screen and offers analysis | xcodebuild test -only-testing:CyberSendUITests/VideoReviewSmokeTests | PASS |
 | The store lists a clip with no analysis and no error | swift test --filter VideoAnalysisStore | PASS |
@@ -323,7 +323,7 @@ hypotheses.
 
 | Item | Command | Result |
 |------|---------|--------|
-| Full package suite, 364 tests in 62 suites | cd ios && swift test | PASS except the 10k stats budget under load (see below) |
+| Full package suite, 365 tests in 62 suites | cd ios && swift test | PASS |
 | A fast hand throw is one dyno on the throwing wrist | swift test --filter TierB | PASS |
 | A slow hand move over the same distance is not a dyno | swift test --filter TierB | PASS |
 | A hand that darts out and back is not a dyno | swift test --filter TierB | PASS |
@@ -339,14 +339,15 @@ hypotheses.
 | Counts and rest seconds reach the comparison side | swift test --filter ClipComparison | PASS |
 | The earliest fall is placed at its fraction of the attempt | swift test --filter ClipComparison | PASS |
 | Curve resampling interpolates between stored samples | swift test --filter ClipComparison | PASS |
-| App unit tests, 25 tests | xcodebuild test -only-testing:CyberSendAppTests | PASS |
+| App unit tests, 25 tests, and the whole UI test target | xcodebuild test -only-testing:CyberSendAppTests -only-testing:CyberSendUITests | PASS |
 | Session media and clip review UI smokes | xcodebuild test -only-testing:CyberSendUITests/SessionMediaSmokeTests -only-testing:CyberSendUITests/VideoReviewSmokeTests | PASS |
 | Clip review UI smoke after the Tier B legend and compare toolbar | xcodebuild test -only-testing:CyberSendUITests/VideoReviewSmokeTests | PASS |
 | One tap in Settings turns the experimental pose flag off and hides the section | xcodebuild test -only-testing:CyberSendUITests/SettingsCatalogSmokeTests | PASS |
 
 The 10k attempt stats budget test (US-23.5, 100 ms) measured 117 ms on 2026-10-22 while the machine
-carried a load average above 7 from unrelated training runs. It passes when the machine is idle and
-the failure is environmental, not a regression: no stats code changed in P6.
+carried a load average above 7 from unrelated training runs. It passes when the machine is idle
+(the final run took 2.2 s for the whole suite) and the failure was environmental, not a regression:
+no stats code changed in P6.
 
 Not covered, and it cannot be covered in CI: the compare screen with two real analysed clips, the
 curve overlay legibility on a phone, and whether the Tier B thresholds fire at the right moments on

@@ -107,7 +107,7 @@ Pose v1 (video analysis, approved 2026-10-21; Vision body pose, no hold dependen
 | P3 | Tier A metrics: attempt window, progress curve, fall, smoothness, hesitation map | Complete (320 package tests green, 10 new; thresholds unmeasured until P0) |
 | P4 | Guided recorder | Complete (342 package tests green, 17 new; camera paths are a dogfood obligation, simulator has no camera) |
 | P5 | Review UI: overlay, timeline, summary card, session card, clips surface | Complete (346 package tests green, 4 new store tests; review screen and clips surface shipped behind the flag, camera and playback paths are a dogfood obligation) |
-| P6 | Gated comparison, Tier B metrics: dyno, cut feet, rest | Complete (364 package tests green, 18 new; Tier B is pose only and comparison refuses handheld clips, thresholds unmeasured until P0) |
+| P6 | Gated comparison, Tier B metrics: dyno, cut feet, rest | Complete (365 package tests green, 19 new; Tier B is pose only and comparison refuses handheld clips, thresholds unmeasured until P0; the open acceptance criteria are listed in docs/decisions.md) |
 
 ## Deep Docs
 
