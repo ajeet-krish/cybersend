@@ -105,7 +105,7 @@ Pose v1 (video analysis, approved 2026-10-21; Vision body pose, no hold dependen
 | P1 | Extraction service: AVAssetReader, Vision adapter, resumable analysis actor | Complete (298 package tests green, 18 new) |
 | P2 | Analysis records, migration 006, retention default change | Complete (310 package tests green, 12 new; export excludes the track blob) |
 | P3 | Tier A metrics: attempt window, progress curve, fall, smoothness, hesitation map | Complete (320 package tests green, 10 new; thresholds unmeasured until P0) |
-| P4 | Guided recorder | Not Started |
+| P4 | Guided recorder | Complete (342 package tests green, 17 new; camera paths are a dogfood obligation, simulator has no camera) |
 | P5 | Review UI: overlay, timeline, summary card, session card, Videos tab | Not Started |
 | P6 | Gated comparison, Tier B metrics: dyno, cut feet, rest | Not Started |
 

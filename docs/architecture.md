@@ -133,6 +133,18 @@ PoseAnalysisPipeline is the only entry point that writes an analysis: it runs ex
 
 Camera stability class is computed per clip from global track drift and gates comparison: static and near static clips support metric comparison and spatial side by side, handheld clips support relative metrics only and are labelled as such in the UI. The feature stays behind the ai_pose_analysis flag, off by default, with the recorder and review surfaces compiled out of release until the graduation criteria in requirements section 6 are met.
 
+## Guided Capture (P4)
+
+Recorder is AVCaptureSession with the back wide camera and AVCaptureMovieFileOutput, portrait rotation applied to both the movie connection and the preview connection so the file and the preview agree. There is no audio input: a boulder clip is silent by nature and leaving audio out means the recorder never asks for the microphone.
+
+Format policy prefers 1080p60, then 1080p30, then a 720p floor, and never prefers 4K: the analysis path downsamples to 720 px long edge and the clip is kept, so a larger format only costs storage. The selection runs over plain CaptureFormat values and is unit tested; the device format is chosen by index from that result. A device with nothing usable fails with a readable error rather than recording something the analysis cannot read.
+
+The level badge is CoreMotion gravity projected onto the device x axis (roll), with a two degree tolerance. CoreMotion exists only in the app target, so the roll math, the guidance text, the clock, and the framing box live in Features/Capture and run in CI on macOS. Tap to focus converts the preview layer point to capture device coordinates and locks focus and exposure; a reset returns to continuous autofocus, which is what a climber moving between holds needs.
+
+Recording stops at 90 s in the UI and at 95 s in the movie output, so a forgotten recording cannot fill the phone even if the screen stops updating. The finished file is adopted, not read: MediaStorage.adoptVideo moves the temporary .mov into videos/ and the row is created with pose_status pending, so a recorded clip travels the same path a library clip does and the analysis queue can pick it up by status.
+
+The simulator has no camera, so the recorder's AVFoundation paths are not covered by tests. The pure rules are, and the camera itself is a dogfood obligation recorded in docs/tests.md. The XCUITest camera seam stays the synthetic photo source; it never drives a real capture session.
+
 ## Feature Flags
 
 Development, Internal, Release xcconfig defaults merged with settings overrides (settingsKeyFlagOverrides). BoulderVision hard gated in release; ai_hold_detection and ai_pose_analysis ship off. M3 adds no flags; the Debug only synthetic capture and seeding paths are compiled by DEVELOPMENT and unreachable in Internal and Release.

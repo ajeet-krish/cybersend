@@ -123,6 +123,29 @@ public struct MediaStorage: Sendable {
         return uri
     }
 
+    /// Adopts a file the capture stack already wrote, usually AVCaptureMovieFileOutput's temp
+    /// recording. Moves rather than reads, so a 30 s 1080p60 clip never passes through Data and
+    /// never doubles its disk footprint. Returns the stored relative uri.
+    @discardableResult
+    public func adoptVideo(fileAt source: URL, videoID: String, fileExtension: String) throws -> String {
+        let uri = try videoRelativeURI(videoID: videoID, fileExtension: fileExtension)
+        let destination = try url(relativeURI: uri)
+        let fileManager = FileManager.default
+        do {
+            try fileManager.createDirectory(
+                at: destination.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            if fileManager.fileExists(atPath: destination.path) {
+                try fileManager.removeItem(at: destination)
+            }
+            try fileManager.moveItem(at: source, to: destination)
+        } catch {
+            throw MediaStorageError.writeFailed(error.localizedDescription)
+        }
+        return uri
+    }
+
     /// Writes a retained original atomically. Returns the stored relative uri.
     @discardableResult
     public func writeOriginal(_ bytes: Data, photoID: String, fileExtension: String) throws -> String {

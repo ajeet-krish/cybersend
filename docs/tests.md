@@ -258,3 +258,34 @@ fixture that does not is a fixture that would hide a regression in wrist handlin
 
 Event order in one millisecond is now deterministic (attempt start, then fall, then attempt end).
 Before this, a fall and an attempt end at the same timestamp could be stored in either order.
+
+## 2026-10-22 - P4 guided recorder
+
+| Item | Command | Result |
+|------|---------|--------|
+| Full package suite, 342 tests in 55 suites | cd ios && swift test | PASS |
+| iOS app target builds with the recorder screen and the session entry point | xcodebuild -project ios/CyberSend.xcodeproj -scheme CyberSend -sdk iphonesimulator build | BUILD SUCCEEDED |
+| Upright gravity reads level, tilted gravity asks for the opposite correction | swift test --filter CaptureLevel | PASS |
+| The tolerance boundary is inclusive and degenerate gravity cannot produce NaN | swift test --filter CaptureLevel | PASS |
+| Roll ignores the depth component, so aiming up or down does not break the badge | swift test --filter CaptureLevel | PASS |
+| 1080p60 beats 4K and 720p240; 1080p30 is the fallback; 720p is the floor | swift test --filter CaptureFormatSelection | PASS |
+| Below 30 fps or below the resolution floor yields no format at all | swift test --filter CaptureFormatSelection | PASS |
+| The clock formats minutes and seconds, clamps negatives, and warns at a minute | swift test --filter CaptureClock | PASS |
+| The framing box sits inside the frame with margins and is taller than wide | swift test --filter CaptureClock | PASS |
+| Adopting a recorded file moves it, replaces an existing file, and rejects a missing source | swift test --filter adoptRecordedVideo | PASS |
+
+Not covered, and it cannot be covered in CI: the recorder state machine, camera permission
+prompts, the actual recording and finalization, focus and exposure lock, preview rotation, and
+whether the level badge reads correctly on a real phone. The simulator has no camera, so these
+are dogfood obligations on the next device run:
+
+1. Prepare shows no permission loop after a denial, and the Settings link lands in the right place.
+2. A clip records at 1080p60, the preview is portrait, and the saved file plays upright.
+3. Tap to focus locks visibly and reset returns to continuous autofocus while moving.
+4. The level badge reads level against a door frame and is not inverted.
+5. A recording stopped by the 90 s UI limit and one stopped by the 95 s output limit both produce
+   a usable file and no orphan in the temporary directory.
+
+The capture rules themselves were written from hardware capability, not from a measurement, so the
+1080p60 preference, the two degree tolerance, and the 90 s limit are all revisable once a device
+run exists.

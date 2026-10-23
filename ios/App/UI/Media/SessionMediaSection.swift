@@ -15,9 +15,11 @@ struct SessionMediaSection: View {
     let sessionId: String
     let services: AppServices
 
+    @EnvironmentObject private var settings: SettingsStore
     @StateObject private var store: SessionMediaStore
     @State private var showPhotoImport = false
     @State private var showVideoImport = false
+    @State private var showRecorder = false
     @State private var previewPhoto: Photo?
     @State private var playingVideo: Video?
 
@@ -32,8 +34,9 @@ struct SessionMediaSection: View {
     }
 
     var body: some View {
-        SectionTitle("Session media")
-        Card {
+        VStack(alignment: .leading, spacing: 14) {
+            SectionTitle("Session media")
+            Card {
             if let message = store.lastErrorMessage {
                 ErrorNote(message)
                     .accessibilityIdentifier("session.media.error")
@@ -97,6 +100,23 @@ struct SessionMediaSection: View {
             .accessibilityIdentifier("session.media.add-video")
         }
         .disabled(store.isImporting)
+
+        // Guided capture is gated on the pose flag (docs/architecture.md, Pose Pipeline): the
+        // recorder exists to feed the analysis, so offering it while analysis is off would
+        // promise something the app does not do.
+        if settings.flags[.aiPoseAnalysis] {
+            Button {
+                showRecorder = true
+            } label: {
+                Label("Record a clip", systemImage: "video.badge.plus")
+                    .font(.subheadline.weight(.medium))
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .disabled(store.isImporting)
+            .accessibilityIdentifier("session.media.record")
+        }
+        }
         .sheet(isPresented: $showPhotoImport) {
             PhotoImportSheet { bytes in
                 Task { await store.importPhoto(bytes: bytes) }
@@ -119,6 +139,11 @@ struct SessionMediaSection: View {
         }
         .sheet(item: $playingVideo) { video in
             SessionVideoPlayer(url: store.videoURL(video), title: videoTitle(video, index: indexOf(video)))
+        }
+        .fullScreenCover(isPresented: $showRecorder) {
+            GuidedRecorderView { clip in
+                Task { await store.importRecordedVideo(fileURL: clip.fileURL) }
+            }
         }
         .onAppear {
             store.refresh()

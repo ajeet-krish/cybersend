@@ -87,6 +87,35 @@ final class SessionMediaStore: ObservableObject {
         }
     }
 
+    /// Adopts a clip recorded in the guided recorder (P4). The file is moved out of the
+    /// temporary directory rather than read into memory, so a long clip costs no extra peak
+    /// memory, and the row is marked pending because the pose feature that offered the recorder
+    /// is on by construction. The same probe reads the real dimensions off the written file.
+    func importRecordedVideo(fileURL: URL) async {
+        isImporting = true
+        defer { isImporting = false }
+        do {
+            let fileID = UUID().uuidString.lowercased()
+            let uri = try storage.adoptVideo(fileAt: fileURL, videoID: fileID, fileExtension: "mov")
+            let url = try storage.url(relativeURI: uri)
+            let metadata = await Self.probe(url: url)
+            _ = try repos.media.createVideo(CreateVideoInput(
+                uri: uri,
+                sessionId: sessionId,
+                climbId: nil,
+                width: metadata.width,
+                height: metadata.height,
+                durationMs: metadata.durationMs,
+                fps: nil,
+                poseStatus: .pending,
+                retentionClass: .keep
+            ))
+            refresh()
+        } catch {
+            lastErrorMessage = (error as? DomainValidationError)?.message ?? error.localizedDescription
+        }
+    }
+
     func delete(photo: Photo) {
         do {
             try? storage.deletePhotoFiles(photo: photo)

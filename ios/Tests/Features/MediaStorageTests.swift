@@ -55,6 +55,39 @@ struct MediaStorageTests {
         #expect(!storage.fileExists(relativeURI: uri))
     }
 
+    @Test("adopting a recorded file moves it into the videos tree without copying bytes")
+    func adoptRecordedVideo() throws {
+        let root = try makeTempMediaRoot()
+        let storage = MediaStorage(root: root)
+        let id = UUID().uuidString.lowercased()
+
+        let source = FileManager.default.temporaryDirectory
+            .appendingPathComponent("recorded-\(UUID().uuidString).mov")
+        try Data([0xAA, 0xBB, 0xCC]).write(to: source)
+        defer { try? FileManager.default.removeItem(at: source) }
+
+        let uri = try storage.adoptVideo(fileAt: source, videoID: id, fileExtension: "mov")
+        #expect(uri == "videos/\(id).mov")
+        #expect(try storage.read(relativeURI: uri) == Data([0xAA, 0xBB, 0xCC]))
+        #expect(FileManager.default.fileExists(atPath: source.path) == false, "the temp file is moved, not copied")
+
+        // Adopting again replaces the file rather than failing.
+        let second = FileManager.default.temporaryDirectory
+            .appendingPathComponent("recorded-\(UUID().uuidString).mov")
+        try Data([0x01]).write(to: second)
+        _ = try storage.adoptVideo(fileAt: second, videoID: id, fileExtension: "mov")
+        #expect(try storage.read(relativeURI: uri) == Data([0x01]))
+
+        let missing = #expect(throws: MediaStorageError.self) {
+            try storage.adoptVideo(
+                fileAt: root.appendingPathComponent("nope.mov"),
+                videoID: id,
+                fileExtension: "mov"
+            )
+        }
+        #expect(missing != nil)
+    }
+
     @Test("reading a missing file returns nil while unsafe uris throw")
     func readMissingAndUnsafe() throws {
         let storage = MediaStorage(root: try makeTempMediaRoot())
