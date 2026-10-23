@@ -66,6 +66,12 @@ struct CompareView: View {
                         .foregroundStyle(Theme.tertiaryText)
                         .padding(.top, 10)
                         .accessibilityIdentifier("compare.needs-two")
+                } else if let leftId, let rightId, leftId == rightId {
+                    Text("Choose two different clips.")
+                        .font(.caption)
+                        .foregroundStyle(Theme.tertiaryText)
+                        .padding(.top, 10)
+                        .accessibilityIdentifier("compare.same-clip")
                 }
             }
 
