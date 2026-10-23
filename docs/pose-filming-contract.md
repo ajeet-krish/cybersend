@@ -50,7 +50,7 @@ Framing rules, all clips:
 | Handheld clips | 5 |
 | Clips with a hand labelled wrist on about 50 frames | 5 |
 
-Clips live outside the repository at `~/CyberSendPoseCorpus/clips/`. Video files are never committed. Labels are committed as JSON under `docs/pose-corpus-labels.json` once the corpus exists, or kept alongside the clips if they contain gym names you do not want in the repo.
+Clips live outside the repository at `~/CyberSendPoseCorpus/clips/`. Video files are never committed. That directory is scaffolded with a `README.md` (drop and naming workflow), a `labels.json` skeleton matching the schema below, and a `checklist.md` that tracks the 30 clip targets. Labels are committed as JSON under `docs/pose-corpus-labels.json` once the corpus exists, or kept alongside the clips if they contain gym names you do not want in the repo.
 
 ## Label file
 
