@@ -107,9 +107,13 @@ public actor PoseAnalysisPipeline {
                 quality: extracted.quality
             )
         } catch {
+            // A cancelled run is not a failure: the clip is untouched and can be analysed
+            // again, so it goes back to pending instead of showing a red failed state.
+            let wasCancelled = (error is CancellationError)
+                || (error as? PoseAnalysisError) == .cancelled
             try? repos.media.updateVideo(
                 id: videoId,
-                patch: UpdateVideoPatch(poseStatus: .set(.failed))
+                patch: UpdateVideoPatch(poseStatus: .set(wasCancelled ? .pending : .failed))
             )
             throw error
         }

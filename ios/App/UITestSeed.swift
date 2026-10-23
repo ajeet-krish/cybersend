@@ -20,6 +20,11 @@ let uiTestSeedArgument = "-CYBERSEND_UI_TEST_SEED"
 /// HUD). Presence alone switches a Debug build into seeding mode, same wipe semantics.
 let uiTestSeedHoldsArgument = "-CYBERSEND_UI_TEST_SEED_HOLDS"
 
+/// The launch argument that turns the experimental pose analysis flag on in a seeded launch,
+/// for the clip review smoke (P5). Flags resolve after the seed runs, so the override is
+/// visible on the first frame without a tap through the developer screen.
+let uiTestSeedPoseArgument = "-CYBERSEND_UI_TEST_SEED_POSE"
+
 enum UITestSeed {
     /// Removes the whole database directory so every seeded launch starts from an empty,
     /// freshly migrated database regardless of earlier runs (deterministic smoke tests).
@@ -50,6 +55,7 @@ enum UITestSeed {
     /// four-attempt closed session the history and restore smokes assert on) with fall
     /// attempts carrying the seeded Climb Two holds, driving the stats dashboard: 9
     /// attempts total, three sends, one flash, and heatmap markers on all three holds.
+    @MainActor
     static func seed(repos: Repositories, documentDirectory: URL) throws {
         let gym = try repos.gyms.create(CreateGymInput(name: "Boulder Lab"))
         let climbOne = try repos.climbs.create(
@@ -259,6 +265,7 @@ enum UITestSeed {
     /// strip, its video row, and the player wiring without a system picker (UI overhaul).
     /// The clip bytes are deliberately not a real movie: the smoke proves the row, the
     /// duration label, and that a player sheet presents, not codec playback.
+    @MainActor
     private static func seedSessionMedia(
         repos: Repositories,
         documentDirectory: URL,
@@ -297,6 +304,12 @@ enum UITestSeed {
             poseStatus: .none,
             retentionClass: .keep
         ))
+
+        // The clip review smoke launches with the pose flag argument. The override is written
+        // before AppBootstrap resolves flags, so the first frame already shows the review path.
+        if ProcessInfo.processInfo.arguments.contains(uiTestSeedPoseArgument) {
+            try SettingsStore(repos: repos).setFlag(.aiPoseAnalysis, enabled: true)
+        }
     }
 
     private static func seedWallPhoto(

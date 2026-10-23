@@ -145,6 +145,18 @@ Recording stops at 90 s in the UI and at 95 s in the movie output, so a forgotte
 
 The simulator has no camera, so the recorder's AVFoundation paths are not covered by tests. The pure rules are, and the camera itself is a dogfood obligation recorded in docs/tests.md. The XCUITest camera seam stays the synthetic photo source; it never drives a real capture session.
 
+## Clip Review (P5)
+
+`VideoAnalysisStore` (Features/VideoAnalysis) is the only bridge between the screens and the pipeline. It lists clips with their analysis record, runs `PoseAnalysisPipeline` for one clip, publishes progress, and derives everything else from the stored track: metrics through `TierAMetricsEngine.compute`, events through the repository, and the decoded track for the overlay. Metrics are never stored. The packed track is the single source of truth, so a threshold change applies to every clip without a migration and a restored row whose blob was dropped simply reports no metrics.
+
+Analysis is an explicit tap, not a side effect of import. The feature is experimental, a run costs real CPU on a clip the user may not care about, and the recorder already marks recorded clips pending so the state is honest. Cancelling the task cancels the extraction loop between frames and returns the clip to `pending` rather than `failed`, so a cancelled run leaves nothing to clean up.
+
+The review screen uses `AVPlayerLayer` directly instead of AVKit's player view. AVKit's controls cover the bottom of the frame, which is where a climber's feet are, and the screen draws its own transport, timeline, and overlay. The clock comes from the player's periodic time observer rather than a timer, so the skeleton cannot drift against the frame it annotates. The overlay maps normalized joints through the aspect fit between the video's pixel size and the player layer's rect, which is the same top left convention the tagging canvas uses. The timeline draws the attempt window as a band, the progress curve in body heights, fall markers, and the playhead, and a drag anywhere on it seeks.
+
+Summary numbers are recomputed from the track, so the screen always shows current maths. The stored record still supplies the quality flags, the algorithm version, and the camera class, because those describe the analysis that produced the track. A record whose `algorithmVersion` is behind the current one says so instead of silently mixing old flags with new numbers.
+
+The clips surface is a pushed screen under Stats, not a sixth tab: five tabs is the bar before iOS collapses the rest into More, and the surface belongs next to the other analysis screens. Session media rows show the clip's analysis state and, with the flag on, open the review instead of the plain player.
+
 ## Feature Flags
 
 Development, Internal, Release xcconfig defaults merged with settings overrides (settingsKeyFlagOverrides). BoulderVision hard gated in release; ai_hold_detection and ai_pose_analysis ship off. M3 adds no flags; the Debug only synthetic capture and seeding paths are compiled by DEVELOPMENT and unreachable in Internal and Release.

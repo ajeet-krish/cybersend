@@ -289,3 +289,32 @@ are dogfood obligations on the next device run:
 The capture rules themselves were written from hardware capability, not from a measurement, so the
 1080p60 preference, the two degree tolerance, and the 90 s limit are all revisable once a device
 run exists.
+
+## 2026-10-22 - P5 review screen and clips surface
+
+| Item | Command | Result |
+|------|---------|--------|
+| Full package suite, 346 tests in 56 suites | cd ios && swift test | PASS |
+| App unit tests, 25 tests | xcodebuild test -only-testing:CyberSendAppTests | PASS |
+| Session media UI smoke still passes with the pose flag off | xcodebuild test -only-testing:CyberSendUITests/SessionMediaSmokeTests | PASS |
+| With the pose flag on, the clip row opens the review screen and offers analysis | xcodebuild test -only-testing:CyberSendUITests/VideoReviewSmokeTests | PASS |
+| The store lists a clip with no analysis and no error | swift test --filter VideoAnalysisStore | PASS |
+| Analysing a clip stores it, marks the row done, and the metrics recompute from the track | swift test --filter VideoAnalysisStore | PASS |
+| A restored record without a blob reports needsRecompute and yields no metrics or track | swift test --filter VideoAnalysisStore | PASS |
+| A failed run reports the reason, marks the row failed, and stores nothing | swift test --filter VideoAnalysisStore | PASS |
+| A cancelled run returns the row to pending instead of failed | swift test --filter PoseAnalysisPipeline | PASS |
+
+Not covered, and it cannot be covered in CI: playback of a real movie, the overlay lining up with
+the decoded frame on a device, the timeline drag feel, and the analysis running to completion on a
+real clip (the seeded clip is placeholder bytes, so the UI smoke stops at the action). These are
+dogfood obligations on the next device run:
+
+1. A 1080p60 clip analyses to completion, the progress bar moves, and the screen shows a summary.
+2. The skeleton overlay tracks the climber without an offset, including a rotated clip.
+3. The playhead, the timeline drag, and the player clock agree.
+4. Cancel mid run returns the clip to "Not analysed" and the clip can be analysed again.
+5. The clips surface under Stats lists every clip with the right status after a restore.
+
+The accuracy of every number on the summary card is unmeasured until the P0 corpus exists. The
+screen says so through the quality flags and the usability bar, but the numbers themselves are
+hypotheses.

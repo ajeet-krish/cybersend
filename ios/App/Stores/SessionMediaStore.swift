@@ -17,6 +17,9 @@ final class SessionMediaStore: ObservableObject {
     @Published private(set) var videos: [Video] = []
     @Published private(set) var lastErrorMessage: String?
     @Published private(set) var isImporting = false
+    /// Analysis per clip, keyed by video id, so a row can say what the clip's analysis state is
+    /// without the row itself loading a track.
+    @Published private(set) var analysesByVideo: [String: VideoAnalysis] = [:]
 
     let sessionId: String
     private let repos: Repositories
@@ -41,6 +44,11 @@ final class SessionMediaStore: ObservableObject {
                 .sorted { $0.capturedAt > $1.capturedAt }
             videos = try repos.media.listVideos(options: ListVideosOptions(sessionId: sessionId))
                 .sorted { $0.createdAt < $1.createdAt }
+            var byVideo: [String: VideoAnalysis] = [:]
+            for analysis in try repos.videoAnalysis.listAnalyses() {
+                byVideo[analysis.videoId] = analysis
+            }
+            analysesByVideo = byVideo
             lastErrorMessage = nil
         } catch {
             lastErrorMessage = error.localizedDescription

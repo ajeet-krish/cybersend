@@ -200,6 +200,27 @@ struct PoseAnalysisPipelineTests {
         #expect(record == nil)
     }
 
+    @Test("a cancelled run returns the video to pending instead of marking it failed")
+    func cancellationIsNotAFailure() async throws {
+        let test = try makeTestDatabase()
+        let video = try video(test)
+        let pipeline = PoseAnalysisPipeline(
+            repositories: test.repos,
+            runner: StubRunner(error: .cancelled)
+        )
+
+        await #expect(throws: PoseAnalysisError.cancelled) {
+            try await pipeline.analyzeAndStore(
+                videoId: video.id,
+                videoURL: URL(fileURLWithPath: "/tmp/clip.mov")
+            )
+        }
+
+        let stored = try test.repos.media.getVideo(id: video.id)
+        #expect(stored?.poseStatus == .pending, "a cancelled run leaves the clip analysable")
+        #expect(try test.repos.videoAnalysis.analysis(videoId: video.id) == nil)
+    }
+
     @Test("re-running replaces the previous analysis instead of adding a second one")
     func rerunReplaces() async throws {
         let test = try makeTestDatabase()

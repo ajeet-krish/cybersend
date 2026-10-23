@@ -22,6 +22,7 @@ struct SessionMediaSection: View {
     @State private var showRecorder = false
     @State private var previewPhoto: Photo?
     @State private var playingVideo: Video?
+    @State private var reviewingVideo: Video?
 
     init(sessionId: String, services: AppServices) {
         self.sessionId = sessionId
@@ -69,7 +70,11 @@ struct SessionMediaSection: View {
                         .padding(.vertical, 8)
                 }
                 Button {
-                    playingVideo = video
+                    if settings.flags[.aiPoseAnalysis] {
+                        reviewingVideo = video
+                    } else {
+                        playingVideo = video
+                    }
                 } label: {
                     videoRow(video, index: index)
                 }
@@ -140,6 +145,17 @@ struct SessionMediaSection: View {
         .sheet(item: $playingVideo) { video in
             SessionVideoPlayer(url: store.videoURL(video), title: videoTitle(video, index: indexOf(video)))
         }
+        .sheet(item: $reviewingVideo) { video in
+            NavigationStack {
+                VideoReviewView(videoId: video.id, services: services)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Done") { reviewingVideo = nil }
+                                .accessibilityIdentifier("video.done")
+                        }
+                    }
+            }
+        }
         .fullScreenCover(isPresented: $showRecorder) {
             GuidedRecorderView { clip in
                 Task { await store.importRecordedVideo(fileURL: clip.fileURL) }
@@ -193,6 +209,12 @@ struct SessionMediaSection: View {
                         .foregroundStyle(Theme.secondaryText)
                         .accessibilityIdentifier("session.media.video.\(index).duration")
                 }
+                if let status = analysisText(video) {
+                    Text(status)
+                        .font(.caption2)
+                        .foregroundStyle(Theme.tertiaryText)
+                        .accessibilityIdentifier("session.media.video.\(index).analysis")
+                }
             }
             Spacer(minLength: 8)
             Image(systemName: "play.circle")
@@ -216,6 +238,22 @@ struct SessionMediaSection: View {
         guard let durationMs = video.durationMs, durationMs > 0 else { return nil }
         let totalSeconds = Int((Double(durationMs) / 1000).rounded())
         return String(format: "%d:%02d", totalSeconds / 60, totalSeconds % 60)
+    }
+
+    /// Analysis state for one clip row. Nil when the pose feature is off, so a flag off app shows
+    /// the same media block it showed before the feature existed.
+    private func analysisText(_ video: Video) -> String? {
+        guard settings.flags[.aiPoseAnalysis] else { return nil }
+        if let analysis = store.analysesByVideo[video.id] {
+            return analysis.needsRecompute ? "Track missing, analyse again" : "Analysed"
+        }
+        switch video.poseStatus {
+        case .done: return "Analysed"
+        case .failed: return "Analysis failed"
+        case .running: return "Analyzing"
+        case .pending: return "Not analysed"
+        case .none: return nil
+        }
     }
 }
 

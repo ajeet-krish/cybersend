@@ -13,6 +13,8 @@ import SwiftUI
 
 struct StatsView: View {
     @EnvironmentObject private var store: StatsStore
+    @EnvironmentObject private var settings: SettingsStore
+    @Environment(\.appServices) private var services
 
     var body: some View {
         Screen {
@@ -35,6 +37,8 @@ struct StatsView: View {
                 fallDistributionSection
                 heatmapSection
             }
+
+            clipsSection
         }
         .accessibilityIdentifier("stats.screen")
         .onAppear {
@@ -43,6 +47,42 @@ struct StatsView: View {
     }
 
     // MARK: - Summary cards
+
+    /// Entry point to the clips surface (P5). Behind the pose flag and reached from Stats rather
+    /// than a sixth tab, because five tabs is the bar before iOS collapses the rest into More.
+    @ViewBuilder
+    private var clipsSection: some View {
+        if settings.flags[.aiPoseAnalysis], let services {
+            SectionTitle("Clips")
+            Card {
+                NavigationLink {
+                    VideosView(services: services)
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "video.fill")
+                            .font(.subheadline)
+                            .foregroundStyle(Theme.accent)
+                            .frame(width: 28)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Clips and analysis")
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(Theme.primaryText)
+                            Text("Attempt window, falls, smoothness, pose overlay")
+                                .font(.caption)
+                                .foregroundStyle(Theme.secondaryText)
+                        }
+                        Spacer(minLength: 8)
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(Theme.tertiaryText)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("stats.clips.link")
+            }
+        }
+    }
 
     private var summarySection: some View {
         Group {
