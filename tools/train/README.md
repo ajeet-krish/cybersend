@@ -458,7 +458,7 @@ fails the false positive budget (1.88 per image versus 0.5) and cannot meet the
 recall. No D1 model is shippable as specified; see the gate table in
 docs/research.md and the decision record in docs/decisions.md.
 
-## D1b scaling run: YOLOX-S (branch approved 2026-10-21, run awaiting go-ahead)
+## D1b scaling run: YOLOX-S (completed 2026-10-22)
 
 D1 left Phase 4 accuracy-decided but shipment-blocked, and the two D1 models
 fail on opposite sides: RF-DETR-Nano meets the accuracy thresholds but misses
@@ -496,20 +496,29 @@ cd tools/train
 Artifacts land in artifacts/train_yolox_s_d1/yolox_s_d1/ (checkpoints,
 train_log.txt, tensorboard), separate from the Nano run.
 
-Wall time is a range, not a number, because the recorded Nano run was 3.4x
-slower per iteration than the same recipe measures on an idle machine today:
+Wall time in practice: about 7 min per mosaic epoch (iter_time 1.1 to 1.6 s at
+epoch 10, data_time 0.12 s), and about 1.5 min per epoch once mosaic stops in the
+final five. The run took roughly 4.5 h of actual compute between 21:17 and 11:15
+with a long machine sleep in the middle, so do not read the clock times as pure
+training time. The isolated 0.34 s/iter measurement was 3.5x optimistic, the same
+factor the Nano run showed, which is worth remembering for the next estimate.
 
-| Measurement | Nano | S |
-|---|---|---|
-| Isolated step timing, batch 4, EMA on, MPS (data / compute) | 0.216 s (0.043 / 0.172) | 0.338 s (0.042 / 0.296) |
-| Recorded trainer iteration at epoch 5 | 0.723 s | unknown |
-| Recorded final no-aug epochs | about 1 min per epoch | unknown |
+Result (details and the full comparison in docs/research.md):
 
-At 451 iterations per epoch, the isolated number predicts about 2.5 min per
-mosaic epoch (roughly 1.7 h for 40 epochs), while calibration against the
-recorded Nano run predicts about 8 min per epoch (roughly 5.5 h). Check the first
-epoch before letting it run: if epoch 1 exceeds about 10 min, stop and
-re-estimate, because the 16 GB machine is likely thermal or memory bound.
+| Item | Value |
+|---|---|
+| Best checkpoint | epoch 40, val COCO AP50 0.8377, AP50:95 0.6010 (Nano: 0.7807 / 0.5224) |
+| ONNX | artifacts/holds_detector_yolox_s_d1.onnx, 36,701,782 bytes, output [1, 8400, 6] |
+| Parity | PASS, 8.92e-6 score, 1.43e-6 box |
+| Val at confidence 0.5 | precision 0.9380, recall 0.7656, mAP@0.5 0.8709, FP 1.9475 per image |
+| Best accuracy point | confidence 0.40: 0.9029 / 0.8050 / 0.8709, FP 3.3350, count error 2 |
+
+The accuracy thresholds now pass at one operating point, which no D1 model
+achieved, and about 9 MB at int8 fits the size budget. False positives do not
+pass: 3.3350 per image against 0.5 at the recall floor, 6.7x over, and count
+error is 2 against a limit of 1. At confidence 0.70 false positives pass (0.4501)
+but recall falls to 0.5991. So the acceptance region is still empty, and further
+capacity is not the answer. See docs/decisions.md for the open options.
 
 Evaluation after the run follows the same protocol as D1: export to ONNX, parity
 check, then the val operating-curve sweep at several confidences. The frozen

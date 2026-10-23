@@ -149,6 +149,10 @@ UI smoke set: 19 cases, green.
 | Weight compressed packages | hold_train.export_coreml --palettize-bits 8 4 | float16 51.6 MB, int8 26 MB, int4 13 MB |
 | Compressed package parity | parity_coreml on each package, CPU_ONLY | FAIL all three (float16 score 2.96e-1, int8 4.54e-1, int4 9.77e-1 with non-finite boxes) |
 | Compressed package val accuracy | not run, needs a Core ML evaluation path in the harness | PENDING |
+| D1b YOLOX-S training, 40 epochs, same schedule and seed as Nano | .venv-yolox/bin/python -m yolox.tools.train -f configs/yolox_s_d1.py -b 4 -c artifacts/pretrained/yolox_s.pth | PASS, best epoch 40, val AP50 0.8377, AP50:95 0.6010 (Nano 0.7807 / 0.5224) |
+| D1b ONNX export | hold_train.export_yolox_onnx --exp-file configs/yolox_s_d1.py | PASS, 36,701,782 bytes, output [1, 8400, 6] |
+| D1b torch versus ONNX parity, 5 val images | hold_train.parity_check --model yolox --exp-file configs/yolox_s_d1.py | PASS (score 8.92e-6, box 1.43e-6) |
+| D1b val operating curve, 591 images, confidence 0.35 / 0.40 / 0.45 / 0.50 / 0.70 / 0.80 | npm run eval on val | recall 0.8203 / 0.8050 / 0.7888 / 0.7656 / 0.5991 / 0.4273; FP per image 4.2741 / 3.3350 / 2.6108 / 1.9475 / 0.4501 / 0.1489; no threshold meets all limits |
 
 The test run consumed the one-run policy; the ledger line is in
 tools/eval/reports/test_ledger.jsonl and the report is

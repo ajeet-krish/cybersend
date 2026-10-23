@@ -384,3 +384,81 @@ converts and the ANE path is fast) without changing the shipment decision. YOLOX
 remains structurally the friendlier graph (113 Conv, 110 Sigmoid, no GridSample,
 no Softmax, no attention), so the conversion risk that just cleared for RF-DETR
 was never the binding constraint there; accuracy is.
+
+## 2026-10-22 - D1b: YOLOX-S scaling run
+
+Why: after D1 no model satisfied Phase 4. RF-DETR met the accuracy thresholds
+but was 12% over the false positive budget at the recall floor and could not
+reach 15 MB at int8, while YOLOX-Nano fit size but reached precision 0.7168 when
+recall hit 0.80. Scaling YOLOX was chosen (docs/decisions.md). YOLOX-S is 8.94M
+parameters, dense convolutions, initialized from the official Apache-2.0 COCO
+checkpoint (456 of 462 tensors matched, 99.7% of parameters, only the 80-class
+head replaced). Same data, schedule, seed, and low-memory settings as the Nano
+run.
+
+Training completed all 40 epochs, best checkpoint at epoch 40. In-loop val:
+
+| Epoch | COCO AP50 | COCO AP50:95 |
+|---|---|---|
+| 5 | 0.7877 | 0.5266 |
+| 10 | 0.8113 | 0.5616 |
+| 15 | 0.8213 | 0.5725 |
+| 20 | 0.8231 | 0.5737 |
+| 25 | 0.8242 | 0.5768 |
+| 30 | 0.8245 | 0.5785 |
+| 35 | 0.8331 | 0.5874 |
+| 40 | 0.8377 | 0.6010 |
+
+Against YOLOX-Nano's final 0.7807 / 0.5224, the gain is +0.057 AP50 and +0.079
+AP50:95. The larger gain at the stricter IoU means better localization, not only
+better ranking, which is the pattern that should reduce spurious boxes.
+
+Export: artifacts/holds_detector_yolox_s_d1.onnx, 36,701,782 bytes, opset 17,
+input `images` [1, 3, 640, 640] in 0..255, output `output` [1, 8400, 6] decoded
+cxcywh pixels plus objectness and class score, same contract as the Nano export.
+Torch versus ONNX parity PASS on 5 val images: max hold-score diff 8.92e-6, max
+active-query box diff 1.43e-6.
+
+Harness val at confidence 0.5, 591 images: precision 0.9380, recall 0.7656,
+mAP@0.5 0.8709, false positives 1.9475 per image, median count error 4. That is
+a clear improvement over Nano at the same threshold (0.9185 / 0.6725 / 0.8101 /
+2.2978 / 5).
+
+Full val operating curve:
+
+| confidence | precision | recall | FP per image | median count error |
+|---|---|---|---|---|
+| 0.35 | 0.8808 | 0.8203 | 4.2741 | 2 |
+| 0.40 | 0.9029 | 0.8050 | 3.3350 | 2 |
+| 0.45 | 0.9209 | 0.7888 | 2.6108 | 3 |
+| 0.50 | 0.9380 | 0.7656 | 1.9475 | 4 |
+| 0.70 | 0.9809 | 0.5991 | 0.4501 | 11 |
+| 0.80 | 0.9910 | 0.4273 | 0.1489 | 17 |
+
+At confidence 0.40 YOLOX-S passes precision (0.9029), recall (0.8050), and mAP
+(0.8709), which Nano never did. It still fails the false positive budget by
+6.7x and the count error limit by 2x. At 0.70 the false positives pass (0.4501)
+but recall collapses to 0.5991, so the acceptance region remains empty.
+
+Comparison at the recall floor of 0.80:
+
+| Model | confidence | precision | recall | FP per image | count error | int8 size |
+|---|---|---|---|---|---|---|
+| YOLOX-Nano | 0.20 | 0.7168 | 0.8019 | 12.2014 | 4 | about 1 MB |
+| YOLOX-S | 0.40 | 0.9029 | 0.8050 | 3.3350 | 2 | about 9 MB |
+| RF-DETR-Nano | about 0.765 | about 0.98 | about 0.80 | about 0.56, interpolated | about 3 | about 26 to 29 MB |
+
+Reading: capacity scaling cut false positives at the recall floor by 3.7x versus
+Nano (12.20 to 3.34) and raised mAP by 0.061, so the premise that capacity
+limited accuracy was correct. The premise that capacity limited false positives
+was not: the remaining gap is structural. RF-DETR is still about 6x closer to the
+budget at the same recall, because set prediction emits one query per hold and
+its duplicates are suppressed by construction, while YOLOX runs NMS at IoU 0.65
+and leaves near-duplicate boxes that the metric counts. How much of the 3.34 is
+duplicates is unmeasured; a stricter NMS is the cheap experiment, but it would
+have to remove about 85% of the excess to reach 0.5.
+
+Consequence: the size advantage (about 9 MB at int8, comfortably inside 15 MB)
+is real, and the accuracy thresholds now pass at one operating point, but the
+false positive criterion is further away than RF-DETR's. No test-split spend is
+justified for this model, and the policy for a second spend is still unset.
