@@ -8,7 +8,7 @@ import Foundation
 /// incomparable (docs/decisions.md, 2026-10-21 Phase 5 record, part 7).
 public struct MetricThresholds: Codable, Equatable, Sendable {
     /// Bumped whenever a value below changes in a way that would move a result.
-    public var version: Int = 1
+    public var version: Int = 2
 
     /// Uniform grid the track is resampled onto before any derivative is taken.
     public var analysisHz: Double = 30
@@ -55,6 +55,31 @@ public struct MetricThresholds: Codable, Equatable, Sendable {
 
     /// Path length below which smoothness is meaningless, in body heights.
     public var smoothnessMinimumPathLength: Double = 0.5
+
+    // Tier B, pose only. Every value here is a hypothesis until P0; a dyno is a fast hand
+    // movement, not proof the hand left a hold (docs/decisions.md, 2026-10-22 P6 record).
+
+    /// Hand speed that counts as a throw, in body heights per second. A real dyno hand moves at
+    /// roughly one to two body heights per second, so this sits just above ordinary reaching.
+    public var dynoMinimumHandSpeed: Double = 1.8
+    /// Travel the hand must make across the throw, in body heights.
+    public var dynoMinimumDisplacement: Double = 0.5
+    /// Half window around a hand speed peak used to measure that travel.
+    public var dynoWindowMs: Int = 500
+    /// Minimum spacing between two reported dynos.
+    public var dynoDebounceMs: Int = 800
+
+    /// How far both ankles must rise toward the hips, in body heights.
+    public var cutFeetMinimumRise: Double = 0.25
+    /// Window within which the rise must happen.
+    public var cutFeetWindowMs: Int = 700
+    /// Body rise allowed over the same window, so a high step is not read as cut feet.
+    public var cutFeetMaximumBodyRise: Double = 0.2
+    /// Minimum spacing between two reported cut feet events.
+    public var cutFeetDebounceMs: Int = 1200
+
+    /// Stillness inside the attempt that counts as a rest.
+    public var restMinimumMs: Int = 2000
 
     public init() {}
 }

@@ -258,6 +258,18 @@ struct VideoReviewView: View {
                 statRow("Falls", "\(metrics.fallEvents.count)") {
                     Text(metrics.fallEvents.isEmpty ? "No fall detected" : "Detected from a fast downward move")
                 }
+                divider
+                statRow("Dynos", "\(metrics.dynoEvents.count)") {
+                    Text("A fast hand move, not proof of leaving a hold")
+                }
+                divider
+                statRow("Cut feet", "\(metrics.cutFeetEvents.count)") {
+                    Text("Both ankles rising toward the hips, not proof of leaving the wall")
+                }
+                divider
+                statRow("Rest", restText(metrics.restEvents)) {
+                    Text("Still time inside the attempt")
+                }
                 if let peakSpeed = metrics.peakSpeed {
                     divider
                     statRow("Peak speed", String(format: "%.2f body heights per second", peakSpeed)) {
@@ -290,7 +302,20 @@ struct VideoReviewView: View {
                 }
             }
             .accessibilityIdentifier("video.summary")
+
+            Text("Dyno, cut feet, and rest are pose-only proxies. They describe movement, not hold contact.")
+                .font(.caption)
+                .foregroundStyle(Theme.tertiaryText)
+                .padding(.horizontal, 4)
         }
+    }
+
+    private func restText(_ events: [DetectedEvent]) -> String {
+        let seconds = events.reduce(0.0) { total, event in
+            total + Double(max(0, (event.endMs ?? event.startMs) - event.startMs)) / 1000
+        }
+        guard seconds > 0 else { return "None" }
+        return String(format: "%.1f s", seconds)
     }
 
     private func statRow(

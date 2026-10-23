@@ -100,10 +100,16 @@ public struct TierAMetrics: Codable, Equatable, Sendable {
     /// Score 0 to 1 for how much the clip can be trusted, derived from coverage and scale spread.
     public var quality: Double
     public var attemptWindow: AttemptWindow
-    /// Everything worth storing as an analysis event, in clip order: the attempt boundaries and
-    /// any falls. Tier B events join this list later.
+    /// Everything worth storing as an analysis event, in clip order: the attempt boundaries, any
+    /// falls, and the Tier B movement events.
     public var events: [DetectedEvent]
     public var fallEvents: [DetectedEvent]
+    /// Fast hand movement. A pose-only proxy, not proof the hand left a hold.
+    public var dynoEvents: [DetectedEvent]
+    /// Both ankles rising toward the hips. A pose-only proxy, not proof the feet left the wall.
+    public var cutFeetEvents: [DetectedEvent]
+    /// Still periods inside the attempt.
+    public var restEvents: [DetectedEvent]
     /// Height above the lowest centroid, in body heights, sampled at the progress rate.
     public var progress: [MetricSample]
     public var highestPoint: MetricSample?
@@ -122,8 +128,9 @@ public struct TierAMetrics: Codable, Equatable, Sendable {
 
 /// Pure Tier A metrics over a pose track. No Vision, no AVFoundation, no database.
 public enum TierAMetricsEngine {
-    /// Bumped when the maths changes in a way that moves a number.
-    public static let algorithmVersion = 1
+    /// Bumped when the maths changes in a way that moves a number, or when the event set changes.
+    /// Version 2 adds the Tier B events, so an analysis from version 1 is missing them.
+    public static let algorithmVersion = 2
 
     public static func compute(
         track: PoseTrack,
@@ -132,10 +139,11 @@ public enum TierAMetricsEngine {
         guard let prepared = TrackPreparation.prepare(track, thresholds: thresholds) else {
             return nil
         }
-        return compute(prepared: prepared, thresholds: thresholds)
+        return compute(track: track, prepared: prepared, thresholds: thresholds)
     }
 
     public static func compute(
+        track: PoseTrack,
         prepared: PreparedTrack,
         thresholds: MetricThresholds = MetricThresholds()
     ) -> TierAMetrics {
@@ -168,7 +176,19 @@ public enum TierAMetricsEngine {
                 + (prepared.bodyScale.isReliable ? 0.4 : 0.15)
         )
 
-        var events = falls
+        let tierB = TierBMetricsEngine.compute(
+            track: track,
+            prepared: prepared,
+            attemptWindow: AttemptWindow(
+                startMs: window.startMs,
+                endMs: window.endMs,
+                confidence: window.confidence,
+                detectedByMotion: window.detectedByMotion
+            ),
+            thresholds: thresholds
+        )
+
+        var events = falls + tierB.all
         events.append(DetectedEvent(
             type: .attemptStart,
             startMs: window.startMs,
@@ -198,6 +218,9 @@ public enum TierAMetricsEngine {
             ),
             events: events,
             fallEvents: falls,
+            dynoEvents: tierB.dynoEvents,
+            cutFeetEvents: tierB.cutFeetEvents,
+            restEvents: tierB.restEvents,
             progress: progress,
             highestPoint: highestPoint,
             peakSpeed: peakSpeed,
@@ -216,8 +239,11 @@ public enum TierAMetricsEngine {
     static func eventOrder(_ type: AnalysisEventType) -> Int {
         switch type {
         case .attemptStart: return 0
-        case .attemptEnd: return 2
-        default: return 1
+        case .fall: return 1
+        case .dyno: return 2
+        case .cutFeet: return 3
+        case .rest: return 4
+        case .attemptEnd: return 5
         }
     }
 

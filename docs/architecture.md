@@ -157,6 +157,16 @@ Summary numbers are recomputed from the track, so the screen always shows curren
 
 The clips surface is a pushed screen under Stats, not a sixth tab: five tabs is the bar before iOS collapses the rest into More, and the surface belongs next to the other analysis screens. Session media rows show the clip's analysis state and, with the flag on, open the review instead of the plain player.
 
+## Tier B and Comparison (P6)
+
+Tier B is three movement events derived from the pose track alone: dyno, cut feet, and rest. All three are proxies, and the app says so wherever they appear. A dyno is a wrist speed peak above the threshold with real travel across the peak window, not proof that the hand left a hold. Cut feet is both ankle offsets below the hips shrinking by the threshold within the window while the body itself does not rise, not proof that the feet left the wall. A rest is a run of prepared track samples below the rest speed lasting at least the minimum, not proof of a shakeout. Hold contact is Pose v2 and needs hold detection or a homography, so Tier B never claims it.
+
+`TierBMetricsEngine` works on the raw track and the prepared track together, because the prepared track keeps only the body centroid and all three signals live in the limbs. Wrists, ankles, and hips are resampled onto the prepared grid (nearest usable sample within 80 ms, longer gaps stay nil), smoothed per contiguous run, and differentiated by central difference. A nil on either side of a difference means no speed, so an occlusion cannot invent a spike. Every detector is restricted to the attempt window, and each has a debounce so two wrists firing for one dyno, or several consecutive samples of one cut feet, collapse to one event. The thresholds live in `MetricThresholds` version 2 and the algorithm version is 2, so an analysis from version 1 is visibly missing Tier B events.
+
+`ClipComparison` is the comparison model: two `ComparisonSide` values plus a gate. A handheld clip refuses comparison outright with a reason naming the clip, because a handheld frame has no fixed coordinate system and its numbers describe the camera as much as the climbing. Two comparable clips produce the attempt duration, highest point, fall, dyno, cut feet and rest counts, peak speed, smoothness, path efficiency, coverage, and a progress curve resampled onto 50 points of attempt progress, so clips of different lengths share an x axis. The hesitation maps are only carried when both clips are stationary, and the model records that a spatial read still assumes the phone did not move between sessions. There is no pixel level overlay of two clips.
+
+The compare screen loads metrics for two chosen clips through `VideoAnalysisStore`, renders the two normalized curves on one Canvas, and lays the numbers out in two columns. The clips surface links to it from its toolbar. Nothing in the comparison is in metres or newtons, and the screen repeats that.
+
 ## Feature Flags
 
 Development, Internal, Release xcconfig defaults merged with settings overrides (settingsKeyFlagOverrides). BoulderVision hard gated in release; ai_hold_detection and ai_pose_analysis ship off. M3 adds no flags; the Debug only synthetic capture and seeding paths are compiled by DEVELOPMENT and unreachable in Internal and Release.

@@ -59,6 +59,16 @@ struct VideosView: View {
         }
         .navigationTitle("Clips")
         .accessibilityIdentifier("videos.screen")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                NavigationLink {
+                    CompareView(services: services)
+                } label: {
+                    Text("Compare")
+                }
+                .accessibilityIdentifier("videos.compare")
+            }
+        }
         .onAppear {
             store.refresh()
         }

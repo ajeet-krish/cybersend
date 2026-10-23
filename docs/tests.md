@@ -318,3 +318,43 @@ dogfood obligations on the next device run:
 The accuracy of every number on the summary card is unmeasured until the P0 corpus exists. The
 screen says so through the quality flags and the usability bar, but the numbers themselves are
 hypotheses.
+
+## 2026-10-22 - P6 Tier B and comparison
+
+| Item | Command | Result |
+|------|---------|--------|
+| Full package suite, 364 tests in 62 suites | cd ios && swift test | PASS except the 10k stats budget under load (see below) |
+| A fast hand throw is one dyno on the throwing wrist | swift test --filter TierB | PASS |
+| A slow hand move over the same distance is not a dyno | swift test --filter TierB | PASS |
+| A hand that darts out and back is not a dyno | swift test --filter TierB | PASS |
+| Both ankles rising toward still hips is cut feet | swift test --filter TierB | PASS |
+| A high step where the body rises with the feet is not cut feet | swift test --filter TierB | PASS |
+| One ankle moving alone is not cut feet | swift test --filter TierB | PASS |
+| A long still period inside the attempt is one rest | swift test --filter TierB | PASS |
+| A short pause is not a rest | swift test --filter TierB | PASS |
+| Every event type has a distinct ordering rank | swift test --filter TierB | PASS |
+| Two fixed camera clips compare, with curves spanning 0 to 1 | swift test --filter ClipComparison | PASS |
+| A handheld clip refuses comparison and names itself | swift test --filter ClipComparison | PASS |
+| A nearly still clip compares on numbers but carries no hesitation map | swift test --filter ClipComparison | PASS |
+| Counts and rest seconds reach the comparison side | swift test --filter ClipComparison | PASS |
+| Curve resampling interpolates between stored samples | swift test --filter ClipComparison | PASS |
+| App unit tests, 25 tests | xcodebuild test -only-testing:CyberSendAppTests | PASS |
+| Session media and clip review UI smokes | xcodebuild test -only-testing:CyberSendUITests/SessionMediaSmokeTests -only-testing:CyberSendUITests/VideoReviewSmokeTests | PASS |
+
+The 10k attempt stats budget test (US-23.5, 100 ms) measured 117 ms on 2026-10-22 while the machine
+carried a load average above 7 from unrelated training runs. It passes when the machine is idle and
+the failure is environmental, not a regression: no stats code changed in P6.
+
+Not covered, and it cannot be covered in CI: the compare screen with two real analysed clips, the
+curve overlay legibility on a phone, and whether the Tier B thresholds fire at the right moments on
+real climbing. The comparison model and the detectors are unit tested against synthetic shapes. On
+the next device run:
+
+1. Analyse two clips of the same climb, compare them, and check the curve shapes match what was
+   filmed.
+2. Film one clip handheld and confirm the compare screen refuses it with the reason.
+3. Film a dyno and a cut feet attempt and check the review screen's counts against the footage.
+4. Confirm the review screen says the Tier B rows are pose-only proxies.
+
+The Tier B thresholds are hypotheses. Nothing here proves a dyno count is right on real climbing
+until the P0 corpus exists.
