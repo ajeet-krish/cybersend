@@ -12,8 +12,9 @@
     "verify": "node src/verify_onnx.ts",
     "eval": "node src/eval_hold.ts",
     "eval:stub": "node src/run_stub_eval.ts",
-    "test": "node --test src/metrics.test.ts src/preprocess.test.ts src/eval_stub.test.ts src/test_policy.test.ts src/baked_parity.test.ts src/yolox_decode.test.ts",
-    "typecheck": "tsc --noEmit"
+    "test": "node --test src/metrics.test.ts src/fp_filters.test.ts src/preprocess.test.ts src/eval_stub.test.ts src/test_policy.test.ts src/baked_parity.test.ts src/yolox_decode.test.ts",
+    "typecheck": "tsc --noEmit",
+    "analyze:fp": "node src/analyze_false_positives.ts"
   },
   "dependencies": {
     "jpeg-js": "^0.4.4",

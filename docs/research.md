@@ -462,3 +462,88 @@ Consequence: the size advantage (about 9 MB at int8, comfortably inside 15 MB)
 is real, and the accuracy thresholds now pass at one operating point, but the
 false positive criterion is further away than RF-DETR's. No test-split spend is
 justified for this model, and the policy for a second spend is still unset.
+
+## 2026-10-22 - False positive anatomy on val: the labels are the limit
+
+Why: RF-DETR was chosen as the model to push on false positives, since it sits
+closest to the budget at the recall floor (about 0.56 per image against 0.5).
+Before spending another training run, the false positives were classified to see
+whether duplicates, small spurious boxes, or background texture accounted for the
+excess. The analyzer is committed at tools/eval/src/analyze_false_positives.ts
+(pure filters in fp_filters.ts, unit tested; 50 harness tests green).
+
+Operating point: confidence 0.765, IoU 0.5, 591 val images. Precision 0.9821,
+recall 0.8054, 335 false positives (0.5668 per image), median count error 3.
+
+Buckets, by what the box overlaps:
+
+| Bucket | Rule | Count | Share |
+|---|---|---|---|
+| duplicate | IoU 0.5 or more with a true positive box or a claimed ground truth | 12 | 3.6% |
+| near miss | best ground truth IoU 0.3 to 0.5 | 120 | 35.8% |
+| loose | best ground truth IoU 0.1 to 0.3 | 49 | 14.6% |
+| background | no ground truth within IoU 0.1 | 154 | 46.0% |
+
+Duplicate suppression is not the problem: set prediction already does its job,
+and the 12 duplicate boxes are 3.6% of the total.
+
+Size and score: mean false positive area is 2,958 px2 with a median equivalent
+side of 34.7 px, so these are not dust specks. Area bands are 51 boxes under 100
+px2, 115 from 100 to 400, 83 from 400 to 1,600, 51 from 1,600 to 6,400, and 35 at
+or above 6,400. Scores are 86 in 0.7 to 0.8, 176 in 0.8 to 0.9, and 73 in 0.9 to
+1.0, so they are confident boxes, not threshold noise.
+
+Deterministic post-processing sweeps at the same confidence:
+
+| Fix | Setting | Precision | Recall | FP per image | Count error |
+|---|---|---|---|---|---|
+| none | | 0.9821 | 0.8054 | 0.5668 | 3 |
+| dedupe | IoU 0.5 | 0.9826 | 0.8051 | 0.5499 | 3 |
+| dedupe | IoU 0.3 | 0.9828 | 0.8024 | 0.5398 | 3 |
+| area floor | 49 px2 | 0.9823 | 0.7904 | 0.5482 | 4 |
+| area floor | 100 px2 | 0.9829 | 0.7151 | 0.4805 | 6 |
+| edge filter | 2 px | 0.9827 | 0.7902 | 0.5364 | 4 |
+
+No deterministic filter reaches 0.5 while holding recall at 0.80. The best
+combination that keeps recall near the floor is dedupe at IoU 0.5 plus a 25 px2
+floor, at 0.5499. Only 18 boxes (5.4%) touch the frame edge.
+
+What the boxes actually are. Two visual audits were run on the dumped boxes,
+cropping each one with ground truth overlaid in green:
+
+- In 24 background false positives, about 20 sit on a visible hold or volume
+  with no ground truth box on it. Three are wall edges, gaps, or a climber.
+  One is ambiguous.
+- The near miss boxes are the same holds with box extent disagreement, plus
+  large volumes that are labelled with a different extent.
+
+One image makes the mechanism explicit: blackcreed__781 has 27 ground truth
+boxes and 37 false positives. Its labels are large overlapping regions (one
+covers most of the wall), while the model emits tight per-hold boxes that are
+visually correct. A tight box inside a large region scores well under IoU 0.5,
+so every correct detection there counts as a false positive.
+
+Concentration: the 10 worst images hold 80 of the 335 false positives (23.9%).
+113 val images contain a ground truth box over 40,000 px2, and those images hold
+53 false positives (15.8%). Across the split, 174 of 591 images have at least one
+false positive. Ground truth geometry confirms the coarseness is a minority
+overall: median annotation area is 402.8 px2 with a median maximum side of
+23.4 px, 4.5% of annotations exceed 10,000 px2, and 0.65% exceed 40,000 px2.
+
+Conclusion. The false positive budget on the merged public split measures
+annotation completeness and annotation geometry, not model error. The model is
+finding real holds that the labels omit, and tight correct boxes that the coarse
+labels score as misses. This also means the count error criterion is not
+measurable there: at the recall floor the model under-detects by 7.5 holds per
+image, which is consistent with unlabelled holds inflating the ground truth
+count as much as with genuine misses.
+
+Consequence. No retraining and no post-processing is justified by this
+measurement. Hard negatives would be actively harmful: they would train the
+model to suppress the real holds that the labels miss. The false positive and
+count error criteria must be measured on the Phase 0 dense own-gym eval set that
+docs/requirements.md already requires (US-5: at least 200 photos, 1,500 labelled
+instances, double annotation), where every hold on the wall is labelled with a
+tight box. Until that set exists, those two criteria are unmeasured rather than
+failed, and the D1 and D1b false positive numbers should not be compared against
+the 0.5 limit.

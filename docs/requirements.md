@@ -207,6 +207,15 @@ hold: float16 51.6 MB, int8 26 MB, and int4 13 MB all fail parity, so the
 parity-clean package is 104.4 MB and the 15 MB budget is still unmet. Device
 latency, memory, thermals, and cold load remain unmeasured.
 
+**Status (false positive measurement, 2026-10-22).** The false positive and count
+error criteria in this section cannot be measured on the merged public split. At
+the RF-DETR recall floor, 46% of false positives have no ground truth within IoU
+0.1 and about 20 of 24 inspected boxes sit on real holds that the labels omit,
+while some source images label large overlapping regions that score every tight
+correct box as a miss (docs/research.md). Those two criteria are therefore
+unmeasured, not failed, until the Phase 0 dense eval set from US-5 exists. The
+precision, recall, and mAP thresholds are unaffected as relative signals.
+
 ### Phase 4: Inference performance and thermals (iPhone 11 / A13 class minimum)
 - Model: YOLOX-Nano or RF-DETR-Nano, int8 quantized, <= 15 MB bundled; cold model load <= 2 s.
 - Latency: p50 <= 500 ms, p95 <= 1500 ms per photo (2048 px working resolution).

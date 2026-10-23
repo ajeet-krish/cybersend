@@ -1,0 +1,375 @@
+{
+  "generated_at": "2026-10-23T00:45:42.375Z",
+  "model": "/Users/ajeet/Projects/personal/cybersend/tools/train/artifacts/holds_detector_d1.onnx",
+  "model_kind": "rfdetr",
+  "split_dir": "/Users/ajeet/Projects/personal/cybersend/tools/train/datasets/merged/val",
+  "images": 591,
+  "ground_truths": 22762,
+  "operating_confidence": 0.765,
+  "match_iou": 0.5,
+  "baseline": {
+    "tp": 18332,
+    "fp": 335,
+    "fn": 4430,
+    "precision": 0.9821,
+    "recall": 0.8054,
+    "fpPerImage": 0.5668,
+    "medianAbsCountError": 3
+  },
+  "false_positive_anatomy": {
+    "total": 335,
+    "duplicate": {
+      "count": 12,
+      "share": 0.0358
+    },
+    "near_miss": {
+      "count": 120,
+      "share": 0.3582
+    },
+    "loose": {
+      "count": 49,
+      "share": 0.1463
+    },
+    "background": {
+      "count": 154,
+      "share": 0.4597
+    },
+    "mean_area_px2": 2958,
+    "median_equivalent_side_px": 34.7,
+    "by_score_band": {
+      "0.7-0.8": 86,
+      "0.8-0.9": 176,
+      "0.9-1.0": 73
+    },
+    "by_area_band": {
+      "area >= 6400 px2": 35,
+      "area 1600-6400 px2": 51,
+      "area 400-1600 px2": 83,
+      "area 100-400 px2": 115,
+      "area < 100 px2": 51
+    }
+  },
+  "border": {
+    "false_positives_touching_edge": 18,
+    "share": 0.0537,
+    "sweep": [
+      {
+        "margin_px": 0,
+        "tp": 18245,
+        "fp": 330,
+        "fn": 4517,
+        "precision": 0.9822,
+        "recall": 0.8016,
+        "fpPerImage": 0.5584,
+        "medianAbsCountError": 3
+      },
+      {
+        "margin_px": 2,
+        "tp": 17987,
+        "fp": 317,
+        "fn": 4775,
+        "precision": 0.9827,
+        "recall": 0.7902,
+        "fpPerImage": 0.5364,
+        "medianAbsCountError": 4
+      },
+      {
+        "margin_px": 8,
+        "tp": 17822,
+        "fp": 314,
+        "fn": 4940,
+        "precision": 0.9827,
+        "recall": 0.783,
+        "fpPerImage": 0.5313,
+        "medianAbsCountError": 4
+      },
+      {
+        "margin_px": 16,
+        "tp": 17616,
+        "fp": 308,
+        "fn": 5146,
+        "precision": 0.9828,
+        "recall": 0.7739,
+        "fpPerImage": 0.5212,
+        "medianAbsCountError": 5
+      }
+    ]
+  },
+  "dedupe_sweep": [
+    {
+      "iou": 0.3,
+      "tp": 18264,
+      "fp": 319,
+      "fn": 4498,
+      "precision": 0.9828,
+      "recall": 0.8024,
+      "fpPerImage": 0.5398,
+      "medianAbsCountError": 3
+    },
+    {
+      "iou": 0.4,
+      "tp": 18310,
+      "fp": 322,
+      "fn": 4452,
+      "precision": 0.9827,
+      "recall": 0.8044,
+      "fpPerImage": 0.5448,
+      "medianAbsCountError": 3
+    },
+    {
+      "iou": 0.5,
+      "tp": 18326,
+      "fp": 325,
+      "fn": 4436,
+      "precision": 0.9826,
+      "recall": 0.8051,
+      "fpPerImage": 0.5499,
+      "medianAbsCountError": 3
+    },
+    {
+      "iou": 0.6,
+      "tp": 18331,
+      "fp": 327,
+      "fn": 4431,
+      "precision": 0.9825,
+      "recall": 0.8053,
+      "fpPerImage": 0.5533,
+      "medianAbsCountError": 3
+    },
+    {
+      "iou": 0.65,
+      "tp": 18331,
+      "fp": 327,
+      "fn": 4431,
+      "precision": 0.9825,
+      "recall": 0.8053,
+      "fpPerImage": 0.5533,
+      "medianAbsCountError": 3
+    },
+    {
+      "iou": 0.7,
+      "tp": 18331,
+      "fp": 327,
+      "fn": 4431,
+      "precision": 0.9825,
+      "recall": 0.8053,
+      "fpPerImage": 0.5533,
+      "medianAbsCountError": 3
+    }
+  ],
+  "area_sweep": [
+    {
+      "min_area_px2": 9,
+      "tp": 18332,
+      "fp": 335,
+      "fn": 4430,
+      "precision": 0.9821,
+      "recall": 0.8054,
+      "fpPerImage": 0.5668,
+      "medianAbsCountError": 3
+    },
+    {
+      "min_area_px2": 25,
+      "tp": 18326,
+      "fp": 335,
+      "fn": 4436,
+      "precision": 0.982,
+      "recall": 0.8051,
+      "fpPerImage": 0.5668,
+      "medianAbsCountError": 3
+    },
+    {
+      "min_area_px2": 49,
+      "tp": 17991,
+      "fp": 324,
+      "fn": 4771,
+      "precision": 0.9823,
+      "recall": 0.7904,
+      "fpPerImage": 0.5482,
+      "medianAbsCountError": 4
+    },
+    {
+      "min_area_px2": 100,
+      "tp": 16278,
+      "fp": 284,
+      "fn": 6484,
+      "precision": 0.9829,
+      "recall": 0.7151,
+      "fpPerImage": 0.4805,
+      "medianAbsCountError": 6
+    },
+    {
+      "min_area_px2": 196,
+      "tp": 13912,
+      "fp": 228,
+      "fn": 8850,
+      "precision": 0.9839,
+      "recall": 0.6112,
+      "fpPerImage": 0.3858,
+      "medianAbsCountError": 9
+    },
+    {
+      "min_area_px2": 400,
+      "tp": 10623,
+      "fp": 169,
+      "fn": 12139,
+      "precision": 0.9843,
+      "recall": 0.4667,
+      "fpPerImage": 0.286,
+      "medianAbsCountError": 16
+    }
+  ],
+  "combined_sweep": [
+    {
+      "iou": 0.4,
+      "min_area_px2": 25,
+      "tp": 18304,
+      "fp": 322,
+      "fn": 4458,
+      "precision": 0.9827,
+      "recall": 0.8041,
+      "fpPerImage": 0.5448,
+      "medianAbsCountError": 3
+    },
+    {
+      "iou": 0.4,
+      "min_area_px2": 49,
+      "tp": 17969,
+      "fp": 311,
+      "fn": 4793,
+      "precision": 0.983,
+      "recall": 0.7894,
+      "fpPerImage": 0.5262,
+      "medianAbsCountError": 4
+    },
+    {
+      "iou": 0.4,
+      "min_area_px2": 100,
+      "tp": 16256,
+      "fp": 271,
+      "fn": 6506,
+      "precision": 0.9836,
+      "recall": 0.7142,
+      "fpPerImage": 0.4585,
+      "medianAbsCountError": 6
+    },
+    {
+      "iou": 0.5,
+      "min_area_px2": 25,
+      "tp": 18320,
+      "fp": 325,
+      "fn": 4442,
+      "precision": 0.9826,
+      "recall": 0.8049,
+      "fpPerImage": 0.5499,
+      "medianAbsCountError": 3
+    },
+    {
+      "iou": 0.5,
+      "min_area_px2": 49,
+      "tp": 17985,
+      "fp": 314,
+      "fn": 4777,
+      "precision": 0.9828,
+      "recall": 0.7901,
+      "fpPerImage": 0.5313,
+      "medianAbsCountError": 4
+    },
+    {
+      "iou": 0.5,
+      "min_area_px2": 100,
+      "tp": 16272,
+      "fp": 274,
+      "fn": 6490,
+      "precision": 0.9834,
+      "recall": 0.7149,
+      "fpPerImage": 0.4636,
+      "medianAbsCountError": 6
+    },
+    {
+      "iou": 0.6,
+      "min_area_px2": 25,
+      "tp": 18325,
+      "fp": 327,
+      "fn": 4437,
+      "precision": 0.9825,
+      "recall": 0.8051,
+      "fpPerImage": 0.5533,
+      "medianAbsCountError": 3
+    },
+    {
+      "iou": 0.6,
+      "min_area_px2": 49,
+      "tp": 17990,
+      "fp": 316,
+      "fn": 4772,
+      "precision": 0.9827,
+      "recall": 0.7904,
+      "fpPerImage": 0.5347,
+      "medianAbsCountError": 4
+    },
+    {
+      "iou": 0.6,
+      "min_area_px2": 100,
+      "tp": 16277,
+      "fp": 276,
+      "fn": 6485,
+      "precision": 0.9833,
+      "recall": 0.7151,
+      "fpPerImage": 0.467,
+      "medianAbsCountError": 6
+    }
+  ],
+  "worst_images": [
+    {
+      "file_name": "images/blackcreed__781_jpg.rf.b9879330dfb9ea3c7db011bf3059fd6c.jpg",
+      "false_positives": 37,
+      "gt": 27
+    },
+    {
+      "file_name": "images/climbtag__680002-le-triangle-nouvelle-salle-d-escalade-de-bloc-a-bercy-village_jpg.rf.0b95ed3319bdaeac2176c00e276d4405.jpg",
+      "false_positives": 7,
+      "gt": 93
+    },
+    {
+      "file_name": "images/climbtag__2022-12-09_16-41-23_UTC_jpg.rf.9e7332fca93c7b3a48eca24151ebdb76.jpg",
+      "false_positives": 6,
+      "gt": 156
+    },
+    {
+      "file_name": "images/pwals__pexels-cottonbro-studio-6701740-scaled_jpg.rf.657d930028c94d15d8c52678d85f359c.jpg",
+      "false_positives": 5,
+      "gt": 16
+    },
+    {
+      "file_name": "images/pwals__harlech-bouldering-wall1_jpg.rf.3d86874b482f605ad0f5bc588ead5b32.jpg",
+      "false_positives": 5,
+      "gt": 54
+    },
+    {
+      "file_name": "images/climbtag__boulder-images_9ba30b03-c7b3-4c71-bd2a-57cb84c49aa8_jpg.rf.23eb9aed1660be1b0fddaac95daa8689.jpg",
+      "false_positives": 4,
+      "gt": 61
+    },
+    {
+      "file_name": "images/blackcreed__2022-12-08_15-20-12_UTC_jpg.rf.12e13ef4a161d83e3db39405b4649dcb.jpg",
+      "false_positives": 4,
+      "gt": 83
+    },
+    {
+      "file_name": "images/climbtag__2022-12-09_13-52-47_UTC_jpg.rf.6107117151aa49e713681f924eaf21f2.jpg",
+      "false_positives": 4,
+      "gt": 104
+    },
+    {
+      "file_name": "images/blackcreed__8wpPHRiXA5HJDpfbr_jpg.rf.730e046e66c0523ff0de504f2423c047.jpg",
+      "false_positives": 4,
+      "gt": 86
+    },
+    {
+      "file_name": "images/blackcreed__2GFx9tFK3ZqT68KTX_jpg.rf.70fdc05cdb385c5136cf5b728d14ed29.jpg",
+      "false_positives": 4,
+      "gt": 58
+    }
+  ]
+}

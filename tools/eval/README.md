@@ -51,9 +51,21 @@ npm run eval -- --model ../train/artifacts/holds_detector_d1.onnx \
 # Load an ONNX, print the input/output contract, run one dummy inference.
 npm run verify -- ../train/artifacts/holds_detector_d1.onnx
 
+# False positive anatomy at an operating point: splits the false positives into
+# duplicate, near miss, loose, and background buckets, then sweeps dedupe IoU,
+# minimum box area, and the frame edge filter. --dump-fps writes every false
+# positive with its image, box, score, and bucket so the boxes can be cropped
+# into a contact sheet and inspected by eye. Val only; it never scores test.
+npm run analyze:fp -- --model ../train/artifacts/holds_detector_d1.onnx \
+  --split-dir ../train/datasets/merged/val --confidence 0.765 \
+  --report reports/fp_rfdetr_d1.json --dump-fps reports/fp_rfdetr_d1_boxes.json
+
 # Type check (Node 22.18+ runs the TypeScript directly via type stripping).
 npm run typecheck
 ```
+
+Flags for npm run analyze:fp (all optional): --model, --model-kind
+(auto|rfdetr|yolox), --split-dir, --confidence, --iou, --report, --dump-fps.
 
 Flags for npm run eval (all optional): --model, --model-kind
 (auto|rfdetr|yolox, default auto), --split-dir (alias --test-dir, default
