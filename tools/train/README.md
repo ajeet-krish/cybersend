@@ -706,11 +706,12 @@ docs/research.md):
 | Core ML int8, uniform | 26.0 MB | 0.9831 | 0.7587 | 0.9063 | 0.5008 | 5 | 37.5 ms |
 | Core ML int4, k-means | 13.4 MB | unusable, 7 detections against 324 | | | | | |
 
-The 15 MB budget is unmet at iOS16: int4 per tensor destroys the model, and both
-grouped-channel palettization and int4 linear quantization require iOS18, which
-the rfdetr exporter cannot target. The smallest usable package is 26.4 MB int8
-k-means, at 0.13 recall points more than float16. The budget decision is in
-docs/decisions.md; device latency, memory, and thermals remain unmeasured.
+At iOS16, int4 per tensor destroys the model, and both grouped-channel
+palettization and int4 linear quantization require iOS18, which the rfdetr
+exporter cannot target. The smallest usable package is therefore 26.4 MB int8
+k-means, at 0.13 recall points more than float16. The bundled budget was raised
+from 15 MB to 30 MB on 2026-10-22 so that package fits (docs/decisions.md).
+Device latency, memory, and thermals remain unmeasured.
 
 ## Preprocess parity with the app
 

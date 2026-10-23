@@ -195,17 +195,19 @@ US-36 to US-40 of the original PM draft (board-provider abstraction, offline cat
 **Status (D1, 2026-10-21, the single frozen test run).** Precision 0.9509,
 recall 0.8788, and mAP@0.5 0.9130 pass. Median absolute hold-count error is 1.0
 and passes at the boundary. False positives are 1.8832 per image and fail the
-0.5 limit. RF-DETR-Nano is 109.2 MB float32 and about 29 MB at int8, so the
-15 MB deployment budget cannot be met at 28.9M parameters; YOLOX-Nano meets the
+0.5 limit. RF-DETR-Nano is 109.2 MB float32 and about 29 MB at int8, so the original
+15 MB deployment budget could not be met at 28.9M parameters (the budget was raised to
+30 MB on 2026-10-22, see the compression status below); YOLOX-Nano meets the
 size budget but fails recall at every threshold. No Phase 4 model is shippable
 under this section yet, and the decision is recorded in docs/decisions.md.
 
 **Status (Core ML, 2026-10-21).** The RF-DETR conversion is real: an iOS16
 mlprogram package passes decision-space parity against ONNX at float32 (8.31e-4
-score, 8.79e-7 box) and runs warm in 41 to 50 ms on the M5. Compression does not
-hold: float16 51.6 MB, int8 26 MB, and int4 13 MB all fail parity, so the
-parity-clean package is 104.4 MB and the 15 MB budget is still unmet. Device
-latency, memory, thermals, and cold load remain unmeasured.
+score, 8.79e-7 box) and runs warm in 41 to 50 ms on the M5. Compression was initially recorded as
+failing (float16 51.6 MB, int8 26 MB, int4 13 MB against the per-query gate); that
+reading was superseded on 2026-10-22 by the decision-level and full-val measurements
+below, which show Core ML float32 decision-identical to ONNX and int8 k-means usable at
+26.4 MB. Device latency, memory, thermals, and cold load remain unmeasured.
 
 **Status (false positive measurement, 2026-10-22).** The false positive and count
 error criteria in this section cannot be measured on the merged public split. At
@@ -217,21 +219,25 @@ unmeasured, not failed, until the Phase 0 dense eval set from US-5 exists. The
 precision, recall, and mAP thresholds are unaffected as relative signals.
 
 ### Phase 4: Inference performance and thermals (iPhone 11 / A13 class minimum)
-- Model: YOLOX-Nano or RF-DETR-Nano, int8 quantized, <= 15 MB bundled; cold model load <= 2 s.
+- Model: YOLOX-Nano or RF-DETR-Nano, int8 quantized, <= 30 MB bundled (raised from 15 MB on
+  2026-10-22 because 26.4 MB int8 k-means is the smallest usable RF-DETR package at the iOS16
+  floor; see docs/decisions.md); cold model load <= 2 s.
 - Latency: p50 <= 500 ms, p95 <= 1500 ms per photo (2048 px working resolution).
 - Memory: peak delta <= 300 MB during inference.
 - Thermals: 20 consecutive detections without serious thermal pressure; on breach, cooldown behavior per edge cases.
 - Battery: 50 consecutive detections drain <= 5% on a healthy battery.
 - Hard ceiling: any single inference exceeding 5 s is cancelled and falls back to manual.
 
-**Status (Core ML compression, 2026-10-22).** The 15 MB bundled budget is unmet
-at the iOS16 floor. The smallest usable package is int8 k-means at 26.4 MB, which
-costs 0.13 recall points more than float16 at half the size; Core ML float32 is
-decision-identical to the ONNX graph. int4 per tensor is unusable, and grouped
-palettization and int4 linear quantization require iOS18, which the current
-exporter cannot target. Full numbers in docs/research.md; the budget decision is
-recorded in docs/decisions.md. Latency and memory below are still measured only
-on the M5 host, not on an A13 device.
+**Status (Core ML compression, 2026-10-22).** The bundled budget was raised from 15 MB
+to 30 MB on 2026-10-22, and the 26.4 MB int8 k-means package fits it. On full val at
+confidence 0.765 it scores 0.9822 precision, 0.7996 recall, 0.9167 mAP@0.5, 0.5567
+false positives per image, and count error 3, against 0.9828 / 0.8085 / 0.9242 /
+0.5465 / 3 for the canonical ONNX graph. Core ML float32 is decision-identical to
+ONNX; float16 costs 0.76 recall points and int8 k-means adds 0.13 more. int8 uniform
+costs 5 recall points, int4 per tensor is unusable, and grouped palettization and int4
+linear quantization require iOS18, which the current exporter cannot target. Full
+numbers in docs/research.md; the budget decision is recorded in docs/decisions.md.
+Latency and memory below are still measured only on the M5 host, not on an A13 device.
 
 ### Phase 3: Grade normalization
 - Synthetic fixture (5 gyms x 40 climbs x 100 attempts with injected latent difficulties): Spearman rank correlation between recovered and true difficulty >= 0.90.

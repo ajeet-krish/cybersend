@@ -613,6 +613,7 @@ Reading:
 
 Consequence: the smallest usable RF-DETR package at the iOS16 floor is 26.4 MB
 int8 k-means, which misses the 15 MB bundled budget by 11 MB. The budget cannot
-be met by compression settings at iOS16. The options are a budget change to about
+be met by compression settings at iOS16. The options were a budget change to about
 30 MB, an iOS18 floor plus a custom exporter, or the YOLOX-S branch at about 9 MB
-with its own accuracy profile.
+with its own accuracy profile. Resolved the same day: the bundled budget was
+raised to 30 MB, so the 26.4 MB int8 k-means package fits (docs/decisions.md).
