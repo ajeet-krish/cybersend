@@ -153,6 +153,25 @@ struct ClipComparisonNumbersTests {
         #expect(comparison.right.fallCount == 0)
     }
 
+    @Test("the first fall is placed at its fraction of the attempt")
+    func fallProgress() throws {
+        let left = metrics(falls: [
+            event(.fall, startMs: 7_500),
+            event(.fall, startMs: 2_500),
+        ])
+        let gate = ClipComparison.compare(
+            left: (label: "A", metrics: left),
+            right: (label: "B", metrics: metrics())
+        )
+        guard case .allowed(let comparison) = gate else {
+            Issue.record("the pair must compare")
+            return
+        }
+        let progress = try #require(comparison.left.fallProgress)
+        #expect(abs(progress - 0.25) < 0.001, "the earliest fall wins")
+        #expect(comparison.right.fallProgress == nil)
+    }
+
     @Test("the normalized curve spans the attempt from 0 to 1")
     func curveSpansAttempt() throws {
         let curve = ClipComparison.normalizedCurve(metrics())

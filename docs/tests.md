@@ -337,6 +337,7 @@ hypotheses.
 | A handheld clip refuses comparison and names itself | swift test --filter ClipComparison | PASS |
 | A nearly still clip compares on numbers but carries no hesitation map | swift test --filter ClipComparison | PASS |
 | Counts and rest seconds reach the comparison side | swift test --filter ClipComparison | PASS |
+| The earliest fall is placed at its fraction of the attempt | swift test --filter ClipComparison | PASS |
 | Curve resampling interpolates between stored samples | swift test --filter ClipComparison | PASS |
 | App unit tests, 25 tests | xcodebuild test -only-testing:CyberSendAppTests | PASS |
 | Session media and clip review UI smokes | xcodebuild test -only-testing:CyberSendUITests/SessionMediaSmokeTests -only-testing:CyberSendUITests/VideoReviewSmokeTests | PASS |

@@ -168,6 +168,12 @@ struct CompareView: View {
                 comparisonDivider
                 comparisonRow("Falls", "\(comparison.left.fallCount)", "\(comparison.right.fallCount)")
                 comparisonDivider
+                comparisonRow(
+                    "First fall at",
+                    progressText(comparison.left.fallProgress),
+                    progressText(comparison.right.fallProgress)
+                )
+                comparisonDivider
                 comparisonRow("Dynos", "\(comparison.left.dynoCount)", "\(comparison.right.dynoCount)")
                 comparisonDivider
                 comparisonRow("Cut feet", "\(comparison.left.cutFeetCount)", "\(comparison.right.cutFeetCount)")
@@ -281,6 +287,11 @@ struct CompareView: View {
     private func timeText(_ milliseconds: Int) -> String {
         let totalSeconds = max(0, milliseconds) / 1000
         return String(format: "%d:%02d", totalSeconds / 60, totalSeconds % 60)
+    }
+
+    private func progressText(_ value: Double?) -> String {
+        guard let value else { return "None" }
+        return String(format: "%.0f%%", value * 100)
     }
 
     private func speedText(_ value: Double?) -> String {

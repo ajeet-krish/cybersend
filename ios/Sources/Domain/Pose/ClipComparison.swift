@@ -21,6 +21,8 @@ public struct ComparisonSide: Equatable, Sendable {
     public var durationMs: Int
     public var highestPoint: Double
     public var fallCount: Int
+    /// Where the first fall happened, as a fraction of the attempt. Nil when there was no fall.
+    public var fallProgress: Double?
     public var dynoCount: Int
     public var cutFeetCount: Int
     public var restSeconds: Double
@@ -39,6 +41,7 @@ public struct ComparisonSide: Equatable, Sendable {
         durationMs: Int,
         highestPoint: Double,
         fallCount: Int,
+        fallProgress: Double? = nil,
         dynoCount: Int,
         cutFeetCount: Int,
         restSeconds: Double,
@@ -54,6 +57,7 @@ public struct ComparisonSide: Equatable, Sendable {
         self.durationMs = durationMs
         self.highestPoint = highestPoint
         self.fallCount = fallCount
+        self.fallProgress = fallProgress
         self.dynoCount = dynoCount
         self.cutFeetCount = cutFeetCount
         self.restSeconds = restSeconds
@@ -131,6 +135,7 @@ public struct ClipComparison: Equatable, Sendable {
             durationMs: metrics.attemptWindow.durationMs,
             highestPoint: metrics.highestPoint?.value ?? 0,
             fallCount: metrics.fallEvents.count,
+            fallProgress: firstFallProgress(metrics),
             dynoCount: metrics.dynoEvents.count,
             cutFeetCount: metrics.cutFeetEvents.count,
             restSeconds: metrics.restEvents.reduce(0) { total, event in
@@ -144,6 +149,19 @@ public struct ClipComparison: Equatable, Sendable {
             curve: normalizedCurve(metrics),
             hesitation: metrics.hesitation
         )
+    }
+
+    /// Where the first fall sits inside the attempt, as a fraction of its duration. Comparing the
+    /// fall point rather than the fall time is what makes a long attempt and a short one legible
+    /// side by side.
+    public static func firstFallProgress(_ metrics: TierAMetrics) -> Double? {
+        guard let fall = metrics.fallEvents.min(by: { $0.startMs < $1.startMs }) else {
+            return nil
+        }
+        let window = metrics.attemptWindow
+        let duration = max(1, window.durationMs)
+        let progress = Double(fall.startMs - window.startMs) / Double(duration)
+        return min(1, max(0, progress))
     }
 
     /// The progress curve mapped onto attempt progress, resampled onto a fixed grid so two clips
