@@ -40,13 +40,15 @@ public final class VideoAnalysisStore: ObservableObject {
     private let repos: Repositories
     private let storage: MediaStorage
     private let pipeline: PoseAnalysisPipeline
+    private let crashGuard: PoseCrashGuard
     private var runningVideoIDs: Set<String> = []
 
     public init(
         repositories: Repositories,
         storage: MediaStorage,
         runner: any PoseAnalysisRunning = VisionPoseAnalysisRunner(),
-        thresholds: MetricThresholds = MetricThresholds()
+        thresholds: MetricThresholds = MetricThresholds(),
+        crashGuard: PoseCrashGuard = PoseCrashGuard()
     ) {
         self.repos = repositories
         self.storage = storage
@@ -55,6 +57,7 @@ public final class VideoAnalysisStore: ObservableObject {
             runner: runner,
             thresholds: thresholds
         )
+        self.crashGuard = crashGuard
     }
 
     // MARK: - Loading
@@ -109,6 +112,9 @@ public final class VideoAnalysisStore: ObservableObject {
         }
 
         runningVideoIDs.insert(videoId)
+        // The marker is written only once the run is actually about to start, so a missing file or
+        // a bad row above cannot leave a marker that looks like a crash at the next launch.
+        crashGuard.begin(videoId: videoId)
         setProgress(
             PoseAnalysisProgress(
                 framesProcessed: 0,
@@ -119,6 +125,7 @@ public final class VideoAnalysisStore: ObservableObject {
             for: videoId
         )
         defer {
+            crashGuard.clear()
             runningVideoIDs.remove(videoId)
             setProgress(nil, for: videoId)
             refresh()

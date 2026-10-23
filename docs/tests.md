@@ -362,3 +362,22 @@ the next device run:
 
 The Tier B thresholds are hypotheses. Nothing here proves a dyno count is right on real climbing
 until the P0 corpus exists.
+
+## 2026-10-22 - US-40.3 crash recovery
+
+| Item | Command | Result |
+|------|---------|--------|
+| A started run leaves a marker and clear removes it | swift test --filter PoseCrashGuard | PASS |
+| A launch with no marker does not auto disable | swift test --filter PoseCrashGuard | PASS |
+| A marker at launch reports the interrupted run and persists the notice | swift test --filter PoseCrashGuard | PASS |
+| Turning the feature back on clears the notice | swift test --filter PoseCrashGuard | PASS |
+| A completed run leaves no marker for the next launch | swift test --filter PoseCrashGuard | PASS |
+| Settings exposes the notice and clears it on re-enable | swift test --filter SettingsPoseCrashNotice | PASS |
+| Crash recovery resets running rows to pending and leaves the rest alone | swift test --filter resetInterruptedPoseAnalyses | PASS |
+| Full package suite, 372 tests in 64 suites | cd ios && swift test | PASS apart from the 10k stats timing test under load (see P6 note) |
+| App unit tests, Settings, clip review, and session media smokes | xcodebuild test -only-testing:CyberSendAppTests -only-testing:CyberSendUITests/SettingsCatalogSmokeTests -only-testing:CyberSendUITests/VideoReviewSmokeTests -only-testing:CyberSendUITests/SessionMediaSmokeTests | PASS |
+
+The launch path itself (a real crash mid analysis, then relaunch) cannot be produced in the simulator
+without killing the process by hand, so the guard is unit tested and the wiring is reviewed. On the
+next device run, force quit the app mid analysis, relaunch, and confirm the Experimental section
+shows the notice with the toggle off, and that the clip reads as not analysed again.

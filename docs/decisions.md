@@ -546,6 +546,16 @@ P1 to P6 are built, tested, and behind the flag. Six acceptance criteria from US
 | US-37.6 processing resumable | Cancellable yes; a cancelled run restarts from zero. The frame reader accepts `startAfterMs` but nothing persists a partial track | Persisting partial tracks needs a place to put them that export and restore understand | Persist the partial track and a resume marker periodically, then resume on relaunch |
 | US-38.4 error budgets | Unmeasured | Same as US-37.5 | Compare metrics against the corpus ground truth |
 | US-39.1 fall relabel path | Falls are detected and stored; there is no UI to relabel one | It needs an event editing surface and a stored override, which is new schema and UI | An event editor on the review screen plus a `user_label` column |
-| US-40.3 crash or budget breach auto-disables | Not implemented | There is no budget to breach until US-37.5 is measured | A launch check that reads a last-run marker and flips the flag off after a crash during analysis |
+| US-40.3 crash or budget breach auto-disables | The crash half is implemented (marker at launch turns the flag off, stuck rows go back to pending, Settings offers a one-tap re-enable). The budget breach half is not implemented | There is no measured budget to breach until US-37.5 exists | Measure the budgets on the P0 corpus, then add the breach check beside the crash check |
 
 None of these block dogfooding the pipeline. They do mean the feature cannot be called complete against the requirements, only complete as an experimental v1 with a known list.
+
+## 2026-10-22, US-40.3: a leftover run marker turns the pose flag off at launch
+
+**Context:** `ai_pose_analysis` is experimental, and an analysis runs in the foreground with no way to observe a crash after the fact. A crash loop in an experimental feature is the worst failure mode available: the user taps the only clip they have, the app dies, and the flag stays on.
+
+**Decision:** Three parts. (1) A marker is written to UserDefaults when a run starts and cleared on every exit path, including cancellation. (2) Any marker present at launch is treated as an interrupted run, with no age threshold, because a process that has only just started cannot have an analysis in flight. The launch path turns the flag off, resets rows stuck on `running` to `pending`, and persists a notice. (3) Settings keeps the Experimental section visible while the notice is set, so one tap turns the feature back on and clears the notice.
+
+**Rationale:** The marker is a liveness fact, not a health metric: at launch it is either absent or it means the previous process died mid run. Skipping the age threshold removes a tuning parameter that would only ever produce false negatives. Resetting `pose_status` matters as much as the flag, because a row stuck on running would otherwise present a clip as permanently analysing. Keeping the re-enable path in Settings is what makes an automatic disable acceptable rather than a dead end.
+
+**Trade-offs:** A force quit during analysis is indistinguishable from a crash and will disable the feature, which is a false positive by definition. The alternative is guessing at intent, and the notice plus one-tap re-enable keeps the cost low. The marker lives in UserDefaults rather than the settings table, so it does not travel with a backup, which is correct: it describes this process, not the user's preferences. The budget breach half of US-40.3 is not implemented, because there is no measured budget to breach until the P0 corpus exists.

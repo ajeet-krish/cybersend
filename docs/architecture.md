@@ -157,6 +157,10 @@ Summary numbers are recomputed from the track, so the screen always shows curren
 
 The clips surface is a pushed screen under Stats, not a sixth tab: five tabs is the bar before iOS collapses the rest into More, and the surface belongs next to the other analysis screens. Session media rows show the clip's analysis state and, with the flag on, open the review instead of the plain player.
 
+## Crash Recovery (US-40.3)
+
+Analysis is foreground and explicit, so the pipeline leaves a marker in UserDefaults when a run starts and clears it on every exit path, including cancellation. `PoseCrashGuard` reads that marker at launch: any marker present at launch is a run that did not finish, because a process that has only just started cannot have an analysis in flight, so there is no age threshold to tune. The launch path then turns `ai_pose_analysis` off, resets any `videos.pose_status` stuck on `running` back to `pending` (unconditionally, since nothing can be running at launch), and leaves a persisted notice. Settings keeps the Experimental section visible while that notice is set, so an auto disable is never a dead end: one tap turns the feature back on and clears the notice. A force quit during analysis is indistinguishable from a crash and trips the same guard, which is accepted; a cancelled analysis clears its marker and never does. The budget breach half of US-40.3 waits on measured budgets (US-37.5) and is not implemented.
+
 ## Tier B and Comparison (P6)
 
 Tier B is three movement events derived from the pose track alone: dyno, cut feet, and rest. All three are proxies, and the app says so wherever they appear. A dyno is a wrist speed peak above the threshold with real travel across the peak window, not proof that the hand left a hold. Cut feet is both ankle offsets below the hips shrinking by the threshold within the window while the body itself does not rise, not proof that the feet left the wall. A rest is a run of prepared track samples below the rest speed lasting at least the minimum, not proof of a shakeout. Hold contact is Pose v2 and needs hold detection or a homography, so Tier B never claims it.

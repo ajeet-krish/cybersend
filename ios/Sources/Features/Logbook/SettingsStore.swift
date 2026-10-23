@@ -31,12 +31,22 @@ public final class SettingsStore: ObservableObject {
     /// Compile time defaults for the variant merged with settings overrides (the
     /// flags.override key), same resolution as resolvedFlags.
     @Published public private(set) var flagValues: FlagValues
+    /// True after the pose pipeline was turned off by the crash guard at launch (US-40.3). The
+    /// Settings screen keeps its Experimental section visible while this is set, so the user can
+    /// turn the feature back on without the developer flags screen.
+    @Published public private(set) var poseWasAutoDisabled = false
 
     private let repos: Repositories
+    private let poseGuard: PoseCrashGuard
 
-    public init(repos: Repositories, variant: BuildVariant = .development) {
+    public init(
+        repos: Repositories,
+        variant: BuildVariant = .development,
+        poseGuard: PoseCrashGuard = PoseCrashGuard()
+    ) {
         self.repos = repos
         self.variant = variant
+        self.poseGuard = poseGuard
         self.flagValues = defaultFlags(for: variant)
         refresh()
     }
@@ -65,6 +75,7 @@ public final class SettingsStore: ObservableObject {
         }
         flagValues = (try? resolvedFlags(for: variant, settings: repos.settings))
             ?? defaultFlags(for: variant)
+        poseWasAutoDisabled = poseGuard.wasAutoDisabled
     }
 
     /// Persists the default gym immediately; nil removes the key (unset).
@@ -113,6 +124,10 @@ public final class SettingsStore: ObservableObject {
         }
         overrides[flag.rawValue] = enabled
         try repos.settings.setJSON(key: settingsKeyFlagOverrides, value: overrides)
+        // Turning the pose feature back on dismisses the crash guard's notice.
+        if flag == .aiPoseAnalysis, enabled {
+            poseGuard.clearAutoDisabled()
+        }
         refresh()
     }
 }

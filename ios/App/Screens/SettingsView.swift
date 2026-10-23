@@ -53,7 +53,7 @@ struct SettingsView: View {
             catalogSection
             appearanceSection
             photoSection
-            if settings.flags[.aiPoseAnalysis] {
+            if settings.flags[.aiPoseAnalysis] || settings.poseWasAutoDisabled {
                 experimentalSection
             }
             exportSection
@@ -234,6 +234,12 @@ struct SettingsView: View {
     /// analysis surfaces; clips and stored analyses are untouched.
     private var experimentalSection: some View {
         Section("Experimental") {
+            if settings.poseWasAutoDisabled {
+                Text("Video analysis was turned off after an analysis did not finish. Your clips and stored analyses are untouched. Turn it back on below to try again.")
+                    .font(.footnote)
+                    .foregroundStyle(Theme.warning)
+                    .accessibilityIdentifier("settings.pose-analysis.auto-disabled")
+            }
             Toggle("Video analysis", isOn: poseFlagBinding)
                 .accessibilityIdentifier("settings.pose-analysis")
             Text("On-device pose estimation behind a flag. The numbers are relative to the climber's body and unproven until the validation corpus exists. Turning this off hides the analysis screens; clips and stored analyses stay.")

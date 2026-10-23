@@ -77,6 +77,24 @@ struct MediaRepositoryTests {
         #expect(try test.repos.media.getVideo(id: video.id) == nil)
     }
 
+    @Test("crash recovery resets interrupted analyses to pending and leaves the rest alone")
+    func resetInterruptedPoseAnalyses() throws {
+        let test = try makeTestDatabase()
+        let interrupted = try test.repos.media.createVideo(CreateVideoInput(uri: "videos/a.mp4"))
+        let done = try test.repos.media.createVideo(CreateVideoInput(uri: "videos/b.mp4"))
+        let untouched = try test.repos.media.createVideo(CreateVideoInput(uri: "videos/c.mp4"))
+        try test.repos.media.updateVideo(id: interrupted.id, patch: UpdateVideoPatch(poseStatus: .set(.running)))
+        try test.repos.media.updateVideo(id: done.id, patch: UpdateVideoPatch(poseStatus: .set(.done)))
+
+        #expect(try test.repos.media.resetInterruptedPoseAnalyses() == 1)
+        #expect(try test.repos.media.getVideo(id: interrupted.id)?.poseStatus == .pending)
+        #expect(try test.repos.media.getVideo(id: done.id)?.poseStatus == .done)
+        #expect(try test.repos.media.getVideo(id: untouched.id)?.poseStatus == PoseStatus.none)
+
+        // A second pass at the same launch changes nothing.
+        #expect(try test.repos.media.resetInterruptedPoseAnalyses() == 0)
+    }
+
     @Test("pose keypoints list ordered by timestamp and cascade with the video")
     func poseKeypoints() throws {
         let test = try makeTestDatabase()

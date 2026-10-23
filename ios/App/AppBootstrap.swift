@@ -115,6 +115,14 @@ struct AppBootstrap {
                 try UITestSeed.seed(repos: repos, documentDirectory: documentDirectory)
                 #endif
             }
+            // Crash recovery (US-40.3): a pose marker left behind by a run that never finished
+            // turns the experimental flag off, and any row stuck on running is reset to pending.
+            // The row reset is unconditional because no analysis can be in flight at launch.
+            let poseRecovery = PoseCrashGuard().recoverIfNeeded()
+            _ = try? repos.media.resetInterruptedPoseAnalyses()
+            if poseRecovery.autoDisabled {
+                try? SettingsStore(repos: repos).setFlag(.aiPoseAnalysis, enabled: false)
+            }
             let flags = try resolvedFlags(for: variant, settings: repos.settings)
             let media = MediaServices.make(repos: repos, documentDirectory: documentDirectory)
             let environment = AppEnvironment(

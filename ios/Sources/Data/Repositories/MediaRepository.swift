@@ -172,6 +172,9 @@ public protocol MediaRepository: Sendable {
     func listVideos(options: ListVideosOptions) throws -> [Video]
     func updateVideo(id: String, patch: UpdateVideoPatch) throws
     func deleteVideo(id: String) throws
+    /// Crash recovery (US-40.3): resets rows stuck on running to pending at launch.
+    @discardableResult
+    func resetInterruptedPoseAnalyses() throws -> Int
     func addPoseKeypoint(_ input: AddPoseKeypointInput) throws -> PoseKeypoint
     func listPoseKeypoints(videoId: String) throws -> [PoseKeypoint]
 }
@@ -379,6 +382,19 @@ public struct GRDBMediaRepository: MediaRepository {
     public func deleteVideo(id: String) throws {
         try writer.write { db in
             try db.execute(sql: "DELETE FROM videos WHERE id = ?", arguments: [id])
+        }
+    }
+
+    /// Crash recovery (US-40.3): no analysis can be running at launch, so any row still marked
+    /// running belongs to a process that died mid run. Resets those rows to pending so the clip
+    /// reads as not analysed again, and returns how many rows changed.
+    @discardableResult
+    public func resetInterruptedPoseAnalyses() throws -> Int {
+        try writer.write { db in
+            try db.execute(
+                sql: "UPDATE videos SET pose_status = 'pending' WHERE pose_status = 'running'"
+            )
+            return db.changesCount
         }
     }
 

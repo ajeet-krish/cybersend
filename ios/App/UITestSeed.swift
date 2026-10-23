@@ -57,6 +57,13 @@ enum UITestSeed {
     /// attempts total, three sends, one flash, and heatmap markers on all three holds.
     @MainActor
     static func seed(repos: Repositories, documentDirectory: URL) throws {
+        // Seeded launches are deterministic. A pose marker or auto disable notice left by an
+        // earlier run on this simulator must not flip the experimental flag mid test, so both
+        // are cleared before the seed writes the pose override.
+        let poseGuard = PoseCrashGuard()
+        poseGuard.clear()
+        poseGuard.clearAutoDisabled()
+
         let gym = try repos.gyms.create(CreateGymInput(name: "Boulder Lab"))
         let climbOne = try repos.climbs.create(
             CreateClimbInput(
