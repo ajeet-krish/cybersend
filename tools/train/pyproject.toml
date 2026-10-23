@@ -25,6 +25,8 @@ hold-bake = "hold_train.bake_dataset:main"
 hold-train-smoke = "hold_train.train_smoke:main"
 hold-train-d1 = "hold_train.train_d1:main"
 hold-export = "hold_train.export_onnx:main"
+hold-export-coreml = "hold_train.export_coreml:main"
+hold-dense-eval = "hold_train.dense_eval:main"
 
 [build-system]
 requires = ["hatchling"]

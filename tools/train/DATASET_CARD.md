@@ -175,3 +175,50 @@ fine-tuning source). They are never merged into these splits:
    shift), fine-tune FROM the D1 baseline checkpoint and record the decision in
    docs/decisions.md; do not rebuild the merged dataset with own photos mixed
    in, or the domain benchmark is lost.
+
+### Dense measurement set (false positive and count error criteria)
+
+The false positive and count error criteria cannot be measured on this merged
+dataset: its labels omit holds, so correct detections count as false positives
+(docs/research.md, 2026-10-22). They need a dense set where every hold is
+labelled. For that purpose a single split directory is enough, because the model
+under test is fixed and no training or split selection happens:
+
+```bash
+cd tools/train
+# photos plus labelme JSONs in one folder, native resolution
+PYTHONPATH=src .venv/bin/python -m hold_train.dense_eval check --dir datasets/own_gym/dense/<session>
+PYTHONPATH=src .venv/bin/python -m hold_train.dense_eval build --dir datasets/own_gym/dense/<session>
+# then score it with the harness from tools/eval, no baking needed
+cd ../eval && npm run eval -- --model ../train/artifacts/holds_detector_d1.onnx \
+  --split-dir ../train/datasets/own_gym/dense/<session> --confidence 0.765
+```
+
+`hold-dense-eval build` writes `_annotations.coco.json` next to the photos,
+validates image and label size agreement, rejects anything that is not JPEG
+(the harness decodes with jpeg-js), drops degenerate shapes, flags duplicate
+boxes, and prints density statistics. A large share of boxes over 10,000 px2
+means coarse labelling, which breaks the metric the same way the public data
+does.
+
+Labelling protocol for this set:
+
+- Photograph the wall straight on with the whole wall in frame and no climbers.
+  JPEG only, native resolution, no resizing or cropping afterwards.
+- Label every hold visible, including volumes (the merged training data treats
+  volumes as hold), small screw-on holds, and footholds.
+- One tight axis-aligned box per hold, the minimal enclosing rectangle. Never
+  one box across several holds.
+- Skip a hold cut by the frame edge when less than about half of it is visible,
+  and apply that rule consistently across the whole set.
+- Do not label tape, chalk, route tags, wall structure, or climbers.
+- Double annotate 10 percent of the photos in a second folder and run
+  `hold-dense-eval disagree --a <dir-a> --b <dir-b>`; record the presence
+  disagreement (US-5 target: 5 percent or less).
+
+Sample size: false positives per image with N photos and observed mean m has a
+95 percent interval of roughly 1.96 times the square root of m divided by N. At
+m equal to 0.5 that is plus or minus 0.22 at 40 photos, 0.14 at 100, and 0.10 at
+200. A 40 photo proxy can separate 0.5 from 1.0, but only the full 200 photo set
+can confirm the 0.5 limit itself.
+

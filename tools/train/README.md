@@ -127,6 +127,8 @@ Console scripts (defined in pyproject.toml):
 | hold-train-smoke | train_smoke.py | parameterized RF-DETR-Nano trainer (kept for quick probes) |
 | hold-train-d1 | train_d1.py | D1 baseline: reads configs/rf_detr_d1.yaml, trains RF-DETR-Nano |
 | hold-export | export_onnx.py | checkpoint to ONNX opset 17 plus artifacts/manifest.json (`--id`, `--version`, `--purpose`) |
+| hold-export-coreml | export_coreml.py | checkpoint (or `--from-package`) to a Core ML mlpackage, with palettization or linear quantization |
+| hold-dense-eval | dense_eval.py | build, check, and double-annotation report for a dense own-gym eval split (`build`, `check`, `disagree`) |
 
 ## D1 preflight: one epoch (REQUIRES USER APPROVAL BEFORE RUNNING)
 
