@@ -38,7 +38,77 @@ from .parity_check import (
     _parity_metrics,
     _pick_images,
     _preprocess,
+    _sigmoid,
 )
+
+
+def _detections(
+    dets: np.ndarray,
+    labels: np.ndarray,
+    threshold: float,
+    resolution: int = 640,
+) -> list[tuple[float, float, float, float, float]]:
+    """Decode normalized cxcywh boxes plus hold logits into pixel xyxy detections."""
+    boxes = np.asarray(dets, dtype=np.float64)[0]
+    logits = np.asarray(labels, dtype=np.float64)[0]
+    scores = _sigmoid(logits[:, 0])
+    rows: list[tuple[float, float, float, float, float]] = []
+    for index in np.nonzero(scores >= threshold)[0]:
+        cx, cy, width, height = boxes[index]
+        rows.append(
+            (
+                float(scores[index]),
+                float((cx - width / 2) * resolution),
+                float((cy - height / 2) * resolution),
+                float((cx + width / 2) * resolution),
+                float((cy + height / 2) * resolution),
+            )
+        )
+    rows.sort(key=lambda row: -row[0])
+    return rows
+
+
+def _iou(a: tuple[float, float, float, float, float], b: tuple[float, float, float, float, float]) -> float:
+    """IoU of two (score, x1, y1, x2, y2) rows."""
+    ix1, iy1 = max(a[1], b[1]), max(a[2], b[2])
+    ix2, iy2 = min(a[3], b[3]), min(a[4], b[4])
+    inter = max(0.0, ix2 - ix1) * max(0.0, iy2 - iy1)
+    if inter <= 0:
+        return 0.0
+    area_a = max(0.0, a[3] - a[1]) * max(0.0, a[4] - a[2])
+    area_b = max(0.0, b[3] - b[1]) * max(0.0, b[4] - b[2])
+    union = area_a + area_b - inter
+    return inter / union if union > 0 else 0.0
+
+
+def _agreement(
+    reference: list[tuple[float, float, float, float, float]],
+    prediction: list[tuple[float, float, float, float, float]],
+    iou_threshold: float = 0.5,
+) -> dict[str, int]:
+    """Greedy match prediction detections to reference detections at IoU 0.5."""
+    claimed = [False] * len(reference)
+    matched = 0
+    for row in prediction:
+        best_index = -1
+        best_iou = iou_threshold
+        for index, ref in enumerate(reference):
+            if claimed[index]:
+                continue
+            overlap = _iou(row, ref)
+            if overlap >= best_iou:
+                best_iou = overlap
+                best_index = index
+        if best_index >= 0:
+            claimed[best_index] = True
+            matched += 1
+    return {
+        "matched": matched,
+        "extra": len(prediction) - matched,
+        "missing": len(reference) - matched,
+        "reference": len(reference),
+        "prediction": len(prediction),
+    }
 
 
 def _run_coreml(model: ct.models.MLModel, batch: np.ndarray) -> tuple[list[np.ndarray], float]:
@@ -75,6 +145,25 @@ def main() -> None:
         help="Core ML compute units for the runtime check",
     )
     parser.add_argument("--report", type=Path, default=None)
+    parser.add_argument(
+        "--agreement",
+        action="store_true",
+        help="also compare decoded detection sets (thresholded, greedy IoU 0.5 match), "
+        "which is what the app consumes; the per-query gate stays as reported",
+    )
+    parser.add_argument(
+        "--agreement-threshold",
+        type=float,
+        default=0.5,
+        help="hold score threshold for the detection agreement check",
+    )
+    parser.add_argument(
+        "--agreement-tolerance",
+        type=float,
+        default=0.02,
+        help="maximum share of reference detections that may change (extra plus "
+        "missing) for the agreement gate to pass; only used with --agreement",
+    )
     args = parser.parse_args()
 
     units = getattr(ct.ComputeUnit, args.compute_units)
@@ -90,6 +179,7 @@ def main() -> None:
     max_score_diff = 0.0
     max_active_box_diff = 0.0
     latencies: list[float] = []
+    agreement_totals = {"matched": 0, "extra": 0, "missing": 0, "reference": 0, "prediction": 0}
 
     print(f"mlpackage={args.mlpackage.name} images={len(images)} units={args.compute_units} "
           f"tolerance={args.tolerance:g}")
@@ -102,14 +192,38 @@ def main() -> None:
         decision = metrics["decision"]
         max_score_diff = max(max_score_diff, float(decision["max_hold_score_diff"]))
         max_active_box_diff = max(max_active_box_diff, float(decision["max_active_box_diff"]))
-        rows.append({"image": image_path.name, **metrics, "coreml_ms": latency_ms})
-        print(
-            f"  {image_path.name}: score_diff={decision['max_hold_score_diff']:.3e} "
-            f"active_box_diff={decision['max_active_box_diff']:.3e} "
-            f"active={decision['active_queries']} coreml={latency_ms:.1f}ms"
-        )
+        row: dict[str, Any] = {"image": image_path.name, **metrics, "coreml_ms": latency_ms}
+        if args.agreement:
+            onnx_map = dict(zip(output_names, onnx_outs))
+            coreml_map = dict(zip(output_names, coreml_outs))
+            reference = _detections(onnx_map["dets"], onnx_map["labels"], args.agreement_threshold)
+            prediction = _detections(coreml_map["dets"], coreml_map["labels"], args.agreement_threshold)
+            agreement = _agreement(reference, prediction)
+            row["agreement"] = agreement
+            for key in agreement_totals:
+                agreement_totals[key] += agreement[key]
+            print(
+                f"  {image_path.name}: score_diff={decision['max_hold_score_diff']:.3e} "
+                f"active_box_diff={decision['max_active_box_diff']:.3e} "
+                f"active={decision['active_queries']} coreml={latency_ms:.1f}ms "
+                f"dets ref={agreement['reference']} pred={agreement['prediction']} "
+                f"matched={agreement['matched']} extra={agreement['extra']} missing={agreement['missing']}"
+            )
+        else:
+            print(
+                f"  {image_path.name}: score_diff={decision['max_hold_score_diff']:.3e} "
+                f"active_box_diff={decision['max_active_box_diff']:.3e} "
+                f"active={decision['active_queries']} coreml={latency_ms:.1f}ms"
+            )
+        rows.append(row)
 
-    passed = max_score_diff <= args.tolerance and max_active_box_diff <= args.tolerance
+    if args.agreement:
+        total_ref = max(1, agreement_totals["reference"])
+        changed_share = (agreement_totals["extra"] + agreement_totals["missing"]) / total_ref
+        passed = changed_share <= args.agreement_tolerance
+    else:
+        changed_share = None
+        passed = max_score_diff <= args.tolerance and max_active_box_diff <= args.tolerance
     summary = {
         "runtime": "coreml",
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -120,6 +234,8 @@ def main() -> None:
         "tolerance": args.tolerance,
         "score_threshold": args.score_threshold,
         "passed": passed,
+        "gate": "detection agreement" if args.agreement else "per-query decision space",
+        "agreement_tolerance": args.agreement_tolerance if args.agreement else None,
         "decision": {
             "max_hold_score_diff": max_score_diff,
             "max_active_box_diff": max_active_box_diff,
@@ -129,6 +245,8 @@ def main() -> None:
             "min": min(latencies),
             "max": max(latencies),
         },
+        "agreement": agreement_totals if args.agreement else None,
+        "agreement_changed_share": changed_share,
         "detail": rows,
     }
     report_path = args.report or (ARTIFACTS_DIR / "parity_coreml_rfdetr_d1.json")
@@ -138,7 +256,21 @@ def main() -> None:
     print(f"  decision max_hold_score_diff={max_score_diff:.6e} max_active_box_diff={max_active_box_diff:.6e}")
     print(f"  coreml latency median={statistics.median(latencies):.1f}ms "
           f"min={min(latencies):.1f}ms max={max(latencies):.1f}ms ({args.compute_units})")
-    print(f"{'PASS' if passed else 'FAIL'} (tolerance {args.tolerance:g})")
+    if args.agreement:
+        print(
+            f"  detection agreement: reference={agreement_totals['reference']} "
+            f"prediction={agreement_totals['prediction']} matched={agreement_totals['matched']} "
+            f"extra={agreement_totals['extra']} missing={agreement_totals['missing']} "
+            f"changed_share={(changed_share or 0.0):.4%} (limit {args.agreement_tolerance:.2%})"
+        )
+        print(
+            f"  per-query diagnostic (not the gate): max_hold_score_diff={max_score_diff:.3e} "
+            f"max_active_box_diff={max_active_box_diff:.3e}"
+        )
+    print(
+        f"{'PASS' if passed else 'FAIL'} "
+        f"({'detection agreement' if args.agreement else f'tolerance {args.tolerance:g}'})"
+    )
     print(f"report written to {report_path}")
     raise SystemExit(0 if passed else 1)
 

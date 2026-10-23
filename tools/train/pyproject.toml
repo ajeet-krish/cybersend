@@ -10,6 +10,12 @@ dependencies = [
     "pyyaml>=6.0,<7.0",
 ]
 
+[project.optional-dependencies]
+# Core ML export, weight compression, and runtime parity checks. Installed
+# separately from training: uv sync --extra coreml. scikit-learn is pinned
+# below 1.6 because coremltools 9 supports up to 1.5.1 and warns otherwise.
+coreml = ["coremltools>=8,<10", "scikit-learn>=1.5,<1.6"]
+
 [project.scripts]
 hold-download = "hold_train.dataset_download:main"
 hold-convert = "hold_train.labelme_to_coco:main"

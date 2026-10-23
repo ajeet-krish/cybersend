@@ -635,47 +635,80 @@ The harness-versus-in-loop mAP gap also shrank to noise at D1: RF-DETR scores
 COCO mAP50 (a VOC versus COCO interpolation difference, plus NMS details).
 The open reconciliation item in the eval README is effectively closed for D1.
 
-## Core ML export and parity (D1, 2026-10-21)
+## Core ML export, compression, and runtime evaluation (2026-10-22)
 
-Feasibility path, not a shipment path. rfdetr 1.11.2 ships a Core ML exporter
-that rewrites deformable attention into a rank 5 path, so the two GridSample
-nodes that were the historical Apple backend blocker do not block conversion.
-The exporter pins minimum deployment target to iOS16 (the app floor) and expects
-the same ImageNet normalization and 1x3x640x640 input as ONNX.
+rfdetr 1.11.2 ships a Core ML exporter that rewrites deformable attention into a
+rank 5 path, so the two GridSample nodes that were the historical Apple backend
+blocker do not block conversion. The exporter pins the minimum deployment target
+to iOS16 (the app floor) and expects the same ImageNet normalization and
+1x3x640x640 input as ONNX.
+
+Core ML tooling lives in an optional extra, because it is not needed for training:
 
 ```bash
 cd tools/train
-
-# Conversion (float32 package, optional uniform weight compression).
-PYTHONPATH=src .venv/bin/python -m hold_train.export_coreml \
-  --checkpoint artifacts/train_rf_detr_d1/checkpoint_best_total.pth \
-  --output-dir artifacts/coreml_rfdetr_d1 --precision float32 --palettize-bits 8 4
-
-# Parity against the canonical ONNX graph (val only, never the test split).
-PYTHONPATH=src .venv/bin/python -m hold_train.parity_coreml \
-  --mlpackage artifacts/coreml_rfdetr_d1/rfdetr-nano_fp32.mlpackage \
-  --onnx artifacts/holds_detector_d1.onnx --count 5 --compute-units CPU_ONLY
+uv sync --extra coreml    # coremltools 9 plus scikit-learn 1.5 (k-means palettization)
 ```
 
-`parity_coreml.py` reuses the torch parity decision space (hold scores and boxes
-of queries above 0.5, tolerance 1e-3) and maps the package outputs by shape
-(`concat_2` dets, `linear_102` labels) rather than by position. It adds a
-`--compute-units` switch: CPU_ONLY for a deterministic numeric check, ALL to
-exercise the ANE path.
+```bash
+# Conversion from the checkpoint (float32 package).
+PYTHONPATH=src .venv/bin/python -m hold_train.export_coreml \
+  --checkpoint artifacts/train_rf_detr_d1/checkpoint_best_total.pth \
+  --output-dir artifacts/coreml_rfdetr_d1 --precision float32
 
-Measured on this machine (M5, five val images; details in docs/research.md):
+# Compress an existing package without re-exporting (the fast path).
+# k-means per tensor is the best scheme at iOS16; uniform is measurably worse.
+PYTHONPATH=src .venv/bin/python -m hold_train.export_coreml \
+  --from-package artifacts/coreml_rfdetr_d1/rfdetr-nano_fp16.mlpackage \
+  --output-dir artifacts/coreml_rfdetr_d1 \
+  --palettize-bits 8 --palettize-mode kmeans
 
-| Package | Size | Parity | Notes |
-|---|---|---|---|
-| float32 | 104.4 MB | PASS 8.31e-4 score, 8.79e-7 box | ANE path also passes; 43.6 ms median warm, 4.16 s first call |
-| float16 | 51.6 MB | FAIL 2.96e-1 score | detection count preserved on the sensitive image, one active box moves 0.59 |
-| int8, 8 bit palettized | 26 MB | FAIL 4.54e-1 score | 2 of 56 detections lost on the sensitive image |
-| int4, 4 bit palettized | 13 MB | FAIL 9.77e-1 score | non-finite boxes, all 56 detections lost |
+# Optional: per-channel linear quantization instead of palettization.
+PYTHONPATH=src .venv/bin/python -m hold_train.export_coreml \
+  --from-package artifacts/coreml_rfdetr_d1/rfdetr-nano_fp16.mlpackage \
+  --quantize-bits 8
 
-Compressed packages are measurement artifacts only. The only parity-clean
-package is 104.4 MB, so Core ML does not resolve the 15 MB budget. Compression
-modes in coremltools are KMEANS (needs scikit-learn), UNIFORM, UNIQUE, CUSTOM;
-the recorded variants used UNIFORM on a float16 package.
+# Fast screen: decode both runtimes into detection sets, match at IoU 0.5.
+PYTHONPATH=src .venv/bin/python -m hold_train.parity_coreml \
+  --mlpackage artifacts/coreml_rfdetr_d1/rfdetr-nano_int8kmeanstensor.mlpackage \
+  --onnx artifacts/holds_detector_d1.onnx --count 40 --agreement
+
+# Acceptance test: score the package and the ONNX graph over all of val.
+PYTHONPATH=src .venv/bin/python -m hold_train.eval_coreml \
+  --mlpackage artifacts/coreml_rfdetr_d1/rfdetr-nano_int8kmeanstensor.mlpackage \
+  --onnx artifacts/holds_detector_d1.onnx --confidence 0.765
+```
+
+`parity_coreml.py` maps the package outputs by shape (`concat_2` dets,
+`linear_102` labels) rather than by position and adds a `--compute-units` switch
+(CPU_ONLY for a deterministic numeric check, ALL for the ANE path). The original
+per-query gate maximizes over all 300 queries, including background queries that
+flip across the threshold, so it is a diagnostic now. With `--agreement` the gate
+becomes the share of reference detections that change (extra plus missing,
+default limit 2%), which is what a deployment decision needs.
+
+`eval_coreml.py` is the real acceptance test: it runs the package and the ONNX
+graph over a COCO split with the harness decoder and matcher and prints
+precision, recall, mAP@0.5, false positives per image, and median count error for
+both. It refuses a split named `test`.
+
+Full val, 591 images, confidence 0.765, CPU_AND_NE on the M5 (details in
+docs/research.md):
+
+| Package | Size | Precision | Recall | mAP@0.5 | FP per image | Count error | Latency |
+|---|---|---|---|---|---|---|---|
+| ONNX float32, canonical | 109 MB | 0.9828 | 0.8085 | 0.9242 | 0.5465 | 3 | |
+| Core ML float32 | 104.4 MB | 0.9828 | 0.8085 | 0.9242 | 0.5465 | 3 | 94.8 ms |
+| Core ML float16 | 51.6 MB | 0.9826 | 0.8009 | 0.9174 | 0.5448 | 3 | 36.7 ms |
+| Core ML int8, k-means | 26.4 MB | 0.9822 | 0.7996 | 0.9167 | 0.5567 | 3 | 36.2 ms |
+| Core ML int8, uniform | 26.0 MB | 0.9831 | 0.7587 | 0.9063 | 0.5008 | 5 | 37.5 ms |
+| Core ML int4, k-means | 13.4 MB | unusable, 7 detections against 324 | | | | | |
+
+The 15 MB budget is unmet at iOS16: int4 per tensor destroys the model, and both
+grouped-channel palettization and int4 linear quantization require iOS18, which
+the rfdetr exporter cannot target. The smallest usable package is 26.4 MB int8
+k-means, at 0.13 recall points more than float16. The budget decision is in
+docs/decisions.md; device latency, memory, and thermals remain unmeasured.
 
 ## Preprocess parity with the app
 

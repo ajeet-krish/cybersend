@@ -224,6 +224,15 @@ precision, recall, and mAP thresholds are unaffected as relative signals.
 - Battery: 50 consecutive detections drain <= 5% on a healthy battery.
 - Hard ceiling: any single inference exceeding 5 s is cancelled and falls back to manual.
 
+**Status (Core ML compression, 2026-10-22).** The 15 MB bundled budget is unmet
+at the iOS16 floor. The smallest usable package is int8 k-means at 26.4 MB, which
+costs 0.13 recall points more than float16 at half the size; Core ML float32 is
+decision-identical to the ONNX graph. int4 per tensor is unusable, and grouped
+palettization and int4 linear quantization require iOS18, which the current
+exporter cannot target. Full numbers in docs/research.md; the budget decision is
+recorded in docs/decisions.md. Latency and memory below are still measured only
+on the M5 host, not on an A13 device.
+
 ### Phase 3: Grade normalization
 - Synthetic fixture (5 gyms x 40 climbs x 100 attempts with injected latent difficulties): Spearman rank correlation between recovered and true difficulty >= 0.90.
 - Translator round-trip exact for mapped levels; unmapped levels return null, never a guess.

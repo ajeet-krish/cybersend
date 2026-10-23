@@ -547,3 +547,72 @@ instances, double annotation), where every hold on the wall is labelled with a
 tight box. Until that set exists, those two criteria are unmeasured rather than
 failed, and the D1 and D1b false positive numbers should not be compared against
 the 0.5 limit.
+
+## 2026-10-22 - Core ML compression revisited: the gate was wrong, not the quantization
+
+Why: the 2026-10-21 Core ML entry recorded that float16, int8, and int4 packages
+all fail the decision-space parity gate, which made the 15 MB budget look
+unreachable for reasons of numeric sensitivity. Re-running the analysis found
+two problems with that conclusion.
+
+First, the per-query gate is not a decision metric. It takes the maximum hold
+score difference over all 300 queries and the maximum box difference over
+queries above the threshold on either side. Background queries sit near a sigmoid
+of 0.5 and flip across the threshold on tiny numeric changes, and their boxes
+carry no meaning, so a package can fail the gate while producing the same
+detections. At 40 val images the float16 package shows a maximum score
+difference of 0.845 and still agrees on 1300 of 1306 detections.
+
+Second, the compression study was built on the float16 package, and float16
+already fails the per-query gate. Every palettized variant inherited that
+failure, so the comparison measured the base rather than the compression.
+
+Two tools close the gap. parity_coreml.py --agreement decodes both runtimes into
+detection sets and matches them greedily at IoU 0.5, which is the screen.
+eval_coreml.py runs a package and the ONNX graph over a whole split with the same
+decoder and matcher as the harness and reports precision, recall, mAP, false
+positives per image, and median count error for both, which is the acceptance
+test. export_coreml.py gained --from-package to compress an existing package
+without re-exporting, --quantize-bits for per-channel linear quantization, and
+--palettize-mode, --palettize-granularity, --palettize-group-size, and
+--palettize-per-channel-scale.
+
+Full val, 591 images, confidence 0.765, IoU 0.5, Core ML CPU_AND_NE on the M5:
+
+| Package | Size | Precision | Recall | mAP@0.5 | FP per image | Count error | Median latency |
+|---|---|---|---|---|---|---|---|
+| ONNX float32, canonical | 109 MB | 0.9828 | 0.8085 | 0.9242 | 0.5465 | 3 | |
+| Core ML float32 | 104.4 MB | 0.9828 | 0.8085 | 0.9242 | 0.5465 | 3 | 94.8 ms |
+| Core ML float16 | 51.6 MB | 0.9826 | 0.8009 | 0.9174 | 0.5448 | 3 | 36.7 ms |
+| Core ML int8, k-means, per tensor | 26.4 MB | 0.9822 | 0.7996 | 0.9167 | 0.5567 | 3 | 36.2 ms |
+| Core ML int8, uniform, per tensor | 26.0 MB | 0.9831 | 0.7587 | 0.9063 | 0.5008 | 5 | 37.5 ms |
+| Core ML int8, per-channel linear | 26.0 MB | not scored, 12.0% of detections change | | | | | |
+| Core ML int4, k-means, per tensor | 13.4 MB | unusable, 7 detections against 324 | | | | | |
+
+The ONNX row here differs from the harness report by about 0.003 recall because
+onnxruntime Python and onnxruntime-node decode and match at float64 versus
+float32; the two runtimes are scored by the same matcher inside eval_coreml, so
+the deltas are what matter.
+
+Reading:
+
+- The Core ML float32 conversion is decision-identical to ONNX: zero difference
+  on every metric. The conversion path is sound, and all loss comes from weight
+  precision.
+- float16 costs 0.76 points of recall and 0.68 of mAP. That is the price of the
+  format, not of compression.
+- int8 k-means per tensor costs 0.13 more recall points than float16 for half the
+  size, so it is the best size and accuracy trade at the iOS16 floor.
+- int8 uniform is a bad scheme on these weights: 5 points of recall and 2 counts
+  of error worse than k-means at the same size. The earlier "int8 fails" result
+  was uniform palettization, not int8 as such.
+- int4 per tensor destroys the model, and both grouped-channel palettization and
+  int4 linear quantization raise "supported since iOS18". The rfdetr exporter
+  pins iOS16 and exposes no deployment target, so reaching 13 MB needs a custom
+  exporter and an iOS18 floor.
+
+Consequence: the smallest usable RF-DETR package at the iOS16 floor is 26.4 MB
+int8 k-means, which misses the 15 MB bundled budget by 11 MB. The budget cannot
+be met by compression settings at iOS16. The options are a budget change to about
+30 MB, an iOS18 floor plus a custom exporter, or the YOLOX-S branch at about 9 MB
+with its own accuracy profile.
