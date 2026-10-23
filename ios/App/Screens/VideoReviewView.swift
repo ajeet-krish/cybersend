@@ -76,6 +76,18 @@ struct VideoReviewView: View {
         }
         .navigationTitle("Clip")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                if let metrics, metrics.cameraClass.supportsComparison {
+                    NavigationLink {
+                        CompareView(services: services, preselectedId: videoId)
+                    } label: {
+                        Text("Compare")
+                    }
+                    .accessibilityIdentifier("video.compare")
+                }
+            }
+        }
         .accessibilityIdentifier("video.review.screen")
         .onAppear {
             loadResults()
@@ -498,7 +510,41 @@ private struct ClipPlayerCard: View {
                     onSeek: { player.seek(toMs: $0) }
                 )
                 .padding(.top, 10)
+                markerLegend(metrics)
+                    .padding(.top, 6)
             }
+        }
+    }
+
+    /// Only the marker kinds this clip actually has, so a clean attempt does not carry a legend
+    /// for events that never happened.
+    @ViewBuilder
+    private func markerLegend(_ metrics: TierAMetrics) -> some View {
+        HStack(spacing: 12) {
+            if !metrics.fallEvents.isEmpty {
+                legendItem(color: Theme.danger, label: "Fall")
+            }
+            if !metrics.dynoEvents.isEmpty {
+                legendItem(color: Theme.warning, label: "Dyno")
+            }
+            if !metrics.cutFeetEvents.isEmpty {
+                legendItem(color: Theme.info, label: "Cut feet")
+            }
+            if !metrics.restEvents.isEmpty {
+                legendItem(color: Theme.tertiaryText, label: "Rest")
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func legendItem(color: Color, label: String) -> some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(color)
+                .frame(width: 6, height: 6)
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(Theme.tertiaryText)
         }
     }
 

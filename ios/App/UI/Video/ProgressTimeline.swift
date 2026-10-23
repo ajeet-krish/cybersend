@@ -64,6 +64,19 @@ struct ProgressTimeline: View {
             with: .color(Theme.accent.opacity(0.14))
         )
 
+        // Rest bands: still time inside the attempt, drawn under the curve.
+        for rest in metrics.restEvents {
+            let start = x(for: rest.startMs)
+            let end = x(for: rest.endMs ?? rest.startMs)
+            let rect = CGRect(
+                x: start,
+                y: top,
+                width: max(1.5, end - start),
+                height: height
+            )
+            context.fill(Path(rect), with: .color(Theme.tertiaryText.opacity(0.18)))
+        }
+
         // Baseline.
         var baseline = Path()
         baseline.move(to: CGPoint(x: 0, y: bottom))
@@ -101,6 +114,24 @@ struct ProgressTimeline: View {
             marker.addLine(to: CGPoint(x: center + 4, y: bottom - 9))
             marker.closeSubpath()
             context.fill(marker, with: .color(Theme.danger))
+        }
+
+        // Tier B markers sit on the top edge so they never collide with the fall triangles.
+        // A dyno is a diamond, cut feet a square, and a rest is the band drawn above.
+        for dyno in metrics.dynoEvents {
+            let center = x(for: dyno.startMs)
+            var marker = Path()
+            marker.move(to: CGPoint(x: center, y: top))
+            marker.addLine(to: CGPoint(x: center + 4, y: top + 4))
+            marker.addLine(to: CGPoint(x: center, y: top + 8))
+            marker.addLine(to: CGPoint(x: center - 4, y: top + 4))
+            marker.closeSubpath()
+            context.fill(marker, with: .color(Theme.warning))
+        }
+        for cutFeet in metrics.cutFeetEvents {
+            let center = x(for: cutFeet.startMs)
+            let rect = CGRect(x: center - 3.5, y: top, width: 7, height: 7)
+            context.fill(Path(rect), with: .color(Theme.info))
         }
 
         // Playhead.

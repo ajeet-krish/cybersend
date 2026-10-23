@@ -12,6 +12,7 @@ import SwiftUI
 
 struct CompareView: View {
     let services: AppServices
+    private let preselectedId: String?
 
     @StateObject private var store: VideoAnalysisStore
     @State private var leftId: String?
@@ -20,8 +21,9 @@ struct CompareView: View {
     @State private var rightMetrics: TierAMetrics?
     @State private var loadError: String?
 
-    init(services: AppServices) {
+    init(services: AppServices, preselectedId: String? = nil) {
         self.services = services
+        self.preselectedId = preselectedId
         _store = StateObject(wrappedValue: VideoAnalysisStore(
             repositories: services.repos,
             storage: services.media.storage
@@ -83,6 +85,10 @@ struct CompareView: View {
         .accessibilityIdentifier("compare.screen")
         .onAppear {
             store.refresh()
+            if leftId == nil, let preselectedId,
+               analysableClips.contains(where: { $0.id == preselectedId }) {
+                leftId = preselectedId
+            }
             loadMetrics()
         }
         .onChange(of: leftId) { _ in
