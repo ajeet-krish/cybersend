@@ -342,6 +342,7 @@ hypotheses.
 | App unit tests, 25 tests | xcodebuild test -only-testing:CyberSendAppTests | PASS |
 | Session media and clip review UI smokes | xcodebuild test -only-testing:CyberSendUITests/SessionMediaSmokeTests -only-testing:CyberSendUITests/VideoReviewSmokeTests | PASS |
 | Clip review UI smoke after the Tier B legend and compare toolbar | xcodebuild test -only-testing:CyberSendUITests/VideoReviewSmokeTests | PASS |
+| One tap in Settings turns the experimental pose flag off and hides the section | xcodebuild test -only-testing:CyberSendUITests/SettingsCatalogSmokeTests | PASS |
 
 The 10k attempt stats budget test (US-23.5, 100 ms) measured 117 ms on 2026-10-22 while the machine
 carried a load average above 7 from unrelated training runs. It passes when the machine is idle and

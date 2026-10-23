@@ -169,7 +169,7 @@ The compare screen loads metrics for two chosen clips through `VideoAnalysisStor
 
 ## Feature Flags
 
-Development, Internal, Release xcconfig defaults merged with settings overrides (settingsKeyFlagOverrides). BoulderVision hard gated in release; ai_hold_detection and ai_pose_analysis ship off. M3 adds no flags; the Debug only synthetic capture and seeding paths are compiled by DEVELOPMENT and unreachable in Internal and Release.
+Development, Internal, Release xcconfig defaults merged with settings overrides (settingsKeyFlagOverrides). BoulderVision hard gated in release; ai_hold_detection and ai_pose_analysis ship off. While ai_pose_analysis is on, Settings grows an Experimental section with an explicit label and a one-tap off switch, so the feature can be disabled without the developer flags screen (US-40.2). Turning it off hides the analysis screens and leaves clips and stored analyses untouched. M3 adds no flags; the Debug only synthetic capture and seeding paths are compiled by DEVELOPMENT and unreachable in Internal and Release.
 
 ## Backup and Export
 

@@ -53,6 +53,9 @@ struct SettingsView: View {
             catalogSection
             appearanceSection
             photoSection
+            if settings.flags[.aiPoseAnalysis] {
+                experimentalSection
+            }
             exportSection
             backupSection
             #if !RELEASE
@@ -224,6 +227,34 @@ struct SettingsView: View {
                 .foregroundStyle(Theme.secondaryText)
                 .accessibilityIdentifier("settings.storage.note")
         }
+    }
+
+    /// The pose feature is experimental, so it gets a visible label and a one-tap off switch
+    /// here rather than only in the developer flags screen (US-40.2). Turning it off hides the
+    /// analysis surfaces; clips and stored analyses are untouched.
+    private var experimentalSection: some View {
+        Section("Experimental") {
+            Toggle("Video analysis", isOn: poseFlagBinding)
+                .accessibilityIdentifier("settings.pose-analysis")
+            Text("On-device pose estimation behind a flag. The numbers are relative to the climber's body and unproven until the validation corpus exists. Turning this off hides the analysis screens; clips and stored analyses stay.")
+                .font(.footnote)
+                .foregroundStyle(Theme.secondaryText)
+                .accessibilityIdentifier("settings.pose-analysis.explain")
+        }
+    }
+
+    private var poseFlagBinding: Binding<Bool> {
+        Binding(
+            get: { settings.flags[.aiPoseAnalysis] },
+            set: { enabled in
+                do {
+                    try settings.setFlag(.aiPoseAnalysis, enabled: enabled)
+                    actionError = nil
+                } catch {
+                    actionError = error.localizedDescription
+                }
+            }
+        )
     }
 
     private var exportSection: some View {
